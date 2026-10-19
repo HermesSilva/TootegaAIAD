@@ -1,0 +1,5 @@
+# cmd.exe needs CRLF in batch files (labels and goto break with LF)
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.png binary
+*.usda text
