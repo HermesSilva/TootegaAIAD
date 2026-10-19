@@ -38,6 +38,9 @@ struct CommandOutput
     std::vector<Image> images;
     std::function<void()> undo, redo;
     std::string label;               // history entry ("Set bore = 82 mm")
+    // Work that needs no document (a simulation run): it completes the output. Execute runs it at once;
+    // ExecuteDeferred leaves it to the caller, which may run it on another thread.
+    std::function<void(CommandOutput&)> background;
 
     static CommandOutput Fail(std::string message)
     {
@@ -89,6 +92,7 @@ public:
     // Main thread only. Validates the arguments against the schema (required keys, types, ranges),
     // runs the handler, records the transaction and the audit entry.
     CommandOutput Execute(const std::string& name, const Json& args, const std::string& actor);
+    CommandOutput ExecuteDeferred(const std::string& name, const Json& args, const std::string& actor);
 
     bool CanUndo() const { return m_cursor > 0; }
     bool CanRedo() const { return m_cursor < m_history.size(); }

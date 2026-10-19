@@ -101,6 +101,15 @@
   only `aiad_ui` includes ImGui.
 - `aiad_ai` knows nothing about geometry: it reaches the model only through MCP → Bridge → Command Bus.
 - All `UsdStage` mutation happens on the **main thread**; other threads post to the main-thread queue.
+  The UI must never wait (owner, 2026-10-19): the main thread does only short steps. The document caches what
+  is derived from each part's solid (display mesh, mass, bounds, cuts) by shape revision; the view rewrites
+  changed parts in slices (`DocumentScene::Update`, ~10 ms per frame); the machine study is rebuilt after the
+  view caught up; agent requests wait (on the bridge thread) until then; pure computation of a command goes
+  to `CommandOutput::background` and runs on the bridge's thread. SMLib is not thread-safe: kernel calls stay
+  on the main thread.
+  The live simulation runs on its own thread (\Session::Work\, batches under \Session::Lock\; readers are
+  handed the lock between batches); the magneto field table solves its angles on every core (one MFEM
+  problem per thread: MFEM keeps assembly scratch state in the mesh). A mechanism step itself is sequential.
 - Long operations (simulation) are **async commands** (job id, progress, cancel).
 - Stream parsing is version-tolerant: unknown events are ignored, never fatal.
 
@@ -157,6 +166,8 @@ GitLab). In every fork:
 - **Aurora fork (`aurora-4AIAD`) fixes to keep:** type-checked primvar reads in `HdAuroraMesh`;
   `addInstances` comparison (hidden meshes on moving bodies crashed); `PTRenderBuffer::data()` must not
   return the padded GPU row pitch (host copy is tight). Readers use width x pixel size, never `GetStride()`.
+  Motion vectors of moving instances (previous-frame transform per instance in `gTransformMatrixBuffer`):
+  without them the denoiser smears every part that moves in a running simulation.
 - **Documents and the kernel:** models live in `models/*.usda` (built by `models/*.aiad.json` command
   scripts with `aiad-model build`); geometry only through `src/aiad_kernel` (the one SMLib user, C++17).
   Static OpenUSD reads `PXR_PLUGINPATH_NAME` at process start: tests call `PlugRegistry::RegisterPlugins`;

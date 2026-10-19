@@ -91,6 +91,8 @@ struct PartInfo
     std::string error;               // last regeneration error (empty = ok)
 };
 
+struct ParameterSolver;
+
 class Document
 {
 public:
@@ -167,7 +169,14 @@ public:
     bool DeleteElement(const std::string& name, std::string& error);
 
     // ---- Geometry ----
+    // The exact solid of a part and what is derived from it (display mesh, mass properties), cached until
+    // the part's solid is rebuilt; ShapeRevision changes every time it is (0: no solid).
     const kernel::Solid* Shape(const pxr::SdfPath& part) const;
+    uint64_t ShapeRevision(const pxr::SdfPath& part) const;
+    const kernel::Mesh* DisplayMesh(const pxr::SdfPath& part) const;   // 0.05 mm chord, 8 deg
+    bool Bounds(const pxr::SdfPath& part, kernel::Vec3& minimum, kernel::Vec3& maximum) const;   // part frame
+    // Volume of the part beyond the plane through `point` (part frame) on the side `normal` points to (exact cut).
+    double VolumeBeyond(const pxr::SdfPath& part, const kernel::Vec3& point, const kernel::Vec3& normal) const;
     bool Mass(const pxr::SdfPath& part, kernel::MassProperties& out, std::string& error) const;
     bool Regenerate(const pxr::SdfPath& part, std::string& error);
     // Every part; returns the failures (part name -> message).
@@ -192,8 +201,29 @@ private:
     pxr::UsdStageRefPtr m_stage;
     pxr::SdfPath m_root;
     std::string m_path;
-    std::map<pxr::SdfPath, kernel::Solid> m_shapes;
+    struct ShapeEntry
+    {
+        kernel::Solid solid;
+        uint64_t revision = 0;
+        mutable std::shared_ptr<kernel::Mesh> mesh;
+        mutable std::optional<kernel::MassProperties> unitMass;   // density 1 (scaled by the material's)
+        mutable std::optional<std::pair<kernel::Vec3, kernel::Vec3>> bounds;
+        mutable std::map<std::array<double, 6>, double> cuts;
+    };
+    void SetShape(const pxr::SdfPath& path, kernel::Solid solid);
+    std::map<pxr::SdfPath, ShapeEntry> m_shapes;
+    uint64_t m_shapeCounter = 0;
     uint64_t m_revision = 0;
+    // Parameters parsed and evaluated once per change of the parameter table (the panels and the study
+    // read them thousands of times).
+    uint64_t m_parameterRevision = 1;
+    mutable uint64_t m_cachedParameters = 0;
+    mutable std::vector<Parameter> m_parameterList;
+    mutable std::shared_ptr<ParameterSolver> m_solver;
+    void CacheParameters() const;
+    uint64_t m_materialRevision = 1;
+    mutable uint64_t m_cachedMaterials = 0;
+    mutable std::vector<Material> m_materialList;
 };
 
 // Valid prim name from a display name ("Crank web (magneto side)" -> "Crank_web_magneto_side").

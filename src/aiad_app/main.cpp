@@ -628,6 +628,18 @@ void SimulationPanel(Session& session)
         ImGui::SetNextItemWidth(220);
         if (ImGui::SliderFloat("time scale", &speed, 0.002f, 1.0f, "%.3fx", ImGuiSliderFlags_Logarithmic))
             session.timeScale = speed;
+        if (session.running && session.achievedScale > 0.0 && session.achievedScale < 0.9 * session.timeScale)
+        {
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.98f, 0.75f, 0.25f, 1), "running at %.3fx (the computer cannot keep up with %.3fx)", session.achievedScale.load(),
+                               session.timeScale.load());
+        }
+        const auto lock = session.Lock();
+        if (!session.machine)
+        {
+            ImGui::End();
+            return;
+        }
         const sim::machine::Machine& machine = *session.machine;
         const sim::mb::Multibody& mb = machine.Mechanism();
         const sim::mb::Model& model = session.study.machine.mechanism;
@@ -695,6 +707,7 @@ void SimulationPanel(Session& session)
 void Plots(Session& session)
 {
     ImGui::Begin("Plots");
+    const auto lock = session.Lock();
     if (!session.machine || session.channels.empty())
     {
         ImGui::TextDisabled("Run the machine to plot it.");
@@ -944,6 +957,7 @@ int SnapshotDocument(const char* pngPath, const char* documentPath, const std::s
     else
         std::printf("%s\nthe drawing at rest\n", session.studyError.c_str());
     app::DocumentScene scene(*session.document, environment);
+    scene.Update(1e9);
     scene.SetMotion(session.Motion());
     render::HydraViewport viewport;
     viewport.SetStage(session.document->Stage());
@@ -989,6 +1003,7 @@ int Snapshot(const char* pngPath, const std::string& cacheFolder, const std::str
                     session.machine->Chamber(c).peakPressure / 1e5);
 
     app::DocumentScene scene(*session.document, environment);
+    scene.Update(1e9);
     std::printf("view of the drawing: %zu parts tessellated in %.2f s\n", scene.Parts().size(), scene.TessellationSeconds());
     scene.SetMotion(session.Motion());
     render::HydraViewport viewport;
@@ -1225,13 +1240,22 @@ int main(int argc, char** argv)
     // derived from it; the magneto field tables (from the drawn magneto geometry) are computed in the
     // background (cached; about 70 s the first time).
     Session session;
+    session.threaded = true;   // the machine runs on its own thread; the UI only reads it
     bool documentChanged = false;
     uint64_t changeCount = 0, savedChangeCount = 0;  // unsaved changes = the counts differ
-    std::atomic<bool> magnetoReady = true;
+    std::atomic<bool> magnetoReady = true, magnetoCancel = false;
+    std::atomic<double> worstFrame = 0.0;   // longest time between two frames [s] (--ui-test: the UI never waits)
     std::thread magnetoThread;
     std::vector<std::vector<sim::magneto::MagnetoSample>> computedTables;
     std::vector<sim::magneto::MagnetoGeometry> computedGeometry;
     // Field tables for the drawn magnetos, off the main thread; the frame loop hands them to the session.
+    auto stopTables = [&] {   // closing the document or the app: never wait for MFEM
+        magnetoCancel = true;
+        if (magnetoThread.joinable())
+            magnetoThread.join();
+        magnetoCancel = false;
+        magnetoReady = true;
+    };
     auto startTables = [&] {
         if (magnetoThread.joinable())
             magnetoThread.join();
@@ -1239,7 +1263,7 @@ int main(int argc, char** argv)
             return;
         magnetoReady = false;
         magnetoThread = std::thread([&, geometry = session.MagnetoGeometry()] {
-            computedTables = Session::ComputeTables(geometry, magnetoCache);
+            computedTables = Session::ComputeTables(geometry, magnetoCache, &magnetoCancel);
             computedGeometry = geometry;
             magnetoReady = true;
         });
@@ -1249,7 +1273,7 @@ int main(int argc, char** argv)
     app::UploadTexture texture;
     OrbitCamera camera;
     int selected = -1;
-    bool sceneReady = false, layoutBuilt = !firstRun;
+    bool sceneReady = false, fitPending = false, layoutBuilt = !firstRun;
     RecentDocuments recent(uiTest ? std::filesystem::path() : AppDataDir() / "recent_documents.json");
     const auto start = std::chrono::steady_clock::now();
     double previousTime = 0.0;
@@ -1263,17 +1287,30 @@ int main(int argc, char** argv)
     app::RegisterAppCommands(bus, appContext, simulationJobs);
 
     std::string bridgeError;
-    auto bridgeHandler = [&](const Json& request) -> Json {
-        const std::string method = request.value("method", "");
-        if (method == "catalog")
-            return {{"ok", true}, {"result", bus.CatalogJson()}};
-        if (method != "execute")
-            return {{"ok", false}, {"error", "unknown bridge method '" + method + "' (catalog | execute)"}};
-        const cmd::CommandOutput out = bus.Execute(request.value("name", ""), request.value("args", Json::object()), "ai");
+    auto reply = [](const cmd::CommandOutput& out) {
         Json images = Json::array();
         for (const cmd::Image& image : out.images)
             images.push_back({{"mimeType", image.mimeType}, {"data", Base64Encode(image.bytes.data(), image.bytes.size())}});
-        return {{"ok", out.ok}, {"text", out.text}, {"result", out.result}, {"error", out.error}, {"images", images}};
+        return Json{{"ok", out.ok}, {"text", out.text}, {"result", out.result}, {"error", out.error}, {"images", images}};
+    };
+    // Runs on the main thread; a command's background part (pure computation, no document) runs after it
+    // on the bridge's connection thread, so the UI does not wait for it.
+    auto bridgeHandler = [&](const Json& request) -> bridge::BridgeServer::Reply {
+        const std::string method = request.value("method", "");
+        if (method == "catalog")
+            return Json{{"ok", true}, {"result", bus.CatalogJson()}};
+        if (method != "execute")
+            return Json{{"ok", false}, {"error", "unknown bridge method '" + method + "' (catalog | execute)"}};
+        cmd::CommandOutput out = bus.ExecuteDeferred(request.value("name", ""), request.value("args", Json::object()), "ai");
+        if (!out.background)
+            return reply(out);
+        bridge::BridgeServer::Reply r(Json::object());
+        r.later = [out, reply]() mutable {
+            out.background(out);
+            out.background = nullptr;
+            return reply(out);
+        };
+        return r;
     };
     // The agent works where the document is: its folder is the workspace (also for aiad-mcp discovery);
     // without a saved document, the default folder (Documents\Tootega AIAD).
@@ -1299,18 +1336,15 @@ int main(int argc, char** argv)
     ai.SetChatPlacement(config.ChatWindow());
     bridgeServer.SetWorkspace(Widen(ai.Workspace()));
 
-    // The drawing changed (user, AI or undo): the view and the simulation follow it, right after the
-    // command (so the next command already sees the derived physics) and once per frame (undo/redo).
+    // The drawing changed (user, AI or undo): right after the command (and once per frame, for undo/redo)
+    // the view takes the new part list; the changed parts' display, the machine study and the field
+    // tables follow in the frame loop, a slice per frame, so that the UI never waits for them.
     auto syncDocument = [&] {
         if (!documentChanged || !sceneReady)
             return;
         documentChanged = false;
-        const bool wasRunning = session.running;
         session.scene->Refresh();
-        session.Build();
-        session.running = wasRunning && session.machine != nullptr;
-        if (magnetoReady)
-            startTables();
+        session.studyStale = true;
         if (selected >= int(session.scene->Parts().size()))
             selected = -1;
     };
@@ -1323,13 +1357,12 @@ int main(int argc, char** argv)
         bridgeServer.SetWorkspace(Widen(ai.Workspace()));
     };
     auto closeDocument = [&] {
-        if (magnetoThread.joinable())
-            magnetoThread.join();
+        stopTables();
         g_d3d.WaitIdle();
         session.scene.reset();  // the scene refers to the document: before it
         viewport.reset();
         texture.Destroy(g_d3d);
-        session = Session{};
+        session.Clear();
         selected = -1;
         sceneReady = false;
         documentChanged = false;
@@ -1345,8 +1378,7 @@ int main(int argc, char** argv)
             documentChanged = true;
             ++changeCount;
         };
-        session.Build();
-        startTables();
+        session.studyStale = true;   // derived once its view is written (frame loop)
         followDocumentFolder();
     };
     auto openDocument = [&](const std::string& path) {
@@ -1457,6 +1489,7 @@ int main(int argc, char** argv)
             continue;
         }
         const double now = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+        worstFrame = std::max(worstFrame.load(), now - previousTime);
         const double wallDt = std::min(now - previousTime, 0.1);
         previousTime = now;
 
@@ -1516,10 +1549,12 @@ int main(int argc, char** argv)
         if (magnetoReady && magnetoThread.joinable())
         {
             magnetoThread.join();
-            session.SetTables(std::move(computedTables), std::move(computedGeometry));
+            if (computedTables.size() == computedGeometry.size())
+                session.SetTables(std::move(computedTables), std::move(computedGeometry));
             const bool wasRunning = session.running;
             session.Restart();
-            session.running = wasRunning && session.machine != nullptr;
+            session.running = (wasRunning || autoRun) && session.machine != nullptr;
+            autoRun = autoRun && !session.machine;   // --run: start the machine as soon as it is built
             startTables();   // the drawing changed while they were computed
         }
         if (!sceneReady && magnetoReady && session.document)
@@ -1528,20 +1563,41 @@ int main(int argc, char** argv)
             viewport = std::make_unique<render::HydraViewport>();
             viewport->SetStage(session.document->Stage());
             sceneReady = true;
-            camera = OrbitCamera{};
-            if (session.machine)
-                session.running = autoRun;  // --run: start the machine as soon as the model is built
-            else
-                camera.Fit(session.scene->WorldBounds());  // other documents: frame what is drawn
-            autoRun = false;
+            fitPending = true;
         }
         syncDocument();
+        // A slice of the view (changed parts), then the machine study and its field tables.
+        if (sceneReady && session.scene->Pending())
+            session.scene->Update(10.0);
+        else if (sceneReady)
+        {
+            if (fitPending)
+            {
+                camera = OrbitCamera{};
+                camera.Fit(session.scene->WorldBounds());   // frame what is drawn, once it is
+                fitPending = false;
+            }
+            if (session.studyStale)
+            {
+                const bool wasRunning = session.running;
+                session.Build();
+                session.running = (wasRunning || autoRun) && session.machine != nullptr;
+                autoRun = autoRun && !session.machine;
+                if (magnetoReady)
+                    startTables();
+                if (selected >= int(session.scene->Parts().size()))
+                    selected = -1;
+            }
+        }
 
-        mainQueue.Drain();  // bridge requests from the agent run here, on the main thread
+        // Bridge requests from the agent run here, on the main thread, once the view has caught up with the
+        // last change (its slices warm the caches the next command reads; the bridge waits on its own thread).
+        if (!sceneReady || !session.scene->Pending())
+            mainQueue.Drain();
         ai.Pump();
         session.Advance(wallDt, now);
 
-        if (uiTest && sceneReady && ++uiFrame == 8)
+        if (uiTest && sceneReady && !session.scene->Pending() && !session.studyStale && magnetoReady && !magnetoThread.joinable() && ++uiFrame == 8)
         {
             // The agent's path end to end: aiad-mcp.exe (stdio MCP) -> bridge -> Command Bus -> model.
             uiTestThread = std::thread([&] {
@@ -1613,6 +1669,25 @@ int main(int argc, char** argv)
                 const Json fixedCheck = call("aiad_mechanism_check", Json::object());
                 log(fixedCheck.contains("structuredContent") && fixedCheck["structuredContent"].value("runnable", false),
                     "undo (" + text(undoLash) + "): the engine drawing runs again");
+                // A run the agent asks for computes off the main thread: the UI keeps drawing meanwhile.
+                worstFrame = 0.0;
+                const auto runStart = std::chrono::steady_clock::now();
+                const Json quick = call("aiad_mechanism_run", {{"seconds", 0.5}});
+                const double runSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - runStart).count();
+                log(!quick.value("isError", true) && runSeconds > 1.0 && worstFrame < 0.25,
+                    std::format("aiad_mechanism_run took {:.1f} s and the UI kept drawing (longest frame {:.0f} ms)", runSeconds, worstFrame * 1e3));
+                // The live simulation runs on its own thread: at real time the UI keeps drawing.
+                session.timeScale = 1.0;
+                worstFrame = 0.0;
+                const Json live = call("aiad_sim_start", Json::object());
+                Sleep(2500);
+                const Json liveStatus = call("aiad_sim_status", Json::object());
+                const double liveFrame = worstFrame;
+                call("aiad_sim_stop", Json::object());
+                session.timeScale = 0.02;
+                const double liveTime = liveStatus.contains("structuredContent") ? liveStatus["structuredContent"].value("time_s", 0.0) : 0.0;
+                log(!live.value("isError", true) && liveTime > 0.3 && liveFrame < 0.12,
+                    std::format("live simulation at 1.0x on its own thread: {:.2f} s simulated in 2.5 s, longest frame {:.0f} ms", liveTime, liveFrame * 1e3));
                 const Json snapshot = call("aiad_viewport_snapshot", Json::object());
                 const bool image = snapshot.contains("content") && snapshot["content"].size() == 2 && snapshot["content"][1]["type"] == "image";
                 log(image, "viewport snapshot returns a PNG");
@@ -1873,7 +1948,7 @@ int main(int argc, char** argv)
                     viewport->Resize(w, h);
                 }
                 session.scene->SetMotion(session.Motion());
-                session.scene->SetSparkVisible(now < session.sparkUntil);
+                session.scene->SetSparkVisible(session.SparkVisible(now));
                 session.scene->SetHighlight(selected);
                 viewport->SetCamera(camera.CameraToWorld(), camera.fovDeg, 0.005, 20.0);
                 viewport->Render();
@@ -2091,8 +2166,7 @@ int main(int argc, char** argv)
 
     if (uiTestThread.joinable())
         uiTestThread.join();
-    if (magnetoThread.joinable())
-        magnetoThread.join();
+    stopTables();
     bridgeServer.Stop();
     g_d3d.WaitIdle();
     chatTextures.Destroy();

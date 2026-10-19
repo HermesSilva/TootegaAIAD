@@ -11,6 +11,7 @@
 #include <chrono/physics/ChShaftsPlanetary.h>
 #include <chrono/physics/ChSystemNSC.h>
 #include <chrono/solver/ChDirectSolverLS.h>
+#include <chrono/solver/ChSystemDescriptor.h>
 
 #include <algorithm>
 #include <cmath>
@@ -265,7 +266,12 @@ Multibody::Multibody(const Model& model) : m(std::make_unique<Impl>())
     m->model = model;
     ChSystemNSC& sys = m->system;
     sys.SetGravitationalAcceleration(V(model.gravity));
-    sys.SetSolver(chrono_types::make_shared<ChSolverSparseQR>());   // tolerates redundant constraints
+    // Sparse LU (several times faster than QR; the redundant constraints are made regular below). The pattern
+    // of the system never changes (no contacts in Chrono, fixed joints and couplings): analysed once.
+    auto solver = chrono_types::make_shared<ChSolverSparseLU>();
+    solver->UseSparsityPatternLearner(true);
+    solver->LockSparsityPattern(true);
+    sys.SetSolver(solver);
 
     m->ground = chrono_types::make_shared<ChBody>();
     m->ground->SetFixed(true);
@@ -367,6 +373,15 @@ Multibody::Multibody(const Model& model) : m(std::make_unique<Impl>())
         stable(c.stiffness, mass);
     }
     m->stableStep = std::max(m->stableStep, 1e-6);
+
+    // Redundant constraints (a planar linkage made of spatial joints, a gear train closing a loop) make the
+    // system singular, and which ones are redundant changes as the mechanism moves (dead centres). A tiny
+    // compliance on every constraint keeps it regular everywhere: the error it allows is ~1e-10 m/s per N.
+    sys.Setup();
+    sys.Update();
+    sys.DescriptorPrepareInject();
+    for (ChConstraint* c : sys.GetSystemDescriptor()->GetConstraints())
+        c->SetComplianceTerm(1e-10);
 }
 
 Multibody::~Multibody() = default;

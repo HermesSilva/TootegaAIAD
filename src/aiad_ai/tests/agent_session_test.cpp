@@ -96,7 +96,9 @@ static void Streaming()
     CHECK(s.Stats().turns == 2 && s.Stats().costUsd < 1.0);
 }
 
-// A prompt sent while the agent works is queued: busy until the last answer, every turn counted.
+// A prompt sent while the agent works is queued by the CLI, which either folds it into the running turn
+// (one result: the session must not stay busy waiting for a second one) or answers it as the next turn
+// (its stream makes the session busy again). Every turn is counted; a replayed result is not.
 static void QueuedPrompts()
 {
     SessionOptions o;
@@ -104,14 +106,19 @@ static void QueuedPrompts()
     AgentSession s(o);
     s.Send("first", {}, 0);
     s.Send("second, while the first runs", {}, 0);
-    CHECK(s.Busy() && s.QueuedPrompts() == 1);
-    CHECK(s.OfflineWrites().size() == 2);  // both reach the CLI at once
+    CHECK(s.Busy() && s.OfflineWrites().size() == 2);  // both reach the CLI at once
     s.Feed(J(R"({"type":"result","subtype":"success","total_cost_usd":0.1,"usage":{"input_tokens":5,"output_tokens":7}})"));
-    CHECK(s.Busy() && s.QueuedPrompts() == 0 && s.Stats().turns == 1);
+    CHECK(!s.Busy() && s.Stats().turns == 1);   // folded into the first turn
+    s.Feed(J(R"({"type":"stream_event","event":{"type":"message_start","message":{"id":"m9","usage":{"input_tokens":1}}}})"));
+    CHECK(s.Busy());                            // ... or answered as a turn of its own
     s.Feed(J(R"({"type":"result","subtype":"success","total_cost_usd":0.25,"usage":{"input_tokens":3,"output_tokens":4}})"));
     CHECK(!s.Busy() && s.Stats().turns == 2 && s.Stats().outputTokens == 11 && std::abs(s.Stats().costUsd - 0.25) < 1e-12);
     s.Feed(J(R"({"type":"result","subtype":"success","total_cost_usd":9.0})"));  // a replay: ignored
     CHECK(s.Stats().turns == 2);
+    // Stop with nothing running on the CLI side: the session is idle at once.
+    s.Send("third", {}, 0);
+    s.Interrupt();
+    CHECK(!s.Busy());
 }
 
 static void Interactions()

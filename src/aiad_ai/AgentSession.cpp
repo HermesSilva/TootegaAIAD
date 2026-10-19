@@ -181,18 +181,24 @@ void AgentSession::Send(const std::string& text, const std::vector<std::pair<std
     if (content.empty())
         content.push_back({{"type", "text"}, {"text", ""}});
     Write({{"type", "user"}, {"message", {{"role", "user"}, {"content", content}}}});
-    // A prompt sent while the agent works is queued by the CLI and answered as the next turn.
+    // A prompt sent while the agent works is queued by the CLI: it joins the running turn (one result)
+    // or starts the next one (its stream marks the session busy again).
     if (!m_busy)
         m_turnStart = std::chrono::steady_clock::now();
     m_busy = true;
-    ++m_pendingTurns;
+    m_interruptDeadline.reset();
 }
 
 void AgentSession::Interrupt()
 {
     if (!m_process.Running())
+    {
+        m_busy = false;   // nothing runs: nothing to wait for
         return;
+    }
     Write({{"type", "control_request"}, {"request_id", std::format("interrupt_{}", m_revision)}, {"request", {{"subtype", "interrupt"}}}});
+    // A turn that already ended answers no interrupt with a result: the session is idle after a moment.
+    m_interruptDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
 }
 
 void AgentSession::Stop()
@@ -200,7 +206,7 @@ void AgentSession::Stop()
     m_process.Stop();
     m_costBase = m_stats.costUsd;
     m_busy = false;
-    m_pendingTurns = 0;
+    m_interruptDeadline.reset();
     m_pending.clear();
     for (const auto& f : m_tempFiles)
     {
@@ -224,6 +230,18 @@ void AgentSession::Pump()
     m_process.Poll(events, exited, code);
     for (const Json& e : events)
         Handle(e);
+    if (m_interruptDeadline && std::chrono::steady_clock::now() > *m_interruptDeadline)
+    {
+        m_interruptDeadline.reset();
+        if (m_busy)
+        {
+            m_busy = false;
+            m_compacting = false;
+            for (TimelineItem& item : m_timeline)
+                item.streaming = false;
+            Notice("Stopped.");
+        }
+    }
     if (exited)
     {
         if (m_busy || code != 0)
@@ -234,7 +252,7 @@ void AgentSession::Pump()
             Notice(std::format("Claude Code exited (code {}).{}{}", code, tail.empty() ? "" : "\n", tail), true);
         }
         m_busy = false;
-        m_pendingTurns = 0;
+        m_interruptDeadline.reset();
         m_pending.clear();
         m_process.Stop();
         m_costBase = m_stats.costUsd;
@@ -408,7 +426,7 @@ void AgentSession::HandleSystem(const Json& s)
 void AgentSession::ApplyPromptUsage(const Json& usage, const std::string& messageId)
 {
     // Live figures: each API message of the turn counts as soon as it reports its usage (a long turn
-    // with tools takes minutes before the CLI's esult). Fields only grow within a message.
+    // with tools takes minutes before the CLI's result). Fields only grow within a message.
     std::array<int64_t, 4>& m = m_turnUsage[messageId];
     const int64_t fields[4] = {Int(usage, "input_tokens"), Int(usage, "output_tokens"), Int(usage, "cache_read_input_tokens"),
                                Int(usage, "cache_creation_input_tokens")};
@@ -436,6 +454,12 @@ void AgentSession::RecomputeTokens()
 
 void AgentSession::HandleStream(const Json& raw)
 {
+    // A prompt queued during the last turn starts its own turn: the session works again.
+    if (!m_busy && Str(raw, "type") == "message_start")
+    {
+        m_busy = true;
+        m_turnStart = std::chrono::steady_clock::now();
+    }
     const std::string type = Str(raw, "type");
     if (type == "message_start")
     {
@@ -695,18 +719,14 @@ void AgentSession::ApprovePlan(const std::string& requestId, const std::string& 
 void AgentSession::HandleResult(const Json& r)
 {
     // Only turns we started count (a resumed CLI may replay old results).
-    if (!m_busy || m_pendingTurns <= 0)
+    if (!m_busy)
         return;
     const double seconds = TurnSeconds();
-    // Queued prompts: the session stays busy until the last one is answered.
-    m_busy = --m_pendingTurns > 0;
-    if (m_busy)
-        m_turnStart = std::chrono::steady_clock::now();
-    else
-    {
-        m_compacting = false;
-        m_pending.clear();
-    }
+    // The turn is over (prompts queued meanwhile joined it, or start the next turn, which streams again).
+    m_busy = false;
+    m_interruptDeadline.reset();
+    m_compacting = false;
+    m_pending.clear();
     ++m_stats.turns;
     m_stats.activeSeconds += seconds;
     double turnCost = 0.0;

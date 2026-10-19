@@ -8,6 +8,7 @@
 // Coil flux linkage per turn: Phi = Lz * (<A>_inner side - <A>_outer side).
 #pragma once
 
+#include <atomic>
 #include <vector>
 
 namespace aiad::sim::magneto
@@ -46,12 +47,14 @@ struct MagnetoSample
 };
 
 // Computes Phi(angle) and L/N^2(angle) for angles in [-halfWindowDeg, +halfWindowDeg].
+// `cancel` (optional) stops it between angles: the table is then incomplete (empty) and not cached.
 std::vector<MagnetoSample> ComputeMagnetoTable(const MagnetoGeometry& geometry, const MagnetoMeshOptions& mesh,
-                                               double halfWindowDeg, double stepDeg);
+                                               double halfWindowDeg, double stepDeg, const std::atomic<bool>* cancel = nullptr);
 
 // Same as ComputeMagnetoTable, reusing cachePath when it was computed with exactly the same inputs
 // (all parameters are stored in the file and compared); otherwise computes and rewrites it.
 std::vector<MagnetoSample> CachedMagnetoTable(const char* cachePath, const MagnetoGeometry& geometry,
-                                              const MagnetoMeshOptions& mesh, double halfWindowDeg, double stepDeg);
+                                              const MagnetoMeshOptions& mesh, double halfWindowDeg, double stepDeg,
+                                              const std::atomic<bool>* cancel = nullptr);
 
 }  // namespace aiad::sim::magneto

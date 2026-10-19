@@ -46,7 +46,7 @@ bool SendAll(SOCKET s, const std::string& data)
     return true;
 }
 
-void Reply(SOCKET s, int status, const char* reason, const Json& body)
+void Respond(SOCKET s, int status, const char* reason, const Json& body)
 {
     const std::string payload = body.dump(-1, ' ', false, Json::error_handler_t::replace);
     SendAll(s, std::format("HTTP/1.1 {} {}\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
@@ -186,7 +186,7 @@ void BridgeServer::Serve(uintptr_t socketHandle)
         pos = next;
     }
     if (contentLength > (64u << 20))
-        return Reply(s, 413, "Payload Too Large", {{"ok", false}, {"error", "request too large"}});
+        return Respond(s, 413, "Payload Too Large", {{"ok", false}, {"error", "request too large"}});
     while (body.size() < contentLength)
     {
         const int n = recv(s, buffer, sizeof(buffer), 0);
@@ -196,20 +196,20 @@ void BridgeServer::Serve(uintptr_t socketHandle)
     }
 
     if (!requestLine.starts_with("POST /bridge "))
-        return Reply(s, 404, "Not Found", {{"ok", false}, {"error", "use POST /bridge"}});
+        return Respond(s, 404, "Not Found", {{"ok", false}, {"error", "use POST /bridge"}});
     if (!origin.empty())
-        return Reply(s, 403, "Forbidden", {{"ok", false}, {"error", "browser origins are not accepted"}});
+        return Respond(s, 403, "Forbidden", {{"ok", false}, {"error", "browser origins are not accepted"}});
     if (host != std::format("127.0.0.1:{}", m_port) && host != std::format("localhost:{}", m_port))
-        return Reply(s, 403, "Forbidden", {{"ok", false}, {"error", "bad host"}});
+        return Respond(s, 403, "Forbidden", {{"ok", false}, {"error", "bad host"}});
     if (authorization != "Bearer " + m_token)
-        return Reply(s, 401, "Unauthorized", {{"ok", false}, {"error", "missing or wrong bridge token"}});
+        return Respond(s, 401, "Unauthorized", {{"ok", false}, {"error", "missing or wrong bridge token"}});
     const Json request = ParseJson(body);
     if (request.is_discarded() || !request.is_object())
-        return Reply(s, 400, "Bad Request", {{"ok", false}, {"error", "body must be a JSON object"}});
+        return Respond(s, 400, "Bad Request", {{"ok", false}, {"error", "body must be a JSON object"}});
 
     ++m_requests;
-    auto promise = std::make_shared<std::promise<Json>>();
-    std::future<Json> result = promise->get_future();
+    auto promise = std::make_shared<std::promise<Reply>>();
+    std::future<Reply> result = promise->get_future();
     m_queue->Post([this, promise, request] {
         try
         {
@@ -217,14 +217,26 @@ void BridgeServer::Serve(uintptr_t socketHandle)
         }
         catch (const std::exception& e)
         {
-            promise->set_value(Json{{"ok", false}, {"error", e.what()}});
+            promise->set_value(Reply(Json{{"ok", false}, {"error", e.what()}}));
         }
     });
     // Commands are short (long work runs as jobs); give up only when the app is closing.
     while (result.wait_for(std::chrono::milliseconds(100)) != std::future_status::ready)
         if (m_stopping)
-            return Reply(s, 503, "Service Unavailable", {{"ok", false}, {"error", "the app is closing"}});
-    Reply(s, 200, "OK", result.get());
+            return Respond(s, 503, "Service Unavailable", {{"ok", false}, {"error", "the app is closing"}});
+    Reply answer = result.get();
+    if (answer.later)
+    {
+        try
+        {
+            answer.json = answer.later();
+        }
+        catch (const std::exception& e)
+        {
+            answer.json = Json{{"ok", false}, {"error", e.what()}};
+        }
+    }
+    Respond(s, 200, "OK", answer.json);
 }
 
 std::vector<Endpoint> Discover(const std::filesystem::path& cwd)

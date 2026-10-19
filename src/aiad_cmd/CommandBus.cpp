@@ -153,6 +153,17 @@ Json CommandBus::CatalogJson() const
 
 CommandOutput CommandBus::Execute(const std::string& name, const Json& args, const std::string& actor)
 {
+    CommandOutput out = ExecuteDeferred(name, args, actor);
+    if (out.background)
+    {
+        out.background(out);
+        out.background = nullptr;
+    }
+    return out;
+}
+
+CommandOutput CommandBus::ExecuteDeferred(const std::string& name, const Json& args, const std::string& actor)
+{
     AuditEntry audit{std::chrono::system_clock::now(), actor, name, args};
     CommandOutput out;
     const CommandSpec* spec = Find(name);

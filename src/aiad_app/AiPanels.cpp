@@ -1606,8 +1606,6 @@ void AiPanels::DrawComposer(float width)
         if (ImGui::Button("Stop", ImVec2(buttonWidth, 0)) || (ImGui::IsKeyPressed(ImGuiKey_Escape) && !m_session->Pending().size()))
             m_session->Interrupt();
         ImGui::PopStyleColor();
-        if (m_session->QueuedPrompts() > 0)
-            ImGui::TextColored(kDim, "%d queued", m_session->QueuedPrompts());
     }
     ImGui::EndGroup();
     if (!menu.empty())

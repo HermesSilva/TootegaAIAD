@@ -339,10 +339,16 @@ void ClaudeProcess::Stop()
         CloseHandle(m_job);
         m_job = nullptr;
     }
-    if (m_stdoutThread.joinable())
-        m_stdoutThread.join();
-    if (m_stderrThread.joinable())
-        m_stderrThread.join();
+    // The readers end when the pipes close; a process that left the job (or inherited a pipe) may keep
+    // them open, so their blocking reads are cancelled until they return.
+    for (std::thread* reader : {&m_stdoutThread, &m_stderrThread})
+        if (reader->joinable())
+        {
+            const HANDLE thread = HANDLE(reader->native_handle());
+            for (int i = 0; i < 200 && WaitForSingleObject(thread, 10) == WAIT_TIMEOUT; ++i)
+                CancelSynchronousIo(thread);
+            reader->join();
+        }
     CloseHandle(m_stdoutRead);
     CloseHandle(m_stderrRead);
     CloseHandle(m_process);

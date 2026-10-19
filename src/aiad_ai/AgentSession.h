@@ -179,7 +179,6 @@ public:
     const std::deque<PendingRequest>& Pending() const { return m_pending; }
     const SessionStats& Stats() const { return m_stats; }
     bool Busy() const { return m_busy; }
-    int QueuedPrompts() const { return std::max(0, m_pendingTurns - 1); }
     bool Compacting() const { return m_compacting; }
     double TurnSeconds() const;
     const std::string& SessionId() const { return m_sessionId; }
@@ -223,7 +222,7 @@ private:
     SessionStats m_stats;
     double m_costBase = 0.0;                // cost of earlier CLI processes of this session
     bool m_busy = false, m_compacting = false;
-    int m_pendingTurns = 0;                 // prompts sent and not answered yet (queued while busy)
+    std::optional<std::chrono::steady_clock::time_point> m_interruptDeadline;   // Stop pressed: idle by then
     std::chrono::steady_clock::time_point m_turnStart;
     std::string m_sessionId, m_model;
     std::vector<std::string> m_slashCommands, m_skills, m_tools;

@@ -89,22 +89,34 @@ DocumentScene::DocumentScene(doc::Document& document, const std::string& environ
 
 void DocumentScene::Refresh()
 {
-    const auto start = std::chrono::steady_clock::now();
     const UsdStageRefPtr& stage = m_document.Stage();
     const UsdEditContext session(stage, stage->GetSessionLayer());
-    std::map<std::string, bool> visibility;
-    for (const ScenePart& p : m_parts)
-        visibility[p.path.GetString()] = p.visible;
+    // Parts whose solid, material, role and section switch are unchanged keep their display.
+    std::map<std::string, ScenePart> previous;
+    for (ScenePart& p : m_parts)
+        previous.emplace(p.path.GetString(), std::move(p));
     m_parts.clear();
-    m_sparkScale = UsdAttribute();
+    bool sparkKept = false;
     for (const doc::PartInfo& info : m_document.Parts())
     {
         ScenePart part{info.path, info.name, info.body, info.material, info.role, info.sectioned};
-        if (auto it = visibility.find(info.path.GetString()); it != visibility.end())
-            part.visible = it->second;
-        WriteDisplay(part);
+        part.revision = m_document.ShapeRevision(info.path);
+        if (auto it = previous.find(info.path.GetString()); it != previous.end())
+        {
+            ScenePart& old = it->second;
+            part.visible = old.visible;
+            if (!old.dirty && old.revision == part.revision && old.material == part.material && old.role == part.role && old.sectioned == part.sectioned)
+            {
+                part.mesh = std::move(old.mesh);
+                part.section = std::move(old.section);
+                part.dirty = false;
+                sparkKept = sparkKept || part.role == "spark";
+            }
+        }
         m_parts.push_back(std::move(part));
     }
+    if (!sparkKept)
+        m_sparkScale = UsdAttribute();
     // Body motion op (after the document's rest placement).
     m_motion.clear();
     for (const std::string& body : m_document.Bodies())
@@ -125,11 +137,38 @@ void DocumentScene::Refresh()
         m_motion[body] = motion.GetAttr();
         m_motion[body].Set(GfMatrix4d(1.0));
     }
-    SetSectionView(m_section);
     const int highlight = m_highlight;
     m_highlight = -1;
     SetHighlight(highlight < int(m_parts.size()) ? highlight : -1);
-    m_tessellationSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+}
+
+bool DocumentScene::Pending() const
+{
+    return std::any_of(m_parts.begin(), m_parts.end(), [](const ScenePart& p) { return p.dirty; });
+}
+
+bool DocumentScene::Update(double budgetMs)
+{
+    const auto start = std::chrono::steady_clock::now();
+    auto elapsed = [&] { return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count(); };
+    const UsdStageRefPtr& stage = m_document.Stage();
+    const UsdEditContext session(stage, stage->GetSessionLayer());
+    for (size_t i = 0; i < m_parts.size() && elapsed() < budgetMs; ++i)
+    {
+        ScenePart& part = m_parts[i];
+        if (!part.dirty)
+            continue;
+        WriteDisplay(part);
+        kernel::MassProperties mp;   // warm the mass cache: the study and the panels read it next
+        std::string error;
+        m_document.Mass(part.path, mp, error);
+        ApplySection(part);
+        if (int(i) == m_highlight)
+            BindLook(int(i), true);
+        part.dirty = false;
+    }
+    m_tessellationSeconds += elapsed() / 1e3;
+    return !Pending();
 }
 
 void DocumentScene::WriteDisplay(ScenePart& part)
@@ -141,11 +180,10 @@ void DocumentScene::WriteDisplay(ScenePart& part)
             p.SetActive(false);
     for (const TfToken& t : {kDisplay, kDisplaySection, kDisplayFill})
         stage->RemovePrim(part.path.AppendChild(t));
-    const kernel::Solid* solid = m_document.Shape(part.path);
-    if (!solid)
+    const kernel::Mesh* mesh = m_document.DisplayMesh(part.path);
+    if (!mesh)
         return;
-    std::string error;
-    kernel::Tessellate(*solid, 5e-5, 8.0, part.mesh, error);
+    part.mesh = *mesh;
     const SdfPath look = m_document.Root().AppendChild(TfToken("Looks")).AppendChild(TfToken(doc::PrimName(part.material)));
     WriteMesh(stage, part.path.AppendChild(kDisplay), part.mesh, All(part.mesh), look);
     if (part.role == "spark")
@@ -209,22 +247,25 @@ void DocumentScene::SetSparkVisible(bool visible)
 void DocumentScene::SetSectionView(bool section)
 {
     m_section = section;
+    for (const ScenePart& p : m_parts)
+        ApplySection(p);
+}
+
+void DocumentScene::ApplySection(const ScenePart& p)
+{
+    if (!p.sectioned)
+        return;
     const UsdStageRefPtr& stage = m_document.Stage();
     const UsdEditContext session(stage, stage->GetSessionLayer());
-    for (const ScenePart& p : m_parts)
-    {
-        if (!p.sectioned)
-            continue;
-        auto set = [&](const TfToken& child, bool shown) {
-            if (UsdPrim prim = stage->GetPrimAtPath(p.path.AppendChild(child)))
-                UsdGeomImageable(prim).CreateVisibilityAttr().Set(shown ? UsdGeomTokens->inherited : UsdGeomTokens->invisible);
-        };
-        // A part with nothing behind the plane has no section display: it stays whole.
-        const bool hasSection = bool(stage->GetPrimAtPath(p.path.AppendChild(kDisplaySection)));
-        set(kDisplay, !section || !hasSection);
-        set(kDisplaySection, section);
-        set(kDisplayFill, section);
-    }
+    auto set = [&](const TfToken& child, bool shown) {
+        if (UsdPrim prim = stage->GetPrimAtPath(p.path.AppendChild(child)))
+            UsdGeomImageable(prim).CreateVisibilityAttr().Set(shown ? UsdGeomTokens->inherited : UsdGeomTokens->invisible);
+    };
+    // A part with nothing behind the plane has no section display: it stays whole.
+    const bool hasSection = bool(stage->GetPrimAtPath(p.path.AppendChild(kDisplaySection)));
+    set(kDisplay, !m_section || !hasSection);
+    set(kDisplaySection, m_section);
+    set(kDisplayFill, m_section);
 }
 
 void DocumentScene::SetVisible(int part, bool visible)
@@ -242,21 +283,23 @@ void DocumentScene::SetHighlight(int part)
 {
     if (part == m_highlight)
         return;
+    BindLook(m_highlight, false);
+    m_highlight = part;
+    BindLook(part, true);
+}
+
+void DocumentScene::BindLook(int index, bool highlighted)
+{
+    if (index < 0 || index >= int(m_parts.size()))
+        return;
     const UsdStageRefPtr& stage = m_document.Stage();
     const UsdEditContext session(stage, stage->GetSessionLayer());
-    auto bind = [&](int index, bool highlighted) {
-        if (index < 0 || index >= int(m_parts.size()))
-            return;
-        const ScenePart& p = m_parts[size_t(index)];
-        const SdfPath look = highlighted ? SdfPath("/View/Looks/Selection")
-                                         : m_document.Root().AppendChild(TfToken("Looks")).AppendChild(TfToken(doc::PrimName(p.material)));
-        for (const TfToken& child : {kDisplay, kDisplaySection})
-            if (UsdPrim prim = stage->GetPrimAtPath(p.path.AppendChild(child)))
-                UsdShadeMaterialBindingAPI(prim).Bind(UsdShadeMaterial(stage->GetPrimAtPath(look)));
-    };
-    bind(m_highlight, false);
-    m_highlight = part;
-    bind(part, true);
+    const ScenePart& p = m_parts[size_t(index)];
+    const SdfPath look = highlighted ? SdfPath("/View/Looks/Selection")
+                                     : m_document.Root().AppendChild(TfToken("Looks")).AppendChild(TfToken(doc::PrimName(p.material)));
+    for (const TfToken& child : {kDisplay, kDisplaySection})
+        if (UsdPrim prim = stage->GetPrimAtPath(p.path.AppendChild(child)))
+            UsdShadeMaterialBindingAPI(prim).Bind(UsdShadeMaterial(stage->GetPrimAtPath(look)));
 }
 
 GfMatrix4d DocumentScene::PartToWorld(const ScenePart& part) const

@@ -21,6 +21,7 @@
 #include <pxr/usd/usdShade/shader.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <cctype>
@@ -136,7 +137,9 @@ std::unique_ptr<Document> Document::Create(const std::string& rootName)
     UsdPrim root = UsdGeomXform::Define(doc->m_stage, doc->m_root).GetPrim();
     doc->m_stage->SetDefaultPrim(root);
     SetString(root, kParameters, "[]");
+    ++doc->m_parameterRevision;
     SetString(root, kMaterials, "{}");
+    ++doc->m_materialRevision;
     return doc;
 }
 
@@ -158,7 +161,7 @@ std::unique_ptr<Document> Document::Open(const std::string& path, std::string& e
         std::vector<kernel::Solid> solids = kernel::ReadFromPrim(doc->m_stage->GetPrimAtPath(part.path.AppendChild(kShape)), e);
         if (solids.size() == 1)
         {
-            doc->m_shapes[part.path] = std::move(solids[0]);
+            doc->SetShape(part.path, std::move(solids[0]));
         }
         else
             doc->Regenerate(part.path, e);
@@ -205,12 +208,8 @@ void Document::Changed()
 
 std::vector<Parameter> Document::Parameters() const
 {
-    std::vector<Parameter> list;
-    const Json j = ParseJson(GetString(m_stage->GetPrimAtPath(m_root), kParameters));
-    if (j.is_array())
-        for (const Json& p : j)
-            list.push_back(FromJson(p));
-    return list;
+    CacheParameters();
+    return m_parameterList;
 }
 
 void Document::WriteParameters(const std::vector<Parameter>& parameters)
@@ -220,6 +219,7 @@ void Document::WriteParameters(const std::vector<Parameter>& parameters)
         j.push_back(ToJson(p));
     UsdPrim root = m_stage->GetPrimAtPath(m_root);
     SetString(root, kParameters, j.dump(1));
+    ++m_parameterRevision;
 }
 
 std::optional<Parameter> Document::FindParameter(const std::string& name) const
@@ -230,9 +230,7 @@ std::optional<Parameter> Document::FindParameter(const std::string& name) const
     return std::nullopt;
 }
 
-namespace
-{
-// Evaluates a parameter list (formulas over each other), detecting cycles.
+// Evaluates a parameter list (formulas over each other), detecting cycles; memoises the values.
 struct ParameterSolver
 {
     std::map<std::string, Json> values;
@@ -277,13 +275,30 @@ struct ParameterSolver
         return ok;
     }
 };
-}  // namespace
+
+void Document::CacheParameters() const
+{
+    if (m_cachedParameters == m_parameterRevision)
+        return;
+    m_parameterList.clear();
+    const Json j = ParseJson(GetString(m_stage->GetPrimAtPath(m_root), kParameters));
+    if (j.is_array())
+        for (const Json& p : j)
+            m_parameterList.push_back(FromJson(p));
+    m_solver = std::make_shared<ParameterSolver>();
+    for (const Parameter& p : m_parameterList)
+        m_solver->values[p.name] = p.value;
+    m_cachedParameters = m_parameterRevision;
+}
 
 bool Document::Value(const std::string& name, double& value, std::string& error) const
 {
+    CacheParameters();
+    if (m_solver->values.contains(name) && m_solver->Get(name, value))
+        return true;
+    // The message comes from a fresh evaluation (the shared one keeps the first error it met).
     ParameterSolver solver;
-    for (const Parameter& p : Parameters())
-        solver.values[p.name] = p.value;
+    solver.values = m_solver->values;
     if (!solver.values.contains(name))
     {
         error = "unknown parameter '" + name + "'";
@@ -306,11 +321,9 @@ double Document::Value(const std::string& name) const
 
 NameLookup Document::Lookup() const
 {
-    // One solver per lookup: parameters are evaluated once per regeneration.
-    auto solver = std::make_shared<ParameterSolver>();
-    for (const Parameter& p : Parameters())
-        solver->values[p.name] = p.value;
-    return [solver](const std::string& name, double& value) { return solver->Get(name, value); };
+    // The cached solver: each parameter is evaluated once per change of the parameter table.
+    CacheParameters();
+    return [solver = m_solver](const std::string& name, double& value) { return solver->Get(name, value); };
 }
 
 std::vector<SdfPath> Document::Dependents(const std::set<std::string>& names) const
@@ -481,6 +494,8 @@ bool Document::RemoveParameter(const std::string& name, std::string& error)
 
 std::vector<Material> Document::Materials() const
 {
+    if (m_cachedMaterials == m_materialRevision)
+        return m_materialList;
     std::vector<Material> list;
     const Json j = ParseJson(GetString(m_stage->GetPrimAtPath(m_root), kMaterials));
     if (j.is_object())
@@ -499,6 +514,8 @@ std::vector<Material> Document::Materials() const
             mat.relativePermeability = m.value("relative_permeability", 0.0);
             list.push_back(mat);
         }
+    m_materialList = list;
+    m_cachedMaterials = m_materialRevision;
     return list;
 }
 
@@ -531,6 +548,7 @@ bool Document::DefineMaterial(const Material& material, std::string& error)
         if (value > 0.0)
             j[material.name][key] = value;
     SetString(root, kMaterials, j.dump(1));
+    ++m_materialRevision;
     WriteMaterialPrims();
     Changed();
     return true;
@@ -1133,7 +1151,7 @@ bool Document::BuildGeometry(const SdfPath& path, const PartInfo& part, std::str
     }
     const SdfPath look = m_root.AppendChild(kLooks).AppendChild(TfToken(PrimName(part.material)));
     UsdShadeMaterialBindingAPI::Apply(shape).Bind(UsdShadeMaterial(m_stage->GetPrimAtPath(look)));
-    m_shapes[path] = std::move(solid);
+    SetShape(path, std::move(solid));
     return true;
 }
 
@@ -1262,10 +1280,76 @@ bool Document::Restore(const SdfPath& path, const Json& snapshot, std::string& e
 
 // ---- Geometry ----------------------------------------------------------------------------------------
 
+void Document::SetShape(const SdfPath& path, kernel::Solid solid)
+{
+    ShapeEntry& entry = m_shapes[path];
+    entry.solid = std::move(solid);
+    entry.revision = ++m_shapeCounter;
+    entry.mesh.reset();
+    entry.unitMass.reset();
+    entry.bounds.reset();
+    entry.cuts.clear();
+}
+
 const kernel::Solid* Document::Shape(const SdfPath& part) const
 {
     auto it = m_shapes.find(part);
-    return it == m_shapes.end() ? nullptr : &it->second;
+    return it == m_shapes.end() ? nullptr : &it->second.solid;
+}
+
+bool Document::Bounds(const SdfPath& part, kernel::Vec3& minimum, kernel::Vec3& maximum) const
+{
+    auto it = m_shapes.find(part);
+    if (it == m_shapes.end())
+        return false;
+    if (!it->second.bounds)
+    {
+        kernel::Vec3 lo, hi;
+        if (!kernel::BoundingBox(it->second.solid, lo, hi))
+            return false;
+        it->second.bounds = std::make_pair(lo, hi);
+    }
+    minimum = it->second.bounds->first;
+    maximum = it->second.bounds->second;
+    return true;
+}
+
+double Document::VolumeBeyond(const SdfPath& part, const kernel::Vec3& point, const kernel::Vec3& normal) const
+{
+    auto it = m_shapes.find(part);
+    if (it == m_shapes.end())
+        return 0.0;
+    const std::array<double, 6> key{point.x, point.y, point.z, normal.x, normal.y, normal.z};
+    if (auto c = it->second.cuts.find(key); c != it->second.cuts.end())
+        return c->second;
+    // KeepBelow keeps the side opposite to its normal.
+    std::string error;
+    const kernel::Solid beyond = kernel::KeepBelow(it->second.solid, point, {-normal.x, -normal.y, -normal.z}, error);
+    kernel::MassProperties mp;
+    const double volume = beyond.Valid() && kernel::ComputeMass(beyond, 1.0, mp, error) ? mp.volume : 0.0;
+    it->second.cuts[key] = volume;
+    return volume;
+}
+
+uint64_t Document::ShapeRevision(const SdfPath& part) const
+{
+    auto it = m_shapes.find(part);
+    return it == m_shapes.end() ? 0 : it->second.revision;
+}
+
+const kernel::Mesh* Document::DisplayMesh(const SdfPath& part) const
+{
+    auto it = m_shapes.find(part);
+    if (it == m_shapes.end())
+        return nullptr;
+    if (!it->second.mesh)
+    {
+        auto mesh = std::make_shared<kernel::Mesh>();
+        std::string error;
+        kernel::Tessellate(it->second.solid, 5e-5, 8.0, *mesh, error);
+        it->second.mesh = mesh;
+    }
+    return it->second.mesh.get();
 }
 
 bool Document::Mass(const SdfPath& part, kernel::MassProperties& out, std::string& error) const
@@ -1277,14 +1361,22 @@ bool Document::Mass(const SdfPath& part, kernel::MassProperties& out, std::strin
         error = "no geometry for " + part.GetString();
         return false;
     }
-    const std::optional<Material> material = FindMaterial(ReadPart(prim).material);
-    const double density = material ? material->density : 1000.0;
-    if (density <= 0.0)  // massless (e.g. the spark)
+    const ShapeEntry& entry = m_shapes.find(part)->second;
+    if (!entry.unitMass)
     {
-        out = kernel::MassProperties();
-        return kernel::ComputeMass(*solid, 1.0, out, error) && (out.mass = 0.0, out.inertia = {}, true);
+        kernel::MassProperties unit;
+        if (!kernel::ComputeMass(*solid, 1.0, unit, error))
+            return false;
+        entry.unitMass = unit;
     }
-    return kernel::ComputeMass(*solid, density, out, error);
+    // Mass and inertia scale with the material's density; massless materials (e.g. the spark) stay 0.
+    const std::optional<Material> material = FindMaterial(ReadPart(prim).material);
+    const double density = std::max(0.0, material ? material->density : 1000.0);
+    out = *entry.unitMass;
+    out.mass = entry.unitMass->volume * density;
+    for (double& i : out.inertia)
+        i *= density;
+    return true;
 }
 
 bool Document::Regenerate(const SdfPath& part, std::string& error)

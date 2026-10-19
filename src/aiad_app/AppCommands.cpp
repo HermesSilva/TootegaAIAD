@@ -311,8 +311,11 @@ void RegisterAppCommands(cmd::CommandBus& bus, AppContext& context, SimulationJo
                       std::string error;
                       if (!ctx->session || !MachineToRun(*ctx->session, s, error))
                           return CommandOutput::Fail(error.empty() ? std::string("No document is open.") : error);
+                      // The run itself needs no document: it may go off the main thread (the bridge runs it).
                       CommandOutput o;
-                      o.result = RunMachine(s, ctx->session->magnetoTables, args["seconds"].get<double>(), o.text);
+                      o.background = [s, tables = ctx->session->magnetoTables, seconds = args["seconds"].get<double>()](CommandOutput& out) {
+                          out.result = RunMachine(s, tables, seconds, out.text);
+                      };
                       return o;
                   }});
     // ---- View --------------------------------------------------------------------------------------
@@ -412,6 +415,8 @@ void RegisterAppCommands(cmd::CommandBus& bus, AppContext& context, SimulationJo
                   NoArgs(), {}, [ctx, ready, notReady](const Json&) {
                       if (!ready())
                           return notReady();
+                      if (ctx->session->studyStale)
+                          ctx->session->Build();
                       if (!ctx->session->studyError.empty())
                           return CommandOutput::Fail("The machine cannot run: " + ctx->session->studyError);
                       if (!ctx->session->TablesReady())
@@ -434,6 +439,7 @@ void RegisterAppCommands(cmd::CommandBus& bus, AppContext& context, SimulationJo
                       if (!ready())
                           return notReady();
                       const Session& s = *ctx->session;
+                      const auto lock = s.Lock();
                       CommandOutput o;
                       Json joints = Json::array(), chambers = Json::array(), magnetos = Json::array();
                       std::string text = std::format("{}; t = {:.4f} s.", s.running ? "Running" : "Stopped", s.Time());
@@ -459,7 +465,7 @@ void RegisterAppCommands(cmd::CommandBus& bus, AppContext& context, SimulationJo
                               magnetos.push_back({{"name", s.study.machine.magnetos[g].name}, {"last_kv", s.machine->Magneto(g).lastSecondaryKv},
                                                   {"sparks", s.machine->Magneto(g).sparks}});
                       }
-                      o.result = {{"running", s.running}, {"time_s", s.Time()}, {"joints", joints}, {"chambers", chambers}, {"magnetos", magnetos}};
+                      o.result = {{"running", s.running.load()}, {"time_s", s.Time()}, {"joints", joints}, {"chambers", chambers}, {"magnetos", magnetos}};
                       o.text = text;
                       return o;
                   }});

@@ -27,6 +27,8 @@ struct ScenePart
     bool sectioned = false;
     bool visible = true;
     kernel::Mesh mesh, section; // body frame (picking, bounds)
+    uint64_t revision = 0;      // the document's shape revision shown
+    bool dirty = true;          // its display is still to be (re)written
 };
 
 struct PickResult
@@ -48,8 +50,12 @@ class DocumentScene
 public:
     DocumentScene(doc::Document& document, const std::string& environmentHdr);
 
-    // Re-reads the document (after any change): display meshes of every part.
+    // Re-reads the document (after any change): the part list at once; the parts whose solid changed are
+    // marked and their display is written by Update, a slice per frame (the view never blocks the UI).
     void Refresh();
+    // Writes the display of changed parts for up to `budgetMs`; true when nothing is left.
+    bool Update(double budgetMs);
+    bool Pending() const;
     const std::vector<ScenePart>& Parts() const { return m_parts; }
     int Find(const std::string& name) const;
 
@@ -65,6 +71,8 @@ public:
 
 private:
     void WriteDisplay(ScenePart& part);
+    void ApplySection(const ScenePart& part);
+    void BindLook(int part, bool highlighted);
     pxr::GfMatrix4d PartToWorld(const ScenePart& part) const;
 
     doc::Document& m_document;

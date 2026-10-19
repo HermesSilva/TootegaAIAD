@@ -160,12 +160,10 @@ struct Reader
         if (it != points.end())
             return it->second;
         std::vector<Vec3>& list = points[p.path.GetString()];
-        kernel::Mesh mesh;
-        std::string e;
-        if (const kernel::Solid* shape = d.Shape(p.path); shape && kernel::Tessellate(*shape, 1e-4, 10.0, mesh, e))
+        if (const kernel::Mesh* mesh = d.DisplayMesh(p.path))   // cached by the document (shared with the view)
         {
             const Vec3 o = d.BodyOrigin(p.body);
-            for (const auto& q : mesh.points)
+            for (const auto& q : mesh->points)
                 list.push_back({q[0] + o.x, q[1] + o.y, q[2] + o.z});
         }
         return list;
@@ -848,15 +846,7 @@ void ReadChamber(Reader& r, const doc::ElementInfo& e, const std::map<std::strin
     double filled = 0.0;
     const Vec3 o = r.d.BodyOrigin(r.s.bodies[size_t(pistonBody)]);
     for (const doc::PartInfo* p : pistonParts)
-        if (const kernel::Solid* shape = r.d.Shape(p->path))
-        {
-            std::string err;
-            const Vec3 plane = Sub(Mul(u, crown - slab), o);   // a point of the cutting plane, body frame
-            const kernel::Solid above = kernel::KeepBelow(*shape, plane, Mul(u, -1.0), err);
-            kernel::MassProperties mp;
-            if (above.Valid() && kernel::ComputeMass(above, 1.0, mp, err))
-                filled += mp.volume;
-        }
+        filled += r.d.VolumeBeyond(p->path, Sub(Mul(u, crown - slab), o), u);   // the crown above the cut (cached)
     sim::machine::Chamber ch;
     ch.name = e.name;
     ch.piston = piston;
@@ -1012,12 +1002,8 @@ bool DeriveMechanismStudy(const doc::Document& d, MechanismStudy& study)
                         "Fix its features (Properties panel, or aiad_part_update) until it regenerates.");
             else if (mp.mass > 0.0)
                 list.push_back(mp);
-            if (const kernel::Solid* shape = d.Shape(p.path))
-            {
-                kernel::Vec3 lo, hi;
-                if (kernel::BoundingBox(*shape, lo, hi))
-                    extents[name].Add(Add(lo, origin), Add(hi, origin));
-            }
+            if (kernel::Vec3 lo, hi; d.Bounds(p.path, lo, hi))
+                extents[name].Add(Add(lo, origin), Add(hi, origin));
         }
         double c[3] = {0, 0, 0};
         for (const kernel::MassProperties& mp : list)

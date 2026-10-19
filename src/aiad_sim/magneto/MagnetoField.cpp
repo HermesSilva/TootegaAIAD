@@ -4,12 +4,16 @@
 
 #include "common/EigenConfig.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <fstream>
 #include <numbers>
+#include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string>
+#include <thread>
 
 namespace aiad::sim::magneto
 {
@@ -111,87 +115,99 @@ struct Layout
 
 }  // namespace
 
-std::vector<MagnetoSample> ComputeMagnetoTable(const MagnetoGeometry& geometry, const MagnetoMeshOptions& meshOptions,
-                                               double halfWindowDeg, double stepDeg)
+namespace
 {
-    const Layout layout{geometry};
-    const double s = meshOptions.domainHalfSize;
 
-    // Fixed mesh, locally refined (non-conforming) around the core and the air gap.
-    mfem::Mesh mesh = mfem::Mesh::MakeCartesian2D(meshOptions.baseCells, meshOptions.baseCells,
-                                                  mfem::Element::QUADRILATERAL, true, 2.0 * s, 2.0 * s);
-    mesh.Transform([s](const mfem::Vector& in, mfem::Vector& out) {
-        out.SetSize(2);
-        out(0) = in(0) - s;
-        out(1) = in(1) - s;
-    });
-    mesh.EnsureNCMesh();
-    for (int level = 0; level < 4; ++level)
-    {
-        mfem::Array<int> marked;
-        mfem::Vector centre;
-        for (int e = 0; e < mesh.GetNE(); ++e)
-        {
-            mesh.GetElementCenter(e, centre);
-            if (layout.Refine(level, centre(0), centre(1)))
-                marked.Append(e);
-        }
-        mesh.GeneralRefinement(marked, 1);
-    }
-
-    mfem::H1_FECollection fec(1, 2);
-    mfem::FiniteElementSpace fes(&mesh, &fec);
-    mfem::Array<int> essBdr(mesh.bdr_attributes.Max());
-    essBdr = 1;
+// The fixed part of the field problem (mesh, space, boundary, coil functionals and source) and the solve
+// at one rotor angle. MFEM's assembly keeps scratch state in the mesh: each thread has its own.
+struct FieldProblem
+{
+    const MagnetoGeometry& geometry;
+    const Layout layout;
+    mfem::Mesh mesh;
+    mfem::H1_FECollection fec{1, 2};
+    std::unique_ptr<mfem::FiniteElementSpace> fes;
     mfem::Array<int> essDofs;
-    fes.GetEssentialTrueDofs(essBdr, essDofs);
-
+    std::unique_ptr<mfem::LinearForm> inner, outer, coilRhs;
+    double innerArea = 0.0, outerArea = 0.0;
     // High-order quadrature samples the moving material boundaries inside each element.
-    const mfem::IntegrationRule& ir = mfem::IntRules.Get(mfem::Geometry::SQUARE, 10);
+    const mfem::IntegrationRule& ir;
 
-    // Coil-side averaging functionals and areas (fixed stator).
-    mfem::FunctionCoefficient innerSide([&](const mfem::Vector& p) { return layout.CoilSide(p(0), p(1)) > 0 ? 1.0 : 0.0; });
-    mfem::FunctionCoefficient outerSide([&](const mfem::Vector& p) { return layout.CoilSide(p(0), p(1)) < 0 ? 1.0 : 0.0; });
-    mfem::LinearForm inner(&fes), outer(&fes);
+    FieldProblem(const MagnetoGeometry& g, const MagnetoMeshOptions& meshOptions, const mfem::IntegrationRule& rule)
+        : geometry(g), layout{g}, ir(rule)
     {
-        auto* i1 = new mfem::DomainLFIntegrator(innerSide);
-        i1->SetIntRule(&ir);
-        inner.AddDomainIntegrator(i1);
-        auto* i2 = new mfem::DomainLFIntegrator(outerSide);
-        i2->SetIntRule(&ir);
-        outer.AddDomainIntegrator(i2);
+        const double s = meshOptions.domainHalfSize;
+
+        // Fixed mesh, locally refined (non-conforming) around the core and the air gap.
+        mesh = mfem::Mesh::MakeCartesian2D(meshOptions.baseCells, meshOptions.baseCells,
+                                                      mfem::Element::QUADRILATERAL, true, 2.0 * s, 2.0 * s);
+        mesh.Transform([s](const mfem::Vector& in, mfem::Vector& out) {
+            out.SetSize(2);
+            out(0) = in(0) - s;
+            out(1) = in(1) - s;
+        });
+        mesh.EnsureNCMesh();
+        for (int level = 0; level < 4; ++level)
+        {
+            mfem::Array<int> marked;
+            mfem::Vector centre;
+            for (int e = 0; e < mesh.GetNE(); ++e)
+            {
+                mesh.GetElementCenter(e, centre);
+                if (layout.Refine(level, centre(0), centre(1)))
+                    marked.Append(e);
+            }
+            mesh.GeneralRefinement(marked, 1);
+        }
+
+        fes = std::make_unique<mfem::FiniteElementSpace>(&mesh, &fec);
+        mfem::Array<int> essBdr(mesh.bdr_attributes.Max());
+        essBdr = 1;
+        fes->GetEssentialTrueDofs(essBdr, essDofs);
+
+        // High-order quadrature samples the moving material boundaries inside each element.
+
+        // Coil-side averaging functionals and areas (fixed stator).
+        mfem::FunctionCoefficient innerSide([this](const mfem::Vector& p) { return layout.CoilSide(p(0), p(1)) > 0 ? 1.0 : 0.0; });
+        mfem::FunctionCoefficient outerSide([this](const mfem::Vector& p) { return layout.CoilSide(p(0), p(1)) < 0 ? 1.0 : 0.0; });
+        inner = std::make_unique<mfem::LinearForm>(fes.get());
+        outer = std::make_unique<mfem::LinearForm>(fes.get());
+        {
+            auto* i1 = new mfem::DomainLFIntegrator(innerSide);
+            i1->SetIntRule(&ir);
+            inner->AddDomainIntegrator(i1);
+            auto* i2 = new mfem::DomainLFIntegrator(outerSide);
+            i2->SetIntRule(&ir);
+            outer->AddDomainIntegrator(i2);
+        }
+        inner->Assemble();
+        outer->Assemble();
+        mfem::GridFunction one(fes.get());
+        one = 1.0;
+        innerArea = (*inner)(one);
+        outerArea = (*outer)(one);
+        if (innerArea <= 0.0 || outerArea <= 0.0)
+            throw std::runtime_error("magneto: coil sides are not resolved by the mesh");
+
+        // Unit ampere-turn coil current density (+ in the window, - outside the yoke).
+        mfem::FunctionCoefficient coilCurrent([this](const mfem::Vector& p) {
+            const int side = layout.CoilSide(p(0), p(1));
+            return side > 0 ? 1.0 / innerArea : side < 0 ? -1.0 / outerArea : 0.0;
+        });
+        coilRhs = std::make_unique<mfem::LinearForm>(fes.get());
+        {
+            auto* integ = new mfem::DomainLFIntegrator(coilCurrent);
+            integ->SetIntRule(&ir);
+            coilRhs->AddDomainIntegrator(integ);
+        }
+        coilRhs->Assemble();
     }
-    inner.Assemble();
-    outer.Assemble();
-    mfem::GridFunction one(&fes);
-    one = 1.0;
-    const double innerArea = inner(one), outerArea = outer(one);
-    if (innerArea <= 0.0 || outerArea <= 0.0)
-        throw std::runtime_error("magneto: coil sides are not resolved by the mesh");
-    auto fluxPerTurn = [&](const mfem::GridFunction& a) {
-        return geometry.stackDepth * (inner(a) / innerArea - outer(a) / outerArea);
-    };
 
-    // Unit ampere-turn coil current density (+ in the window, - outside the yoke).
-    mfem::FunctionCoefficient coilCurrent([&](const mfem::Vector& p) {
-        const int side = layout.CoilSide(p(0), p(1));
-        return side > 0 ? 1.0 / innerArea : side < 0 ? -1.0 / outerArea : 0.0;
-    });
-    mfem::LinearForm coilRhs(&fes);
+    double FluxPerTurn(const mfem::GridFunction& a) const { return geometry.stackDepth * ((*inner)(a) / innerArea - (*outer)(a) / outerArea); }
+
+    MagnetoSample Solve(double angle) const
     {
-        auto* integ = new mfem::DomainLFIntegrator(coilCurrent);
-        integ->SetIntRule(&ir);
-        coilRhs.AddDomainIntegrator(integ);
-    }
-    coilRhs.Assemble();
-
-    const double magnetization = geometry.magnetRemanence / (kMu0 * geometry.magnetRecoilPermeability);
-    std::vector<MagnetoSample> table;
-    const int count = static_cast<int>(std::floor(2.0 * halfWindowDeg / stepDeg + 1e-9)) + 1;
-    for (int k = 0; k < count; ++k)
-    {
-        const double angle = -halfWindowDeg + k * stepDeg;
-
+        const double magnetization = geometry.magnetRemanence / (kMu0 * geometry.magnetRecoilPermeability);
         mfem::FunctionCoefficient nu([&](const mfem::Vector& p) {
             switch (layout.At(p(0), p(1), angle))
             {
@@ -213,10 +229,10 @@ std::vector<MagnetoSample> ComputeMagnetoTable(const MagnetoGeometry& geometry, 
             out(1) = mx;
         });
 
-        mfem::BilinearForm a(&fes);
+        mfem::BilinearForm a(fes.get());
         a.AddDomainIntegrator(new mfem::DiffusionIntegrator(nu, &ir));
         a.Assemble();
-        mfem::LinearForm magnetRhs(&fes);
+        mfem::LinearForm magnetRhs(fes.get());
         {
             auto* integ = new mfem::DomainLFGradIntegrator(q);
             integ->SetIntRule(&ir);
@@ -224,7 +240,7 @@ std::vector<MagnetoSample> ComputeMagnetoTable(const MagnetoGeometry& geometry, 
         }
         magnetRhs.Assemble();
 
-        mfem::GridFunction aMagnet(&fes), aCoil(&fes);
+        mfem::GridFunction aMagnet(fes.get()), aCoil(fes.get());
         aMagnet = 0.0;
         aCoil = 0.0;
         mfem::OperatorPtr A;
@@ -250,17 +266,57 @@ std::vector<MagnetoSample> ComputeMagnetoTable(const MagnetoGeometry& geometry, 
         solve(B, X);
         a.RecoverFEMSolution(X, magnetRhs, aMagnet);
 
-        a.FormLinearSystem(essDofs, aCoil, coilRhs, A, X, B);
+        mfem::Vector coil(*coilRhs);   // FormLinearSystem may change its right-hand side
+        a.FormLinearSystem(essDofs, aCoil, coil, A, X, B);
         solve(B, X);
-        a.RecoverFEMSolution(X, coilRhs, aCoil);
-
-        table.push_back({angle, fluxPerTurn(aMagnet), fluxPerTurn(aCoil)});
+        a.RecoverFEMSolution(X, coil, aCoil);
+        return {angle, FluxPerTurn(aMagnet), FluxPerTurn(aCoil)};
     }
+};
+
+}  // namespace
+
+std::vector<MagnetoSample> ComputeMagnetoTable(const MagnetoGeometry& geometry, const MagnetoMeshOptions& meshOptions,
+                                               double halfWindowDeg, double stepDeg, const std::atomic<bool>* cancel)
+{
+    // The angles are independent: every core solves its share, each with its own copy of the problem.
+    const int count = static_cast<int>(std::floor(2.0 * halfWindowDeg / stepDeg + 1e-9)) + 1;
+    const mfem::IntegrationRule& ir = mfem::IntRules.Get(mfem::Geometry::SQUARE, 10);   // built once, before the threads
+    std::vector<MagnetoSample> table(static_cast<size_t>(count));
+    std::atomic<int> next = 0;
+    std::atomic<bool> failed = false;
+    std::string error;
+    std::mutex errorMutex;
+    auto work = [&] {
+        try
+        {
+            const FieldProblem problem(geometry, meshOptions, ir);
+            for (int k = next++; k < count && !failed && !(cancel && *cancel); k = next++)
+                table[size_t(k)] = problem.Solve(-halfWindowDeg + k * stepDeg);
+        }
+        catch (const std::exception& e)
+        {
+            std::lock_guard lock(errorMutex);
+            error = e.what();
+            failed = true;
+        }
+    };
+    const int threads = std::clamp(int(std::thread::hardware_concurrency()), 1, count);
+    std::vector<std::thread> pool;
+    for (int t = 1; t < threads; ++t)
+        pool.emplace_back(work);
+    work();
+    for (std::thread& t : pool)
+        t.join();
+    if (failed)
+        throw std::runtime_error(error);
+    if (cancel && *cancel)
+        return {};
     return table;
 }
 
 std::vector<MagnetoSample> CachedMagnetoTable(const char* cachePath, const MagnetoGeometry& g, const MagnetoMeshOptions& m,
-                                              double halfWindowDeg, double stepDeg)
+                                              double halfWindowDeg, double stepDeg, const std::atomic<bool>* cancel)
 {
     // Exact inputs, printed with round-trip precision.
     char key[1024];
@@ -283,7 +339,9 @@ std::vector<MagnetoSample> CachedMagnetoTable(const char* cachePath, const Magne
                 return table;
         }
     }
-    std::vector<MagnetoSample> table = ComputeMagnetoTable(g, m, halfWindowDeg, stepDeg);
+    std::vector<MagnetoSample> table = ComputeMagnetoTable(g, m, halfWindowDeg, stepDeg, cancel);
+    if (table.empty())
+        return table;
     std::ofstream out(cachePath);
     out << key << '\n';
     char line[128];

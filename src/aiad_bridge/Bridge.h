@@ -29,8 +29,16 @@ inline constexpr const char* kProtocol = "aiad-bridge/1";
 class BridgeServer
 {
 public:
-    // Runs on the main thread (posted through the queue); returns the response object.
-    using Handler = std::function<Json(const Json& request)>;
+    // The handler's answer: the response object, or `later`, which the connection thread runs after the
+    // handler (off the main thread) to make the response.
+    struct Reply
+    {
+        Reply(Json response) : json(std::move(response)) {}
+        Json json;
+        std::function<Json()> later;
+    };
+    // Runs on the main thread (posted through the queue).
+    using Handler = std::function<Reply(const Json& request)>;
 
     ~BridgeServer();
     bool Start(MainThreadQueue& queue, Handler handler, const std::filesystem::path& workspace, std::string& error);

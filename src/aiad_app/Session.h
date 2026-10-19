@@ -15,6 +15,10 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
+#include <chrono>
+#include <mutex>
+#include <thread>
 #include <cmath>
 #include <cstring>
 #include <deque>
@@ -95,24 +99,73 @@ struct Session
     // document without joints is not a mechanism yet.
     MechanismStudy study;
     bool isMechanism = false;
+    bool studyStale = false;                    // the document changed since the study was derived
     std::string studyError;                     // why the document cannot be simulated (empty = it can)
     // Field table of each magneto of the study (MFEM, from its drawn geometry; cached on disk).
     std::vector<std::vector<sim::magneto::MagnetoSample>> magnetoTables;
     std::vector<sim::magneto::MagnetoGeometry> tableGeometry;
     std::unique_ptr<sim::machine::Machine> machine;
     std::unique_ptr<DocumentScene> scene;
-    bool running = false;
-    double timeScale = 0.02;           // slow motion: 1/50 of real time
+    std::atomic<bool> running = false;
+    std::atomic<double> timeScale = 0.02;   // simulated seconds per wall second (0.02: slow motion)
     double sparkUntil = 0.0;           // wall-clock time until which the spark is drawn
+    // The application runs the machine on a thread of its own (threaded = true): it advances at the
+    // requested time scale, as fast as it can when it cannot keep up, and the UI only reads its state
+    // (Lock while reading machine, channels, history). Verification modes call Advance instead.
+    bool threaded = false;
+    std::atomic<double> achievedScale = 0.0;   // simulated seconds per wall second, measured
     std::deque<double> historyTime;
     std::vector<Channel> channels;
     double nextSample = 0.0;
     static constexpr double kSamplePeriod = 1.0e-4;
     static constexpr size_t kHistory = 8000;
 
+    Session() = default;
+    Session(const Session&) = delete;
+    Session& operator=(const Session&) = delete;
+    ~Session() { StopWorker(); }
+
+    // Closing the document: everything back to an empty session.
+    void Clear()
+    {
+        StopWorker();
+        scene.reset();   // the scene refers to the document: before it
+        machine.reset();
+        document.reset();
+        study = MechanismStudy();
+        isMechanism = studyStale = false;
+        studyError.clear();
+        magnetoTables.clear();
+        tableGeometry.clear();
+        running = false;
+        timeScale = 0.02;
+        sparkUntil = 0.0;
+        historyTime.clear();
+        channels.clear();
+        nextSample = 0.0;
+        simTime = 0.0;
+    }
+    // Readers (the UI) announce themselves: the simulation thread yields the lock to them between batches.
+    std::unique_lock<std::mutex> Lock() const
+    {
+        ++m_readers;
+        std::unique_lock<std::mutex> lock(m_mutex);
+        --m_readers;
+        return lock;
+    }
+    bool SparkVisible(double wallTime) const
+    {
+        if (!m_worker.joinable())
+            return wallTime < sparkUntil;
+        const int64_t now = std::chrono::steady_clock::now().time_since_epoch().count();
+        return now - m_lastSpark.load() < std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::milliseconds(150)).count();
+    }
+
     // After any change of the document: derive the study again; the simulation restarts with it.
     bool Build()
     {
+        StopWorker();
+        studyStale = false;
         studyError.clear();
         machine.reset();
         isMechanism = document && DeriveMechanismStudy(*document, study);
@@ -143,14 +196,18 @@ struct Session
     }
     bool NeedsTables() const { return isMechanism && studyError.empty() && !TablesReady(); }
     // The field tables of the study's magnetos (slow the first time: run off the main thread).
+    // `cancel` stops the computation: the result is then empty.
     static std::vector<std::vector<sim::magneto::MagnetoSample>> ComputeTables(const std::vector<sim::magneto::MagnetoGeometry>& geometry,
-                                                                               const std::string& cacheFolder)
+                                                                               const std::string& cacheFolder,
+                                                                               const std::atomic<bool>* cancel = nullptr)
     {
         std::vector<std::vector<sim::magneto::MagnetoSample>> tables;
         for (size_t i = 0; i < geometry.size(); ++i)
         {
             const std::string cache = std::format("{}/magneto_table{}.txt", cacheFolder, i == 0 ? std::string() : std::to_string(i));
-            tables.push_back(sim::magneto::CachedMagnetoTable(cache.c_str(), geometry[i], {}, 45.0, 1.0));
+            tables.push_back(sim::magneto::CachedMagnetoTable(cache.c_str(), geometry[i], {}, 45.0, 1.0, cancel));
+            if (tables.back().empty())
+                return {};
         }
         return tables;
     }
@@ -169,6 +226,7 @@ struct Session
 
     void Restart()
     {
+        StopWorker();
         machine.reset();
         historyTime.clear();
         channels.clear();
@@ -193,14 +251,18 @@ struct Session
             channels.push_back({c.name + " force", "N"});
         for (const sim::mb::Spring& s : m.springs)
             channels.push_back({s.name + " force", "N"});
+        simTime = 0.0;
+        if (threaded)
+            StartWorker();
     }
 
-    double Time() const { return machine ? machine->Time() : 0.0; }
+    double Time() const { return machine ? simTime.load() : 0.0; }
 
     // Every moving body: p = rest origin + M p_body. Rigid bodies follow the solver (about their centre
     // of mass); spring bodies are stretched between the spring's ends.
     std::vector<BodyMotion> Motion() const
     {
+        const auto lock = Lock();
         std::vector<BodyMotion> motion;
         if (!machine)
             return motion;
@@ -287,25 +349,115 @@ struct Session
         }
     }
 
+    // Verification modes (no worker): advance by wallDt x time scale now.
     void Advance(double wallDt, double wallTime)
     {
-        if (!running || !machine)
+        if (m_worker.joinable() || !running || !machine)
             return;
         const double dt = machine->StepSize();
         const int steps = std::clamp(int(wallDt * timeScale / dt), 1, 4000);
         for (int i = 0; i < steps; ++i)
+            if (StepOnce(dt))
+                sparkUntil = wallTime + 0.15;
+    }
+
+private:
+    // One step, its samples; true when a spark fired.
+    bool StepOnce(double dt)
+    {
+        machine->Step(dt);
+        simTime = machine->Time();
+        bool spark = false;
+        for (size_t g = 0; g < study.machine.magnetos.size(); ++g)
+            spark = spark || machine->Magneto(g).spark;
+        if (machine->Time() >= nextSample)
         {
-            machine->Step(dt);
-            for (size_t g = 0; g < study.machine.magnetos.size(); ++g)
-                if (machine->Magneto(g).spark)
-                    sparkUntil = wallTime + 0.15;
-            if (machine->Time() >= nextSample)
+            Sample();
+            nextSample = machine->Time() + std::max(kSamplePeriod, dt);
+        }
+        return spark;
+    }
+
+    void StartWorker()
+    {
+        if (!machine || m_worker.joinable())
+            return;
+        m_stop = false;
+        m_worker = std::thread([this] { Work(); });
+    }
+    void StopWorker()
+    {
+        m_stop = true;
+        if (m_worker.joinable())
+            m_worker.join();
+        achievedScale = 0.0;
+    }
+    // Runs the machine at the requested time scale: steps in batches of a few milliseconds (the lock
+    // is held only during a batch), sleeps when ahead, never tries to catch up a lag.
+    void Work()
+    {
+        using clock = std::chrono::steady_clock;
+        clock::time_point wall0, window = clock::now();
+        double sim0 = 0.0, scale = -1.0, windowSim = 0.0;
+        bool active = false;
+        while (!m_stop)
+        {
+            if (!running)
             {
-                Sample();
-                nextSample = machine->Time() + std::max(kSamplePeriod, dt);
+                active = false;
+                achievedScale = 0.0;
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                continue;
             }
+            bool behind = false;
+            {
+                const std::unique_lock<std::mutex> lock(m_mutex);
+                const double now = machine->Time();
+                if (!active || timeScale != scale)
+                {
+                    wall0 = clock::now();
+                    sim0 = windowSim = now;
+                    window = wall0;
+                    scale = timeScale;
+                    active = true;
+                }
+                const double target = sim0 + std::chrono::duration<double>(clock::now() - wall0).count() * scale;
+                const double dt = machine->StepSize();
+                const clock::time_point batchEnd = clock::now() + std::chrono::milliseconds(4);
+                while (machine->Time() + dt / 2 < target && clock::now() < batchEnd)
+                    if (StepOnce(dt))
+                        m_lastSpark = clock::now().time_since_epoch().count();
+                behind = machine->Time() + dt / 2 < target;
+                // More than a quarter of a wall second behind: go on from here as fast as it can.
+                if (behind && target - machine->Time() > 0.25 * scale)
+                {
+                    wall0 = clock::now();
+                    sim0 = machine->Time();
+                }
+                const double seconds = std::chrono::duration<double>(clock::now() - window).count();
+                if (seconds > 0.5)
+                {
+                    achievedScale = (machine->Time() - windowSim) / seconds;
+                    windowSim = machine->Time();
+                    window = clock::now();
+                }
+            }
+            // Let a waiting reader take the lock; sleep only when ahead (Windows sleeps are ~1-15 ms).
+            while (m_readers > 0 && !m_stop)
+                std::this_thread::yield();
+            if (!behind)
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }
+
+    mutable std::mutex m_mutex;
+    std::thread m_worker;
+    std::atomic<bool> m_stop = false;
+    mutable std::atomic<int> m_readers = 0;
+    std::atomic<int64_t> m_lastSpark = 0;
+    std::atomic<double> simTime = 0.0;
+
+public:
 };
 
 }  // namespace aiad::app

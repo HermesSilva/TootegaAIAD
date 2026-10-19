@@ -26,7 +26,8 @@ to run what would not work, saying how to fix it. Both example engines run on th
 their documents:
 
 - an OHC engine with a timing belt: about 3000 rpm, 8.6 kW;
-- an OHV engine with a gear train, pushrods and rockers: about 2950 rpm, 8.4 kW.
+- an OHV engine with a gear train, pushrods and rockers (compression ratio 20 in the current drawing):
+  about 3160 rpm, 10.7 kW.
 
 | Done | Open |
 |------|------|
@@ -34,7 +35,8 @@ their documents:
 | Generic machine simulation: Chrono mechanism + gear/belt/rack couplings, cam and rocker contacts, springs, stops, loads, timed motors | hollow pipes (exhaust/intake) |
 | Domain elements tied to the drawing: 0D Otto cycle chamber (bore, chamber volume and valves measured on the parts), 2D magneto (MFEM on the drawn magnet and core) → spark | valve–piston clash check; bevel/crossed gears |
 | The simulator's critique with a fix for every problem; everything it measured is listed | turbine and flow studies as document entities (next) |
-| Hydra/Aurora viewport with path tracing, selection, highlight, section view, 6-DOF animation of any body | live cost estimate during a turn |
+| Hydra/Aurora viewport with path tracing, selection, highlight, section view, 6-DOF animation of any body; per-object motion vectors, so the denoiser keeps moving parts sharp | live cost estimate during a turn |
+| A UI that never waits: the live simulation on its own thread, the view updated in slices, agent commands computed off the UI thread, the magneto field table on every core | simulation speed: one step depends on the last, so a machine runs on one core (about 0.45x real time for the OHC engine, 0.18x for the OHV one on this 22-core desktop) |
 | AI layer at Cockpit level: hub, tabbed sessions, permissions, questions, plans, usage/cost | |
 | MCP server (`aiad-mcp.exe`) with the catalogue generated from the Command Bus + a skill for the agent | |
 
@@ -59,7 +61,7 @@ It opens with no document.
 | **Viewport** | path-traced model. **Space + left drag** (or Alt + left, or middle + right) rotates; middle button pans; wheel zooms; click selects a part |
 | **Specification Tree** / **Properties** | bodies and parts, joints, elements; material, mass, volume, features and parameters of the selected part |
 | **Study** | the simulator's findings (each with its fix), or the machine summary and what was measured on the drawing; design parameters (values or formulas) |
-| **Simulation** | runs the machine live: every joint (position and speed), chambers (pressure, volume, combustions), magnetos |
+| **Simulation** | runs the machine live at the chosen time scale (shows the speed reached when the computer cannot keep up): every joint (position and speed), chambers (pressure, volume, combustions), magnetos |
 | **Plots** | any channel (joint speed or position, chamber pressure and volume, spark voltage, contact and spring forces) against time or a joint's angle; p-V loops |
 | **History** | Command Bus history; **Ctrl+Z / Ctrl+Y** undo and redo any command, the AI's included |
 | **AI Hub** | Claude Code sessions, usage and limits, MCP servers, skills, plugins, credential vault, settings; **+ New session** opens a chat tab |
@@ -76,6 +78,23 @@ aiad.exe --simulate <doc.usda> <s>   runs the drawing's machine for s seconds an
 aiad.exe --snapshot <png> [doc]      no window: builds, animates 60 frames, toggles section/highlight, writes PNGs
 aiad.exe --ui-test <png>             real window: MCP -> bridge -> Command Bus, simulation, chat, capture
 ```
+
+### Responsiveness and threads
+
+- **The UI thread only draws and edits.** The document caches what is derived from each part's solid
+  (display mesh, mass, bounds), keyed by its revision, so a change re-derives only the parts it touched.
+  The view rewrites changed parts in slices of about 10 ms per frame. The machine study is rebuilt once the
+  view has caught up.
+- **The live simulation runs on its own thread** at the requested time scale. When the computer cannot keep
+  up, it runs as fast as one core allows, and the UI keeps drawing.
+- **Agent commands:** the agent's requests wait (on the bridge's thread) until the view has caught up.
+  Pure computation, such as a simulation run, completes off the UI thread.
+- **The magneto field table** (91 MFEM solves) uses every core: about 17 s instead of about 70 s, and it is
+  cached.
+- **Kernel calls stay on the UI thread.** The geometry kernel (SMLib) is not thread-safe. A change that
+  regenerates many parts still costs about half a second.
+- **The mechanism solver:** sparse LU on a regularized system, so redundant constraints are allowed (a
+  planar linkage made of spatial joints). It is several times faster than QR.
 
 ### A machine is a drawing
 
