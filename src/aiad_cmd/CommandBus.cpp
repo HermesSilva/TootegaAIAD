@@ -220,6 +220,13 @@ void CommandBus::UndoTo(size_t depth)
     }
 }
 
+void CommandBus::ClearHistory()
+{
+    m_history.clear();
+    m_cursor = 0;
+    ++m_revision;
+}
+
 std::vector<HistoryEntry> CommandBus::History() const
 {
     std::vector<HistoryEntry> list;

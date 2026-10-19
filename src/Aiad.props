@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Settings shared by the AIAD projects (imported after Microsoft.Cpp.props).
+       Release: optimized. Debug: not optimized, same /MD runtime and NDEBUG-free, because every prebuilt
+       dependency (OpenUSD, USD BRep, MFEM, Chrono...) is a release build with the release CRT. -->
+  <PropertyGroup>
+    <OutDir Condition="'$(ConfigurationType)' == 'StaticLibrary'">$(AiadRoot)_build\$(Configuration)\lib\</OutDir>
+    <OutDir Condition="'$(ConfigurationType)' != 'StaticLibrary'">$(AiadRoot)_build\$(Configuration)\bin\</OutDir>
+    <IntDir>$(AiadRoot)_build\$(Configuration)\obj\$(ProjectName)\</IntDir>
+    <AiadLibDir>$(AiadRoot)_build\$(Configuration)\lib\</AiadLibDir>
+    <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
+    <!-- Incremental linking pads the .pxrctor section that static OpenUSD walks at start-up to run its
+         registrations (the plugins then miss their TfType). -->
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <!-- No /Zc:inline: it drops the unreferenced .pxrctor entries that run the static OpenUSD
+           registrations (TF_REGISTRY_FUNCTION, plugin types). -->
+      <RemoveUnreferencedCodeData>false</RemoveUnreferencedCodeData>
+      <!-- Project baseline: Chrono exports /arch:AVX2 and extends Eigen; mixed settings break the ODR. -->
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <!-- No /OPT:REF or /OPT:ICF: folding identical functions merges the static registration functions
+         of OpenUSD (TF_REGISTRY_FUNCTION) and the plugins lose their TfType. -->
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <OptimizeReferences>false</OptimizeReferences>
+      <EnableCOMDATFolding>false</EnableCOMDATFolding>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)' == 'Release'">
+    <ClCompile>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Optimization>MaxSpeed</Optimization>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)' == 'Debug'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+    </ClCompile>
+  </ItemDefinitionGroup>
+</Project>

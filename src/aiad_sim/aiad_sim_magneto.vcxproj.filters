@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="magneto">
+      <UniqueIdentifier>{85677e77-78f7-a24e-a554-e64d57a4ddfa}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="magneto\MagnetoField.cpp">
+      <Filter>magneto</Filter>
+    </ClCompile>
+    <ClCompile Include="magneto\MagnetoIgnition.cpp">
+      <Filter>magneto</Filter>
+    </ClCompile>
+    <ClInclude Include="magneto\MagnetoField.h">
+      <Filter>magneto</Filter>
+    </ClInclude>
+    <ClInclude Include="magneto\MagnetoIgnition.h">
+      <Filter>magneto</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

@@ -184,18 +184,27 @@ void RegisterDocumentCommands(cmd::CommandBus& bus, std::function<Document*()> d
                   }});
 
     // ---- Materials --------------------------------------------------------------------------------
-    bus.Register({"aiad_materials_list", "List materials", "The material table: density (drives the masses), colour, metallic, roughness, emission.",
+    bus.Register({"aiad_materials_list", "List materials",
+                  "The material table: density (drives the masses), shear modulus (springs), remanence (magnets), relative permeability "
+                  "(magnetic cores), colour, metallic, roughness, emission.",
                   Object(Json::object()), {true, false, true}, [document, none](const Json&) {
                       Document* d = document();
                       if (!d)
                           return none();
                       CommandOutput o;
-                      std::string text = "| Material | Density [kg/m^3] | Colour | Metallic | Roughness |\n|---|---|---|---|---|\n";
+                      std::string text = "| Material | Density [kg/m^3] | Shear modulus [GPa] | Remanence [T] | Rel. permeability | Colour | Metallic | "
+                                         "Roughness |\n|---|---|---|---|---|---|---|---|\n";
                       Json list = Json::array();
                       for (const Material& m : d->Materials())
                       {
-                          list.push_back({{"name", m.name}, {"density", m.density}});
-                          text += std::format("| {} | {:g} | {:.2f} {:.2f} {:.2f} | {:g} | {:g} |\n", m.name, m.density, m.colour[0], m.colour[1], m.colour[2], m.metallic,
+                          list.push_back({{"name", m.name},
+                                          {"density", m.density},
+                                          {"shear_modulus", m.shearModulus},
+                                          {"remanence", m.remanence},
+                                          {"relative_permeability", m.relativePermeability}});
+                          auto given = [](double v, double scale) { return v > 0.0 ? std::format("{:g}", v * scale) : std::string("-"); };
+                          text += std::format("| {} | {:g} | {} | {} | {} | {:.2f} {:.2f} {:.2f} | {:g} | {:g} |\n", m.name, m.density, given(m.shearModulus, 1e-9),
+                                              given(m.remanence, 1.0), given(m.relativePermeability, 1.0), m.colour[0], m.colour[1], m.colour[2], m.metallic,
                                               m.roughness);
                       }
                       o.result = {{"materials", list}};
@@ -208,7 +217,10 @@ void RegisterDocumentCommands(cmd::CommandBus& bus, std::function<Document*()> d
                           {"colour", {{"type", "array"}, {"items", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}}}},
                           {"metallic", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
                           {"roughness", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
-                          {"emission", {{"type", "number"}, {"minimum", 0}}}},
+                          {"emission", {{"type", "number"}, {"minimum", 0}}},
+                          {"shear_modulus", {{"type", "number"}, {"minimum", 0}, {"description", "[Pa], for springs (steel 79.3e9)"}}},
+                          {"remanence", {{"type", "number"}, {"minimum", 0}, {"description", "[T], for permanent magnets (ferrite 0.4)"}}},
+                          {"relative_permeability", {{"type", "number"}, {"minimum", 0}, {"description", "for magnetic cores"}}}},
                          {"name", "density"}),
                   {}, [document, none](const Json& args) {
                       Document* d = document();
@@ -222,6 +234,9 @@ void RegisterDocumentCommands(cmd::CommandBus& bus, std::function<Document*()> d
                       m.metallic = args.value("metallic", 0.0);
                       m.roughness = args.value("roughness", 0.5);
                       m.emission = args.value("emission", 0.0);
+                      m.shearModulus = args.value("shear_modulus", 0.0);
+                      m.remanence = args.value("remanence", 0.0);
+                      m.relativePermeability = args.value("relative_permeability", 0.0);
                       const std::optional<Material> before = d->FindMaterial(m.name);
                       std::string error;
                       if (!d->DefineMaterial(m, error))
@@ -379,34 +394,220 @@ void RegisterDocumentCommands(cmd::CommandBus& bus, std::function<Document*()> d
                   }});
 
     bus.Register({"aiad_body_define", "Define body",
-                  "Defines a rigid body and its rest placement (origin, numbers or formulas). Parts of a body move together.",
-                  Object({{"body", {{"type", "string"}}}, {"origin", {{"type", "array"}, {"items", kNumberOrFormula}}}}, {"body", "origin"}), {},
-                  [document, none](const Json& args) {
+                  "Defines a rigid body and its rest placement (origin, numbers or formulas). Parts of a body move together. "
+                  "fixed: true makes it part of the ground (it does not move; joints to it hold the other bodies).",
+                  Object({{"body", {{"type", "string"}}}, {"origin", {{"type", "array"}, {"items", kNumberOrFormula}}}, {"fixed", {{"type", "boolean"}}}},
+                         {"body", "origin"}),
+                  {}, [document, none](const Json& args) {
                       Document* d = document();
                       if (!d)
                           return none();
                       const std::string body = args["body"];
                       const bool existed = bool(d->Stage()->GetPrimAtPath(d->BodyPath(body)));
                       const Json before = d->BodyOriginDefinition(body);
+                      const bool fixedBefore = d->BodyFixed(body);
+                      const std::optional<bool> fixed = args.contains("fixed") ? std::optional<bool>(args["fixed"].get<bool>()) : std::nullopt;
                       std::string error;
-                      if (!d->DefineBody(body, args["origin"], error))
+                      if (!d->DefineBody(body, args["origin"], error, fixed))
                           return CommandOutput::Fail(error);
                       CommandOutput o;
                       o.label = "Body " + body;
-                      o.text = "Body " + body + " at " + args["origin"].dump() + ".";
+                      o.text = "Body " + body + " at " + args["origin"].dump() + (d->BodyFixed(body) ? " (fixed: part of the ground)." : ".");
                       if (existed)
                       {
-                          o.undo = [document, body, before] {
+                          o.undo = [document, body, before, fixedBefore] {
                               std::string e;
                               if (Document* doc = document())
-                                  doc->DefineBody(body, before, e);
+                                  doc->DefineBody(body, before, e, fixedBefore);
                           };
-                          o.redo = [document, body, after = args["origin"]] {
+                          o.redo = [document, body, after = args["origin"], fixed] {
                               std::string e;
                               if (Document* doc = document())
-                                  doc->DefineBody(body, after, e);
+                                  doc->DefineBody(body, after, e, fixed);
                           };
                       }
+                      return o;
+                  }});
+
+    // ---- Joints: the mechanism (the simulation is built from them) ----
+    auto jointJson = [](const JointInfo& j) {
+        return Json{{"name", j.name}, {"type", j.type}, {"body0", j.body0}, {"body1", j.body1.empty() ? Json("ground") : Json(j.body1)},
+                    {"point", j.point}, {"axis", j.axis}, {"motor", j.motor}, {"limits", j.limits}};
+    };
+    // Restores a joint to a definition (null = deleted).
+    auto setJoint = [document](const std::string& name, const std::optional<JointInfo>& state) {
+        Document* d = document();
+        if (!d)
+            return;
+        std::string e;
+        if (state)
+            d->DefineJoint(*state, e);
+        else if (d->FindJoint(name))
+            d->DeleteJoint(name, e);
+    };
+    bus.Register({"aiad_joints_list", "List joints",
+                  "The joints of the mechanism: type, the two bodies (body1 'ground' = fixed to the world), point and axis (formulas), motor.",
+                  Object(Json::object()), {true, false, true}, [document, none, jointJson](const Json&) {
+                      Document* d = document();
+                      if (!d)
+                          return none();
+                      CommandOutput o;
+                      o.result = Json::array();
+                      std::string text = "| Joint | Type | Body 0 | Body 1 | Point | Axis | Motor | Limits |\n|---|---|---|---|---|---|---|---|\n";
+                      for (const JointInfo& j : d->Joints())
+                      {
+                          o.result.push_back(jointJson(j));
+                          text += std::format("| {} | {} | {} | {} | {} | {} | {} | {} |\n", j.name, j.type, j.body0, j.body1.empty() ? "ground" : j.body1,
+                                              j.point.dump(), j.axis.dump(), j.motor.is_null() ? "-" : j.motor.dump(), j.limits.is_null() ? "-" : j.limits.dump());
+                      }
+                      o.text = d->Joints().empty() ? "No joint: every body is free (aiad_joint_define connects two bodies)." : text;
+                      return o;
+                  }});
+    bus.Register({"aiad_joint_define", "Define joint",
+                  "Creates or replaces a joint between two bodies: revolute (rotation about the axis through the point), prismatic (sliding along "
+                  "the axis), cylindrical (both), spherical (ball at the point), planar (plane through the point, axis = normal), fixed. "
+                  "body1 omitted or 'ground' = fixed to the world. Point and axis in the model frame, numbers or formulas. Optional motor: "
+                  "{\"mode\": \"speed\" (rad/s or m/s) | \"torque\" (N m or N), \"value\": number or formula}; a torque motor may have "
+                  "\"free_speed\" (DC-motor curve: torque falls to 0 at that speed, e.g. a starter) and \"duration\" [s]. Optional limits "
+                  "[lower, upper] (rad or m from the drawn position; null = no stop on that side): seats and end stops, e.g. a valve "
+                  "[null, 0] closes on its seat.",
+                  Object({{"name", {{"type", "string"}}},
+                          {"type", {{"type", "string"}, {"enum", {"revolute", "prismatic", "cylindrical", "spherical", "planar", "fixed"}}}},
+                          {"body0", {{"type", "string"}}},
+                          {"body1", {{"type", "string"}}},
+                          {"point", {{"type", "array"}, {"items", kNumberOrFormula}}},
+                          {"axis", {{"type", "array"}, {"items", kNumberOrFormula}}},
+                          {"motor", {{"type", {"object", "null"}}}},
+                          {"limits", {{"type", {"array", "null"}}, {"items", {{"type", {"number", "string", "null"}}}}}}},
+                         {"name", "type", "body0", "point"}),
+                  {}, [document, none, setJoint](const Json& args) {
+                      Document* d = document();
+                      if (!d)
+                          return none();
+                      JointInfo j;
+                      j.name = args["name"];
+                      j.type = args["type"];
+                      j.body0 = args["body0"];
+                      j.body1 = args.value("body1", "");
+                      if (j.body1 == "ground" || j.body1 == "world")
+                          j.body1.clear();
+                      j.point = args["point"];
+                      j.axis = args.value("axis", Json::array({0, 0, 1}));
+                      j.motor = args.value("motor", Json());
+                      j.limits = args.value("limits", Json());
+                      const std::optional<JointInfo> before = d->FindJoint(j.name);
+                      std::string error;
+                      if (!d->DefineJoint(j, error))
+                          return CommandOutput::Fail("Joint " + j.name + ": " + error);
+                      CommandOutput o;
+                      o.label = "Joint " + j.name;
+                      o.text = std::format("{} joint {} between {} and {} at {}.", j.type, j.name, j.body0, j.body1.empty() ? "the ground" : j.body1, j.point.dump());
+                      o.undo = [setJoint, name = j.name, before] { setJoint(name, before); };
+                      o.redo = [setJoint, name = j.name, after = std::optional<JointInfo>(j)] { setJoint(name, after); };
+                      return o;
+                  }});
+    bus.Register({"aiad_joint_delete", "Delete joint", "Removes a joint (undoable).", Object({{"name", {{"type", "string"}}}}, {"name"}), {false, true, false},
+                  [document, none, setJoint](const Json& args) {
+                      Document* d = document();
+                      if (!d)
+                          return none();
+                      const std::string name = args["name"];
+                      const std::optional<JointInfo> before = d->FindJoint(name);
+                      std::string error;
+                      if (!d->DeleteJoint(name, error))
+                          return CommandOutput::Fail(error);
+                      CommandOutput o;
+                      o.label = "Delete joint " + name;
+                      o.text = "Deleted joint " + name + ".";
+                      o.undo = [setJoint, name, before] { setJoint(name, before); };
+                      o.redo = [setJoint, name] { setJoint(name, std::nullopt); };
+                      return o;
+                  }});
+    // ---- Elements: what else the machine is made of, tied to its joints and drawn parts ------------------
+    auto setElement = [document](const std::string& name, const std::optional<ElementInfo>& state) {
+        Document* d = document();
+        if (!d)
+            return;
+        std::string e;
+        if (state)
+            d->DefineElement(*state, e);
+        else if (d->FindElement(name))
+            d->DeleteElement(name, e);
+    };
+    bus.Register({"aiad_elements_list", "List elements",
+                  "The elements of the machine besides bodies and joints: gears, belts, racks, cam/pad contacts, springs, loads, chambers, "
+                  "magnetos, with their definitions.",
+                  Object(Json::object()), {true, false, true}, [document, none](const Json&) {
+                      Document* d = document();
+                      if (!d)
+                          return none();
+                      CommandOutput o;
+                      o.result = Json::array();
+                      std::string text = "| Element | Type | Definition |\n|---|---|---|\n";
+                      for (const ElementInfo& e : d->Elements())
+                      {
+                          o.result.push_back({{"name", e.name}, {"type", e.type}, {"definition", e.definition}});
+                          text += std::format("| {} | {} | {} |\n", e.name, e.type, e.definition.dump());
+                      }
+                      o.text = d->Elements().empty() ? "No element (aiad_element_define adds gears, belts, contacts, springs, loads, chambers, magnetos)."
+                                                     : text;
+                      return o;
+                  }});
+    bus.Register({"aiad_element_define", "Define element",
+                  "Creates or replaces an element of the machine, tied to its joints (by name), drawn parts (by name) and bodies; numbers may be "
+                  "formulas, points and directions are in the model frame. The simulation reads what it needs from the drawn parts (teeth, "
+                  "profiles, coil geometry, materials) and the simulator criticises what does not fit. Types and fields:\n"
+                  "- gear {joint0, joint1, part0, part1, internal?}: the drawn gears (sketch tool gear or sprocket) on the two joints mesh; ratio "
+                  "from their teeth, direction from the mesh (internal: ring gear).\n"
+                  "- belt {joint0, joint1, part0, part1, belt?}: a belt or chain around two drawn wheels (sprockets or pulleys); same direction.\n"
+                  "- rack {joint0 (pinion, revolute), joint1 (rack, prismatic), part0 (pinion), part1?}.\n"
+                  "- contact {part, body, point, normal, radius, stiffness?}: the drawn profile of `part` (an extruded sketch: cam lobe, rocker "
+                  "pad) pushes the flat face of `body` (tappet, valve tip): face centre `point` and `normal` (toward the profile) as drawn, face "
+                  "`radius`.\n"
+                  "- spring {part, body0, point0, body1, point1, free_length, active_turns?, damping?}: the drawn coil spring (helix_pipe; its "
+                  "material needs shear_modulus) between two bodies; stiffness from wire, coil and turns; its body is stretched in the view.\n"
+                  "- load {joint, constant?, linear?, quadratic?}: resisting torque or force -(c0 sign + c1 rate + c2 rate|rate|) (friction, "
+                  "brake, propeller).\n"
+                  "- chamber {piston (joint), cylinder (bore part), head (part), intake [{joint, part}], exhaust [{joint, part}], ignition? "
+                  "(magneto element), crank? (joint), intake_pressure?, intake_temperature?, exhaust_pressure?, exhaust_temperature?, "
+                  "air_fuel_ratio?, burn_duration? (deg)}: 0D gas cycle; bore, chamber volume and valve sizes measured on the parts.\n"
+                  "- magneto {rotor (joint), magnet (part), shoes [parts], core [parts], coil?, points_open (deg), points_close?, primary_turns?, "
+                  "secondary_turns?}: field from the drawn magnet and core (MFEM), breaker points, spark to the chamber that names it.",
+                  Object({{"name", {{"type", "string"}}},
+                          {"type", {{"type", "string"}, {"enum", {"gear", "belt", "rack", "contact", "spring", "load", "chamber", "magneto"}}}},
+                          {"definition", {{"type", "object"}, {"description", "the fields of the type"}}}},
+                         {"name", "type", "definition"}),
+                  {}, [document, none, setElement](const Json& args) {
+                      Document* d = document();
+                      if (!d)
+                          return none();
+                      const ElementInfo element{args["name"].get<std::string>(), args["type"].get<std::string>(), args["definition"]};
+                      const std::optional<ElementInfo> before = d->FindElement(element.name);
+                      std::string error;
+                      if (!d->DefineElement(element, error))
+                          return CommandOutput::Fail(std::format("{} {}: {}", element.type, element.name, error));
+                      CommandOutput o;
+                      o.label = std::format("{} {}", element.type, element.name);
+                      o.text = std::format("Defined {} '{}'. aiad_mechanism_check says whether the drawing supports it.", element.type, element.name);
+                      o.undo = [setElement, name = element.name, before] { setElement(name, before); };
+                      o.redo = [setElement, name = element.name, after = std::optional<ElementInfo>(element)] { setElement(name, after); };
+                      return o;
+                  }});
+    bus.Register({"aiad_element_delete", "Delete element", "Removes an element of the machine (undoable).", Object({{"name", {{"type", "string"}}}}, {"name"}),
+                  {false, true, false}, [document, none, setElement](const Json& args) {
+                      Document* d = document();
+                      if (!d)
+                          return none();
+                      const std::string name = args["name"];
+                      const std::optional<ElementInfo> before = d->FindElement(name);
+                      std::string error;
+                      if (!d->DeleteElement(name, error))
+                          return CommandOutput::Fail(error);
+                      CommandOutput o;
+                      o.label = "Delete element " + name;
+                      o.text = "Deleted element " + name + ".";
+                      o.undo = [setElement, name, before] { setElement(name, before); };
+                      o.redo = [setElement, name] { setElement(name, std::nullopt); };
                       return o;
                   }});
     bus.Register({"aiad_doc_orient", "Orient model", "Orientation of the whole model in the world: rotation about an axis through the origin.",

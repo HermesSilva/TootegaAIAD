@@ -9,8 +9,12 @@
 #include "Expression.h"
 #include "Features.h"
 
+#include <pxr/base/gf/vec3f.h>
 #include <pxr/base/plug/registry.h>
+#include <pxr/usd/usd/attribute.h>
+#include <pxr/usd/usd/prim.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -101,6 +105,83 @@ int main()
     CHECK(bus.Undo() && Near(Volume(*doc, "Liner"), tube(0.08, 0.004, 0.1), 1e-3) && Near(doc->Value("bore"), 0.08, 1e-12));
     CHECK(bus.Redo() && Near(doc->Value("bore"), 0.1, 1e-12));
     bus.Undo();
+
+    // A body moved (as the AI does when it repositions the camshaft), then undone: the previous rest
+    // placement, a formula, comes back.
+    CHECK(bus.Execute("aiad_body_define", {{"body", "Cam"}, {"origin", Json::array({"bore", 0, 0})}}, "ai").ok);
+    CHECK(bus.Execute("aiad_body_define", {{"body", "Cam"}, {"origin", Json::array({"bore", -0.08, 0})}}, "ai").ok);
+    CHECK(Near(doc->BodyOrigin("Cam").y, -0.08, 1e-12));
+    CHECK(bus.Undo() && Near(doc->BodyOrigin("Cam").y, 0.0, 1e-12) && Near(doc->BodyOrigin("Cam").x, 0.08, 1e-12));
+
+    // The mechanism is part of the document: a fixed body (ground) and a joint (UsdPhysics prim), with
+    // formulas that follow the parameters, checked on definition, undoable.
+    CHECK(bus.Execute("aiad_body_define", {{"body", "Base"}, {"origin", Json::array({0, 0, 0})}, {"fixed", true}}, "user").ok && doc->BodyFixed("Base") &&
+          !doc->BodyFixed("Cam"));
+    CHECK(bus.Execute("aiad_joint_define", {{"name", "Hinge"}, {"type", "revolute"}, {"body0", "Cam"}, {"body1", "Base"},
+                                            {"point", Json::array({"bore / 2", 0, 0})}, {"axis", Json::array({0, 0, 1})},
+                                            {"motor", {{"mode", "speed"}, {"value", 10}}}},
+                      "ai")
+              .ok);
+    const pxr::UsdPrim hinge = doc->Stage()->GetPrimAtPath(doc->Root().AppendChild(pxr::TfToken("Joints")).AppendChild(pxr::TfToken("Hinge")));
+    auto localPos0 = [&] {
+        pxr::GfVec3f v(0.0f);
+        hinge.GetAttribute(pxr::TfToken("physics:localPos0")).Get(&v);
+        return v;
+    };
+    CHECK(hinge.GetTypeName() == "PhysicsRevoluteJoint" && Near(localPos0()[0], -0.04, 1e-6));   // bore/2 - Cam origin (bore)
+    CHECK(bus.Execute("aiad_parameters_set", {{"values", {{"bore", 0.1}}}}, "user").ok && Near(localPos0()[0], -0.05, 1e-6));
+    bus.Undo();
+    CHECK(!bus.Execute("aiad_joint_define", {{"name", "Bad"}, {"type", "revolute"}, {"body0", "Nope"}, {"point", Json::array({0, 0, 0})}}, "ai").ok);
+    CHECK(!bus.Execute("aiad_joint_define", {{"name", "Bad"}, {"type", "spherical"}, {"body0", "Cam"}, {"point", Json::array({0, 0, 0})},
+                                             {"motor", {{"mode", "speed"}, {"value", 1}}}},
+                       "ai")
+               .ok);   // a motor needs a joint with an axis of motion
+    CHECK(doc->Joints().size() == 1 && doc->FindJoint("Hinge")->motor.value("mode", "") == "speed");
+    CHECK(bus.Undo() && !doc->FindJoint("Hinge") && bus.Redo() && doc->FindJoint("Hinge"));
+    // Stops of a joint (a seat): formulas, written as the UsdPhysics limits.
+    CHECK(bus.Execute("aiad_joint_define", {{"name", "Slide"}, {"type", "prismatic"}, {"body0", "Frame"}, {"body1", "Base"},
+                                            {"point", Json::array({0, 0, 0})}, {"axis", Json::array({1, 0, 0})}, {"limits", Json::array({nullptr, "wall"})}},
+                      "ai")
+              .ok);
+    float upper = 0.0f;
+    doc->Stage()->GetPrimAtPath(doc->Root().AppendChild(pxr::TfToken("Joints")).AppendChild(pxr::TfToken("Slide"))).GetAttribute(pxr::TfToken("physics:upperLimit")).Get(&upper);
+    CHECK(Near(upper, 0.004, 1e-6) && doc->FindJoint("Slide")->limits[0].is_null());
+    CHECK(!bus.Execute("aiad_joint_define", {{"name", "Bad"}, {"type", "spherical"}, {"body0", "Cam"}, {"point", Json::array({0, 0, 0})},
+                                             {"limits", Json::array({0, 1})}},
+                       "ai")
+               .ok);   // a ball joint has no coordinate to stop
+
+    // A gear drawn with the involute tool: about the pitch disc in area, measured as a wheel (teeth, pitch
+    // radius, axis) for the couplings.
+    CHECK(bus.Execute("aiad_part_create", {{"name", "Pinion"}, {"body", "Cam"}, {"material", "Steel"},
+                                           {"features", {{{"op", "extrude"}, {"plane", "XY"}, {"distance", 0.01},
+                                                          {"profile", {{"gear", {{"module", 0.002}, {"teeth", 20}}}}}}}}},
+                      "ai")
+              .ok);
+    CHECK(Near(Volume(*doc, "Pinion"), pi * 0.02 * 0.02 * 0.01, 0.06));
+    Wheel wheel;
+    CHECK(FindWheel(doc->FindPart("Pinion", error)->features, doc->Lookup(), wheel, error) && wheel.teeth == 20 && Near(wheel.pitchRadius, 0.02, 1e-12) &&
+          Near(wheel.axis.z, 1.0, 1e-12) && Near(wheel.centre.z, 0.005, 1e-12));
+    // A profile turned by a later feature is measured where it ends up.
+    ExtrudedProfile turned;
+    const Json lobe = {{{"op", "extrude"}, {"plane", "XY"}, {"distance", 0.01}, {"profile", {{"rect", {{"min", {0.01, -0.001}}, {"max", {0.02, 0.001}}}}}}},
+                       {{"op", "rotate"}, {"axis", {0, 0, 1}}, {"angle", 180}}};
+    CHECK(FindExtrudedProfile(lobe, doc->Lookup(), turned, error) &&
+          std::all_of(turned.points.begin(), turned.points.end(), [](const kernel::Vec3& p) { return p.x < -0.0099 && p.x > -0.0201; }));
+
+    // Elements: tied to joints, parts and bodies by name, checked on definition, undoable.
+    CHECK(bus.Execute("aiad_element_define", {{"name", "Mesh"}, {"type", "rack"}, {"definition", {{"joint0", "Hinge"}, {"joint1", "Slide"}, {"part0", "Pinion"}}}},
+                      "ai")
+              .ok &&
+          doc->FindElement("Mesh") && doc->FindElement("Mesh")->type == "rack");
+    CHECK(!bus.Execute("aiad_element_define", {{"name", "Bad"}, {"type", "gear"}, {"definition", {{"joint0", "Hinge"}, {"joint1", "Nope"}, {"part0", "Pinion"}, {"part1", "Pinion"}}}},
+                       "ai")
+               .ok);   // unknown joint
+    CHECK(!bus.Execute("aiad_element_define", {{"name", "Bad"}, {"type", "load"}, {"definition", {{"joint", "Hinge"}, {"friction", 1}}}}, "ai").ok);   // unknown field
+    CHECK(!bus.Execute("aiad_element_define", {{"name", "Bad"}, {"type", "load"}, {"definition", {{"joint", "Hinge"}, {"constant", "nope * 2"}}}}, "ai").ok);
+    CHECK(bus.Execute("aiad_element_define", {{"name", "Drag"}, {"type", "load"}, {"definition", {{"joint", "Hinge"}, {"quadratic", "bore * 0.01"}}}}, "ai").ok);
+    CHECK(doc->Elements().size() == 2 && bus.Undo() && doc->Elements().size() == 1 && bus.Undo() && doc->Elements().empty());
+    CHECK(bus.Execute("aiad_part_delete", {{"part", "Pinion"}}, "ai").ok);
 
     // Out of range, unknown, cycle: refused, nothing changed.
     CHECK(!bus.Execute("aiad_parameters_set", {{"values", {{"bore", 0.5}}}}, "ai").ok);

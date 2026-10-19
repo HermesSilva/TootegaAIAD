@@ -1,0 +1,114 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{5AA187C4-1C1B-3EFE-84D0-7F34BA650429}</ProjectGuid>
+    <RootNamespace>aiad</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(AiadRoot)src\Aiad.props" />
+  </ImportGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(AiadRoot)deps\_externals\aurora\stb\include;$(AiadRoot)deps\_src\imgui;$(AiadRoot)deps\_src\imgui\backends;$(AiadRoot)deps\_src\implot;$(AiadRoot)src\aiad_render;$(AiadRoot)src\aiad_doc;$(AiadRoot)src\aiad_kernel;$(AiadRoot)src\aiad_cmd;$(AiadRoot)src\aiad_core;$(AiadRoot)deps\_src\nlohmann_json\single_include;$(AiadRoot)src\aiad_sim;$(AiadRoot)src\aiad_bridge;$(AiadRoot)src\aiad_ai;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;AIAD_USD_PLUGIN_DIR=&quot;$(AiadRootFwd)deps/static/release/lib/usd&quot;;AIAD_HDUSDBREP_PLUGIN_DIR=&quot;$(AiadRootFwd)deps/usd-brep/1.0.0-v145-static/release/usd/hdUsdBrep&quot;;AIAD_OMNISOLID_RESOURCES_DIR=&quot;$(AiadRootFwd)deps/usd-brep/1.0.0-v145-static/release/usd/omniSolid/resources&quot;;AIAD_HDAURORA_RESOURCES_DIR=&quot;$(AiadRootFwd)deps/forks/aurora-4AIAD/Libraries/HdAurora/resources-4AIAD&quot;;AIAD_MODELS_DIR=&quot;$(AiadRootFwd)src/../models&quot;;PXR_STATIC;PXR_STATIC=1;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <AdditionalOptions>/external:I &quot;$(AiadRoot)deps/static/release/include&quot; /external:I &quot;$(AiadRoot)deps/_externals/aurora/MaterialX/include&quot; /utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>dbghelp.lib;credui.lib;advapi32.lib;shell32.lib;d3d12.lib;dxgi.lib;d3dcompiler.lib;dwmapi.lib;$(AiadRoot)deps\_externals\aurora\MaterialX\lib\MaterialXGenGlsl.lib;$(AiadRoot)deps\_externals\aurora\MaterialX\lib\MaterialXGenSlang.lib;$(AiadRoot)deps\_externals\aurora\MaterialX\lib\MaterialXGenHw.lib;$(AiadRoot)deps\_externals\aurora\MaterialX\lib\MaterialXGenShader.lib;dxguid.lib;dxcompiler.lib;$(AiadRoot)deps\_externals\aurora\NRD\bin\NRD.lib;$(AiadRoot)deps\_externals\aurora\NRI\bin\NRI.lib;$(AiadRoot)deps\_externals\aurora\Slang\lib\slang.lib;$(AiadRoot)deps\usd-brep\1.0.0-v145-static\release\lib\HYDRA_USD_BREP.lib;$(AiadRoot)deps\static\release\lib\usd_usdMedia.lib;$(AiadRoot)deps\static\release\lib\usd_usdHydra.lib;$(AiadRoot)deps\static\release\lib\usd_usdRi.lib;$(AiadRoot)deps\static\release\lib\usd_usdSemantics.lib;$(AiadRoot)deps\static\release\lib\usd_execGeom.lib;$(AiadRoot)deps\static\release\lib\usd_execUsd.lib;$(AiadRoot)deps\static\release\lib\usd_esfUsd.lib;$(AiadRoot)deps\static\release\lib\usd_exec.lib;$(AiadRoot)deps\static\release\lib\usd_ef.lib;$(AiadRoot)deps\static\release\lib\usd_vdf.lib;$(AiadRoot)deps\static\release\lib\usd_esf.lib;$(AiadRoot)deps\static\release\lib\usd_usdGeomValidators.lib;$(AiadRoot)deps\static\release\lib\usd_usdPhysicsValidators.lib;$(AiadRoot)deps\static\release\lib\usd_usdPhysics.lib;$(AiadRoot)deps\static\release\lib\usd_usdShadeValidators.lib;$(AiadRoot)deps\static\release\lib\usd_usdSkelValidators.lib;$(AiadRoot)deps\static\release\lib\usd_usdUtilsValidators.lib;$(AiadRoot)deps\static\release\lib\usd_usdValidation.lib;$(AiadRoot)deps\static\release\lib\usd_hgi.lib;$(AiadRoot)deps\static\release\lib\usd_hdGp.lib;$(AiadRoot)deps\static\release\lib\usd_hdsi.lib;$(AiadRoot)deps\static\release\lib\usd_hdMtlx.lib;$(AiadRoot)deps\static\release\lib\usd_usdMtlx.lib;$(AiadRoot)deps\static\release\lib\usd_usdUtils.lib;$(AiadRoot)deps\static\release\lib\usd_usdUI.lib;$(AiadRoot)deps\_externals\aurora\MaterialX\lib\MaterialXFormat.lib;$(AiadRoot)deps\_externals\aurora\MaterialX\lib\MaterialXCore.lib;$(AiadRoot)deps\static\release\lib\usd_usdProcImaging.lib;$(AiadRoot)deps\static\release\lib\usd_usdProc.lib;$(AiadRoot)deps\static\release\lib\usd_usdRiPxrImaging.lib;$(AiadRoot)deps\static\release\lib\usd_usdSkelImaging.lib;$(AiadRoot)deps\static\release\lib\usd_usdSkel.lib;$(AiadRoot)deps\static\release\lib\usd_usdVolImaging.lib;$(AiadRoot)deps\static\release\lib\usd_usdImaging.lib;$(AiadRoot)deps\static\release\lib\usd_usdVol.lib;$(AiadRoot)deps\static\release\lib\usd_usdLux.lib;$(AiadRoot)deps\static\release\lib\usd_usdRender.lib;$(AiadRoot)deps\static\release\lib\usd_usdShade.lib;$(AiadRoot)deps\static\release\lib\usd_usdGeom.lib;$(AiadRoot)deps\static\release\lib\usd_usd.lib;$(AiadRoot)deps\static\release\lib\usd_kind.lib;$(AiadRoot)deps\static\release\lib\usd_pcp.lib;$(AiadRoot)deps\static\release\lib\usd_hio.lib;$(AiadRoot)deps\static\release\lib\usd_geomUtil.lib;$(AiadRoot)deps\static\release\lib\usd_hdar.lib;$(AiadRoot)deps\static\release\lib\usd_hd.lib;$(AiadRoot)deps\static\release\lib\usd_sdr.lib;$(AiadRoot)deps\static\release\lib\usd_sdf.lib;$(AiadRoot)deps\static\release\lib\usd_pegtl.lib;$(AiadRoot)deps\static\release\lib\usd_ts.lib;$(AiadRoot)deps\static\release\lib\usd_ar.lib;$(AiadRoot)deps\static\release\lib\usd_hf.lib;$(AiadRoot)deps\static\release\lib\usd_plug.lib;$(AiadRoot)deps\static\release\lib\usd_work.lib;$(AiadRoot)deps\static\release\lib\usd_cameraUtil.lib;$(AiadRoot)deps\static\release\lib\usd_pxOsd.lib;$(AiadRoot)deps\static\release\lib\usd_vt.lib;$(AiadRoot)deps\static\release\lib\usd_gf.lib;$(AiadRoot)deps\static\release\lib\usd_trace.lib;$(AiadRoot)deps\static\release\lib\usd_js.lib;$(AiadRoot)deps\static\release\lib\usd_tf.lib;$(AiadRoot)deps\static\release\lib\usd_arch.lib;$(AiadRoot)deps\static\release\lib\osdCPU.lib;$(AiadRoot)deps\static\release\lib\tbb12.lib;Shlwapi.lib;Dbghelp.lib;$(AiadRoot)deps\usd-brep\1.0.0-v145-static\release\lib\SMLib.lib;$(AiadRoot)deps\usd-brep\1.0.0-v145-static\release\lib\SM_API.lib;$(AiadRoot)deps\usd-brep\1.0.0-v145-static\release\lib\SM_API_USD.lib;$(AiadRoot)deps\usd-brep\1.0.0-v145-static\release\lib\BREP_SM_USD.lib;$(AiadRoot)deps\usd-brep\1.0.0-v145-static\release\lib\BREP_USD_DATA.lib;$(AiadRoot)deps\usd-brep\1.0.0-v145-static\release\lib\USD_BREP_UTILS.lib;$(AiadRoot)deps\usd-brep\1.0.0-v145-static\release\lib\BREP_STAGING.lib;$(AiadRoot)deps\mfem\4.10-cuda13.3-v145-double\lib\mfem.lib;$(AiadCuda)lib\x64\cusparse.lib;$(AiadCuda)lib\x64\cublas.lib;$(AiadCuda)lib\x64\cudart_static.lib;$(AiadRoot)deps\chrono\10.0.0-static\lib\Chrono_core.lib;Ws2_32.lib;ws2_32.lib;bcrypt.lib;winhttp.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_arch.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_tf.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_gf.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_pegtl.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_js.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_trace.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_work.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_plug.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_vt.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_ts.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_ar.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_kind.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_sdf.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_sdr.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_pcp.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usd.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdGeom.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdVol.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdMedia.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdShade.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdLux.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdProc.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdRender.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdHydra.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdRi.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdSemantics.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdSkel.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdUI.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdUtils.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdPhysics.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdMtlx.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_vdf.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_ef.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_esf.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_esfUsd.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_exec.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_execUsd.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_execGeom.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdValidation.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdGeomValidators.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdPhysicsValidators.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdShadeValidators.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdSkelValidators.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdUtilsValidators.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_hf.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_hio.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_cameraUtil.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_pxOsd.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_geomUtil.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_hgi.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_hd.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_hdar.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_hdGp.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_hdsi.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_hdMtlx.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdImaging.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdProcImaging.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdRiPxrImaging.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdSkelImaging.lib /WHOLEARCHIVE:$(AiadRoot)deps/static/release/lib/usd_usdVolImaging.lib /WHOLEARCHIVE:$(AiadLibDir)hdAurora.lib /WHOLEARCHIVE:$(AiadRoot)deps/usd-brep/1.0.0-v145-static/release/lib/SMLib.lib /WHOLEARCHIVE:$(AiadRoot)deps/usd-brep/1.0.0-v145-static/release/lib/SM_API.lib /WHOLEARCHIVE:$(AiadRoot)deps/usd-brep/1.0.0-v145-static/release/lib/SM_API_USD.lib /WHOLEARCHIVE:$(AiadRoot)deps/usd-brep/1.0.0-v145-static/release/lib/BREP_SM_USD.lib /WHOLEARCHIVE:$(AiadRoot)deps/usd-brep/1.0.0-v145-static/release/lib/BREP_USD_DATA.lib /WHOLEARCHIVE:$(AiadRoot)deps/usd-brep/1.0.0-v145-static/release/lib/USD_BREP_UTILS.lib /WHOLEARCHIVE:$(AiadRoot)deps/usd-brep/1.0.0-v145-static/release/lib/BREP_STAGING.lib /WHOLEARCHIVE:$(AiadRoot)deps/usd-brep/1.0.0-v145-static/release/lib/HYDRA_USD_BREP.lib %(AdditionalOptions)</AdditionalOptions>
+      <IgnoreSpecificDefaultLibraries>libcmt.lib;libcmtd.lib;msvcrtd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="D3DContext.cpp" />
+    <ClCompile Include="DocumentScene.cpp" />
+    <ClCompile Include="MechanismStudy.cpp" />
+    <ClCompile Include="AppCommands.cpp" />
+    <ClCompile Include="AiPanels.cpp" />
+    <ClCompile Include="Markdown.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="AiPanels.h" />
+    <ClInclude Include="D3DContext.h" />
+    <ClInclude Include="DocumentScene.h" />
+    <ClInclude Include="AppCommands.h" />
+    <ClInclude Include="Session.h" />
+    <ClInclude Include="MechanismStudy.h" />
+    <ClInclude Include="StudyFinding.h" />
+    <ClInclude Include="Markdown.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\deps\forks\aurora-4AIAD\Libraries\Aurora\Aurora.vcxproj">
+      <Project>{C30F33FA-C7CE-3854-A2D2-75FFE4A504B6}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\deps\forks\aurora-4AIAD\Libraries\Foundation\Foundation.vcxproj">
+      <Project>{22885EFD-C0BB-369A-ACC3-6CDB5096FF48}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\aiad_ai\aiad_ai.vcxproj">
+      <Project>{5CB0F21B-84B9-3CA0-A880-771A2EFFDD72}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\aiad_bridge\aiad_bridge.vcxproj">
+      <Project>{DC244F62-C30B-3289-9A55-14AC6F68901C}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\aiad_cmd\aiad_cmd.vcxproj">
+      <Project>{F69EE046-4B24-3427-997A-0D1E5D565877}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\aiad_core\aiad_core.vcxproj">
+      <Project>{7BE7363F-8BE7-3DDD-89DE-7A4CA7CB8FE4}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\aiad_doc\aiad_doc.vcxproj">
+      <Project>{C3C7B1CC-D8C8-3C8E-AF47-ED2CB0873A6B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="aiad_imgui.vcxproj">
+      <Project>{47565CC5-F8CE-3669-9096-66EF499BFC72}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\aiad_kernel\aiad_kernel.vcxproj">
+      <Project>{3CF6C516-F187-31B6-A7C5-A740C106CECC}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\aiad_mcp\aiad_mcp.vcxproj">
+      <Project>{0C224198-30C5-3703-B3A5-3F77281EA5BF}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\aiad_render\aiad_render.vcxproj">
+      <Project>{740B95DB-D5FC-3C27-B4B7-CBDEF3DA0345}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\aiad_sim\aiad_sim_engine.vcxproj">
+      <Project>{D1EE013E-E4AA-3812-A9D5-F329CCE8538D}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\aiad_sim\aiad_sim_magneto.vcxproj">
+      <Project>{0B425023-F399-330A-879F-CE76CA978F55}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\aiad_sim\aiad_sim_mechanism.vcxproj">
+      <Project>{1AFC059C-D0BF-3791-A05A-CA5D5FDDADFE}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\deps\forks\aurora-4AIAD\Libraries\HdAurora\HdAurora.vcxproj">
+      <Project>{2AA7E63D-4AB9-30EA-A4A2-828C0B33558C}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <!-- Aurora's run-time files (shader compilers, denoiser, MaterialX libraries) next to aiad.exe. -->
+  <Import Project="$(AiadDeps)forks\aurora-4AIAD\Aurora4AIAD.Runtime.targets" />
+  <!-- OpenUSD plugin folder (usd\) next to aiad.exe, read before main: run and debug from Visual Studio. -->
+  <Import Project="AiadRuntime.targets" />
+</Project>

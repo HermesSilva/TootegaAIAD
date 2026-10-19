@@ -35,7 +35,7 @@ double CylinderGeometry::DisplacedVolume() const
 
 double CylinderGeometry::ClearanceVolume() const
 {
-    return DisplacedVolume() / (compressionRatio - 1.0);
+    return clearance >= 0.0 ? clearance : DisplacedVolume() / (compressionRatio - 1.0);
 }
 
 double Valve::FlowArea(double lift) const

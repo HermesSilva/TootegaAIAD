@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{740B95DB-D5FC-3C27-B4B7-CBDEF3DA0345}</ProjectGuid>
+    <RootNamespace>aiad_render</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(AiadRoot)src\Aiad.props" />
+  </ImportGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(AiadRoot)src\aiad_render;$(AiadRoot)deps\forks\aurora-4AIAD\Libraries\Aurora\API;$(AiadRoot)deps\forks\aurora-4AIAD\Libraries\Foundation\API;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NOMINMAX;PXR_STATIC;PXR_STATIC=1;AURORA_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <AdditionalOptions>/external:I &quot;$(AiadRoot)deps/static/release/include&quot; /external:I &quot;$(AiadRoot)deps/_externals/aurora/MaterialX/include&quot; %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="HydraViewport.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="HydraViewport.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\deps\forks\aurora-4AIAD\Libraries\Aurora\Aurora.vcxproj">
+      <Project>{C30F33FA-C7CE-3854-A2D2-75FFE4A504B6}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\..\deps\forks\aurora-4AIAD\Libraries\Foundation\Foundation.vcxproj">
+      <Project>{22885EFD-C0BB-369A-ACC3-6CDB5096FF48}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\..\deps\forks\aurora-4AIAD\Libraries\HdAurora\HdAurora.vcxproj">
+      <Project>{2AA7E63D-4AB9-30EA-A4A2-828C0B33558C}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- The OpenUSD plugin folder next to aiad.exe, as in Dist: static OpenUSD reads <exe dir>\usd before main
+       runs, so running or debugging from Visual Studio needs it (OpenUSD's plugInfo, hdUsdBrep, omniSolid,
+       hdAurora). build-dist.ps1 assembles the same layout in Dist. -->
+  <ItemGroup>
+    <AiadUsdPlugin Include="$(AiadDeps)static\release\lib\usd\**\*" Root="$(AiadDeps)static\release\lib\usd\" />
+    <AiadUsdPlugin Include="$(AiadDeps)usd-brep\1.0.0-v145-static\release\usd\hdUsdBrep\**\*" Root="$(AiadDeps)usd-brep\1.0.0-v145-static\release\usd\" />
+    <AiadUsdPlugin Include="$(AiadDeps)usd-brep\1.0.0-v145-static\release\usd\omniSolid\**\*" Root="$(AiadDeps)usd-brep\1.0.0-v145-static\release\usd\" />
+  </ItemGroup>
+  <Target Name="AiadCopyUsdPlugins" AfterTargets="Build">
+    <ItemGroup>
+      <_AiadUsdFile Include="@(AiadUsdPlugin)" Destination="$(OutDir)usd\$([MSBuild]::MakeRelative('%(Root)', '%(FullPath)'))" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_AiadUsdFile)" DestinationFiles="@(_AiadUsdFile->'%(Destination)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(AiadDeps)forks\aurora-4AIAD\Libraries\HdAurora\resources-4AIAD\plugInfo.json"
+          DestinationFolder="$(OutDir)usd\hdAurora\resources" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

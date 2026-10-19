@@ -1,0 +1,61 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{F502790C-33BF-3290-B360-975BC4616306}</ProjectGuid>
+    <RootNamespace>mcp_bridge_test</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(AiadRoot)src\Aiad.props" />
+  </ImportGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(AiadRoot)src\aiad_bridge;$(AiadRoot)src\aiad_core;$(AiadRoot)deps\_src\nlohmann_json\single_include;$(AiadRoot)src\aiad_cmd;$(AiadRoot)src\aiad_ai;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>AIAD_MCP_EXE=&quot;$(OutDir.Replace('\', '/'))aiad-mcp.exe&quot;;PXR_STATIC;NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>ws2_32.lib;bcrypt.lib;winhttp.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="mcp_bridge_test.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\aiad_ai\aiad_ai.vcxproj">
+      <Project>{5CB0F21B-84B9-3CA0-A880-771A2EFFDD72}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\aiad_bridge\aiad_bridge.vcxproj">
+      <Project>{DC244F62-C30B-3289-9A55-14AC6F68901C}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\aiad_cmd\aiad_cmd.vcxproj">
+      <Project>{F69EE046-4B24-3427-997A-0D1E5D565877}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\aiad_core\aiad_core.vcxproj">
+      <Project>{7BE7363F-8BE7-3DDD-89DE-7A4CA7CB8FE4}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\aiad_mcp.vcxproj">
+      <Project>{0C224198-30C5-3703-B3A5-3F77281EA5BF}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

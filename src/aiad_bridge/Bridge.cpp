@@ -93,14 +93,22 @@ bool BridgeServer::Start(MainThreadQueue& queue, Handler handler, const std::fil
     m_thread = std::thread([this] { AcceptLoop(); });
 
     m_discoveryFile = DiscoveryDir() / std::format("aiad-{}.json", GetCurrentProcessId());
+    m_startedAt = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    SetWorkspace(workspace);
+    return true;
+}
+
+void BridgeServer::SetWorkspace(const std::filesystem::path& workspace)
+{
+    if (m_discoveryFile.empty())
+        return;
     const Json discovery = {{"protocol", kProtocol},
                             {"url", m_url},
                             {"token", m_token},
                             {"workspacePath", Narrow(workspace.wstring())},
                             {"pid", GetCurrentProcessId()},
-                            {"startedAt", std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count()}};
+                            {"startedAt", m_startedAt}};
     WriteTextFile(m_discoveryFile, discovery.dump(2));
-    return true;
 }
 
 void BridgeServer::Stop()

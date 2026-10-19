@@ -35,6 +35,8 @@ public:
     ~BridgeServer();
     bool Start(MainThreadQueue& queue, Handler handler, const std::filesystem::path& workspace, std::string& error);
     void Stop();
+    // The open document's folder changed: aiad-mcp instances started there find this app first.
+    void SetWorkspace(const std::filesystem::path& workspace);
     bool Running() const { return m_listen != ~uintptr_t(0); }
     const std::string& Url() const { return m_url; }
     const std::string& Token() const { return m_token; }
@@ -55,6 +57,7 @@ private:
     std::string m_url, m_token;
     int m_port = 0;
     std::filesystem::path m_discoveryFile;
+    int64_t m_startedAt = 0;
 };
 
 struct Endpoint

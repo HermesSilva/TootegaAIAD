@@ -1,0 +1,58 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="deps">
+      <UniqueIdentifier>{b478dc7a-c15f-beee-7cfe-ac534449c072}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="deps\_src">
+      <UniqueIdentifier>{e060a0ed-d208-39e9-0f65-2f44b63cf73f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="deps\_src\imgui">
+      <UniqueIdentifier>{1633f712-0356-0cad-ab90-2d0f693af1d4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="deps\_src\imgui\backends">
+      <UniqueIdentifier>{f38f1a4a-251b-debc-70b0-e02c2702e97e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="deps\_src\imgui\misc">
+      <UniqueIdentifier>{af80643b-4f74-7368-68ee-899047c4c9a5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="deps\_src\imgui\misc\cpp">
+      <UniqueIdentifier>{ec487f83-96f4-a3b8-59e8-850f2d0ea7b9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="deps\_src\implot">
+      <UniqueIdentifier>{3c7fd62b-a475-9c69-eada-75b577bb350d}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\deps\_src\imgui\imgui.cpp">
+      <Filter>deps\_src\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\deps\_src\imgui\imgui_draw.cpp">
+      <Filter>deps\_src\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\deps\_src\imgui\imgui_tables.cpp">
+      <Filter>deps\_src\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\deps\_src\imgui\imgui_widgets.cpp">
+      <Filter>deps\_src\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\deps\_src\imgui\imgui_demo.cpp">
+      <Filter>deps\_src\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\deps\_src\imgui\backends\imgui_impl_win32.cpp">
+      <Filter>deps\_src\imgui\backends</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\deps\_src\imgui\backends\imgui_impl_dx12.cpp">
+      <Filter>deps\_src\imgui\backends</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\deps\_src\imgui\misc\cpp\imgui_stdlib.cpp">
+      <Filter>deps\_src\imgui\misc\cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\deps\_src\implot\implot.cpp">
+      <Filter>deps\_src\implot</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\deps\_src\implot\implot_items.cpp">
+      <Filter>deps\_src\implot</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

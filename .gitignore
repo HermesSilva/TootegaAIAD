@@ -1,7 +1,7 @@
 # Build outputs
 /Dist/
-/src/_build/
-/src/**/_build/
+/_build/
+*.vcxproj.user
 /spikes/**/_build/
 /spikes/**/_work/
 *.log
@@ -9,6 +9,7 @@
 # Agent conversations and editor state
 /.cockpit/
 /.vscode/
+/.vs/
 
 # Dependencies: only the scripts, patches, manifest and the small pinned sources are versioned.
 # Prebuilt packages come from the GitHub release (deps/fetch-prebuilt.ps1); forks and the small
@@ -19,6 +20,7 @@
 !/deps/fetch-prebuilt.ps1
 !/deps/pack-prebuilt.ps1
 !/deps/patches/
+!/deps/vs/
 !/deps/forks/
 /deps/forks/*
 !/deps/forks/aurora-4AIAD
@@ -37,3 +39,6 @@
 /deps/_externals/aurora/*
 !/deps/_externals/aurora/*.bat
 !/deps/_externals/aurora/*.version.txt
+
+# Per-installation app state (layout, chat placement, agent timeline)
+.aiad/

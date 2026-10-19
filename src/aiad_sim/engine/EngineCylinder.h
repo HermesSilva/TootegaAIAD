@@ -33,6 +33,9 @@ struct CylinderGeometry
     double bore = 0.080;              // [m]
     double stroke = 0.060;            // [m] (2 x crank radius)
     double compressionRatio = 10.0;   // (Vd + Vc) / Vc
+    // A drawn chamber: the volume at pistonFromTdc = 0 [m^3] (pistonFromTdc is then the crown's distance
+    // from the head), replacing Vd / (CR - 1). Negative = use the compression ratio.
+    double clearance = -1.0;
     double PistonArea() const;
     double DisplacedVolume() const;
     double ClearanceVolume() const;

@@ -9,6 +9,12 @@
 #include <pxr/usd/sdf/types.h>
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usdGeom/metrics.h>
+#include <pxr/usd/usdGeom/scope.h>
+#include <pxr/usd/usdPhysics/fixedJoint.h>
+#include <pxr/usd/usdPhysics/prismaticJoint.h>
+#include <pxr/usd/usdPhysics/revoluteJoint.h>
+#include <pxr/usd/usdPhysics/sphericalJoint.h>
+#include <pxr/usd/usdPhysics/tokens.h>
 #include <pxr/usd/usdGeom/xform.h>
 #include <pxr/usd/usdShade/material.h>
 #include <pxr/usd/usdShade/materialBindingAPI.h>
@@ -19,6 +25,9 @@
 #include <cstdlib>
 #include <cctype>
 #include <format>
+#include <limits>
+#include <map>
+#include <numbers>
 #include <set>
 
 namespace aiad::doc
@@ -32,6 +41,10 @@ namespace
 const TfToken kParameters("aiad:parameters"), kMaterials("aiad:materials"), kBody("aiad:body"), kName("aiad:name"),
     kMaterial("aiad:material"), kRole("aiad:role"), kSectioned("aiad:sectioned"), kFeatures("aiad:features"), kError("aiad:error");
 const TfToken kShape("Shape"), kSection("Section"), kLooks("Looks"), kBrepArray("BrepArray");
+const TfToken kFixed("aiad:fixed"), kJoints("Joints"), kJointType("aiad:type"), kBody0("aiad:body0"), kBody1("aiad:body1"),
+    kPoint("aiad:point"), kAxis("aiad:axis"), kMotor("aiad:motor"), kLimits("aiad:limits"), kElements("Elements"),
+    kDefinition("aiad:definition");
+const std::set<std::string> kJointTypes{"revolute", "prismatic", "cylindrical", "spherical", "planar", "fixed"};
 
 std::string GetString(const UsdPrim& prim, const TfToken& name)
 {
@@ -177,6 +190,12 @@ void Document::Changed()
                 if (op.GetOpName() == TfToken("xformOp:translate:rest"))
                     op.Set(GfVec3d(o.x, o.y, o.z));
         }
+    // Joints follow the formulas too.
+    if (const UsdPrim joints = m_stage->GetPrimAtPath(m_root.AppendChild(kJoints)))
+        for (UsdPrim prim : joints.GetChildren())
+            if (prim.HasAttribute(kJointType))
+                if (std::optional<JointInfo> joint = FindJoint(GetString(prim, kName)))
+                    WriteJointPhysics(prim, *joint);
     ++m_revision;
     if (OnChanged)
         OnChanged();
@@ -475,6 +494,9 @@ std::vector<Material> Document::Materials() const
             mat.metallic = m.value("metallic", 0.0);
             mat.roughness = m.value("roughness", 0.5);
             mat.emission = m.value("emission", 0.0);
+            mat.shearModulus = m.value("shear_modulus", 0.0);
+            mat.remanence = m.value("remanence", 0.0);
+            mat.relativePermeability = m.value("relative_permeability", 0.0);
             list.push_back(mat);
         }
     return list;
@@ -504,6 +526,10 @@ bool Document::DefineMaterial(const Material& material, std::string& error)
                         {"metallic", material.metallic},
                         {"roughness", material.roughness},
                         {"emission", material.emission}};
+    for (const auto& [key, value] : {std::pair<const char*, double>{"shear_modulus", material.shearModulus}, {"remanence", material.remanence},
+                                     {"relative_permeability", material.relativePermeability}})
+        if (value > 0.0)
+            j[material.name][key] = value;
     SetString(root, kMaterials, j.dump(1));
     WriteMaterialPrims();
     Changed();
@@ -543,7 +569,15 @@ SdfPath Document::BodyPath(const std::string& body) const
     return m_root.AppendChild(TfToken(PrimName(body)));
 }
 
-bool Document::DefineBody(const std::string& body, const Json& origin, std::string& error)
+bool Document::BodyFixed(const std::string& body) const
+{
+    bool fixed = false;
+    if (UsdAttribute a = m_stage->GetPrimAtPath(BodyPath(body)).GetAttribute(kFixed))
+        a.Get(&fixed);
+    return fixed;
+}
+
+bool Document::DefineBody(const std::string& body, const Json& origin, std::string& error, std::optional<bool> fixed)
 {
     if (body.empty() || !origin.is_array() || origin.size() != 3)
     {
@@ -568,12 +602,415 @@ bool Document::DefineBody(const std::string& body, const Json& origin, std::stri
     UsdPrim prim = xform.GetPrim();
     SetString(prim, kBody, body);
     SetString(prim, TfToken("aiad:origin"), origin.dump());
-    // The rest placement is the body's first transform op; the simulation adds its motion after it.
-    xform.ClearXformOpOrder();
-    xform.AddTranslateOp(UsdGeomXformOp::PrecisionDouble, TfToken("rest")).Set(GfVec3d(v[0], v[1], v[2]));
+    if (fixed)
+        prim.CreateAttribute(kFixed, SdfValueTypeNames->Bool, true).Set(*fixed);
+    // The rest placement is the body's first transform op; the simulation adds its motion after it (in
+    // the session layer, whose op order then wins: an existing body only gets the new rest value).
+    if (UsdAttribute rest = prim.GetAttribute(TfToken("xformOp:translate:rest")))
+        rest.Set(GfVec3d(v[0], v[1], v[2]));
+    else
+    {
+        xform.ClearXformOpOrder();
+        xform.AddTranslateOp(UsdGeomXformOp::PrecisionDouble, TfToken("rest")).Set(GfVec3d(v[0], v[1], v[2]));
+    }
     Changed();
     return true;
 }
+
+// ---- Joints -------------------------------------------------------------------------------------------
+
+SdfPath Document::JointPath(const std::string& name) const
+{
+    return m_root.AppendChild(kJoints).AppendChild(TfToken(PrimName(name)));
+}
+
+bool Document::EvaluateVector(const Json& vector, kernel::Vec3& out, std::string& error) const
+{
+    if (!vector.is_array() || vector.size() != 3)
+    {
+        error = "expected [x, y, z]";
+        return false;
+    }
+    NameLookup lookup = Lookup();
+    double v[3];
+    for (int i = 0; i < 3; ++i)
+    {
+        std::string e;
+        const Json& c = vector[size_t(i)];
+        if (c.is_number())
+            v[i] = c.get<double>();
+        else if (!c.is_string() || !Evaluate(c.get<std::string>(), lookup, v[i], e))
+        {
+            error = e.empty() ? std::string("expected numbers or formulas") : e;
+            return false;
+        }
+    }
+    out = {v[0], v[1], v[2]};
+    return true;
+}
+
+std::vector<JointInfo> Document::Joints() const
+{
+    std::vector<JointInfo> list;
+    const UsdPrim joints = m_stage->GetPrimAtPath(m_root.AppendChild(kJoints));
+    if (!joints)
+        return list;
+    for (const UsdPrim& prim : joints.GetChildren())
+    {
+        if (!prim.HasAttribute(kJointType))
+            continue;
+        JointInfo j;
+        j.name = GetString(prim, kName);
+        j.type = GetString(prim, kJointType);
+        j.body0 = GetString(prim, kBody0);
+        j.body1 = GetString(prim, kBody1);
+        j.point = ParseJson(GetString(prim, kPoint));
+        j.axis = ParseJson(GetString(prim, kAxis));
+        const Json motor = ParseJson(GetString(prim, kMotor));
+        j.motor = motor.is_object() ? motor : Json();
+        const Json limits = ParseJson(GetString(prim, kLimits));
+        j.limits = limits.is_array() ? limits : Json();
+        list.push_back(std::move(j));
+    }
+    return list;
+}
+
+std::optional<JointInfo> Document::FindJoint(const std::string& name) const
+{
+    for (JointInfo& j : Joints())
+        if (j.name == name)
+            return j;
+    return std::nullopt;
+}
+
+bool Document::DefineJoint(const JointInfo& joint, std::string& error)
+{
+    const std::vector<std::string> bodies = Bodies();
+    auto known = [&](const std::string& b) { return std::find(bodies.begin(), bodies.end(), b) != bodies.end(); };
+    if (joint.name.empty())
+        error = "a joint needs a name";
+    else if (!kJointTypes.contains(joint.type))
+        error = "unknown joint type '" + joint.type + "' (revolute, prismatic, cylindrical, spherical, planar, fixed)";
+    else if (!known(joint.body0))
+        error = "unknown body '" + joint.body0 + "' (aiad_body_define creates bodies)";
+    else if (!joint.body1.empty() && !known(joint.body1))
+        error = "unknown body '" + joint.body1 + "' (leave body1 empty for the ground)";
+    else if (joint.body0 == joint.body1)
+        error = "a joint connects two different bodies";
+    if (!error.empty())
+        return false;
+    kernel::Vec3 point, axis;
+    std::string e;
+    if (!EvaluateVector(joint.point, point, e))
+    {
+        error = "joint point: " + e;
+        return false;
+    }
+    if (!EvaluateVector(joint.axis, axis, e))
+    {
+        error = "joint axis: " + e;
+        return false;
+    }
+    if (std::sqrt(axis.x * axis.x + axis.y * axis.y + axis.z * axis.z) < 1e-12)
+    {
+        error = "the joint axis is zero";
+        return false;
+    }
+    if (!joint.motor.is_null())
+    {
+        const std::string mode = joint.motor.is_object() ? joint.motor.value("mode", "") : "";
+        double value = 0;
+        if (mode != "speed" && mode != "torque")
+            error = "motor: {\"mode\": \"speed\" | \"torque\", \"value\": number or formula}";
+        else if (joint.type != "revolute" && joint.type != "prismatic" && joint.type != "cylindrical")
+            error = "a motor drives a revolute, prismatic or cylindrical joint";
+        else if (!joint.motor.contains("value") || !EvaluateNumber(joint.motor["value"], value, e))
+            error = "motor value: " + (e.empty() ? std::string("expected a number or a formula") : e);
+        for (const char* key : {"free_speed", "duration"})
+            if (error.empty() && joint.motor.contains(key) && (mode != "torque" || !EvaluateNumber(joint.motor[key], value, e)))
+                error = std::format("motor {}: {}", key, mode != "torque" ? std::string("only a torque motor has one") : e);
+        if (!error.empty())
+            return false;
+    }
+    if (!joint.limits.is_null())
+    {
+        double value = 0;
+        if (!joint.limits.is_array() || joint.limits.size() != 2)
+            error = "limits: [lower, upper], each a number, a formula or null";
+        else if (joint.type != "revolute" && joint.type != "prismatic" && joint.type != "cylindrical")
+            error = "limits stop a revolute, prismatic or cylindrical joint";
+        for (size_t i = 0; error.empty() && i < 2; ++i)
+            if (!joint.limits[i].is_null() && !EvaluateNumber(joint.limits[i], value, e))
+                error = std::format("limits[{}]: {}", i, e);
+        if (!error.empty())
+            return false;
+    }
+    UsdGeomScope::Define(m_stage, m_root.AppendChild(kJoints));
+    const SdfPath path = JointPath(joint.name);
+    m_stage->RemovePrim(path);   // the schema follows the type
+    UsdPrim prim;
+    if (joint.type == "revolute")
+        prim = UsdPhysicsRevoluteJoint::Define(m_stage, path).GetPrim();
+    else if (joint.type == "prismatic")
+        prim = UsdPhysicsPrismaticJoint::Define(m_stage, path).GetPrim();
+    else if (joint.type == "spherical")
+        prim = UsdPhysicsSphericalJoint::Define(m_stage, path).GetPrim();
+    else if (joint.type == "fixed")
+        prim = UsdPhysicsFixedJoint::Define(m_stage, path).GetPrim();
+    else
+        prim = UsdPhysicsJoint::Define(m_stage, path).GetPrim();   // cylindrical, planar: generic joint
+    SetString(prim, kName, joint.name);
+    SetString(prim, kJointType, joint.type);
+    SetString(prim, kBody0, joint.body0);
+    SetString(prim, kBody1, joint.body1);
+    SetString(prim, kPoint, joint.point.dump());
+    SetString(prim, kAxis, joint.axis.dump());
+    SetString(prim, kMotor, joint.motor.is_null() ? std::string() : joint.motor.dump());
+    SetString(prim, kLimits, joint.limits.is_null() ? std::string() : joint.limits.dump());
+    WriteJointPhysics(prim, joint);
+    Changed();
+    return true;
+}
+
+bool Document::DeleteJoint(const std::string& name, std::string& error)
+{
+    if (!m_stage->GetPrimAtPath(JointPath(name)))
+    {
+        error = "no joint '" + name + "'";
+        return false;
+    }
+    m_stage->RemovePrim(JointPath(name));
+    Changed();
+    return true;
+}
+
+// UsdPhysics attributes of a joint from its definition (formulas evaluated): bodies, the joint frame in
+// each body (point relative to the body's rest origin, X axis along the joint axis).
+void Document::WriteJointPhysics(UsdPrim& prim, const JointInfo& joint)
+{
+    kernel::Vec3 point, axis;
+    std::string e;
+    if (!EvaluateVector(joint.point, point, e) || !EvaluateVector(joint.axis, axis, e))
+        return;
+    UsdPhysicsJoint physics(prim);
+    physics.CreateBody0Rel().SetTargets({BodyPath(joint.body0)});
+    if (!joint.body1.empty())
+        physics.CreateBody1Rel().SetTargets({BodyPath(joint.body1)});
+    else
+        physics.CreateBody1Rel().ClearTargets(true);
+    const kernel::Vec3 o0 = BodyOrigin(joint.body0), o1 = joint.body1.empty() ? kernel::Vec3{} : BodyOrigin(joint.body1);
+    physics.CreateLocalPos0Attr().Set(GfVec3f(float(point.x - o0.x), float(point.y - o0.y), float(point.z - o0.z)));
+    physics.CreateLocalPos1Attr().Set(GfVec3f(float(point.x - o1.x), float(point.y - o1.y), float(point.z - o1.z)));
+    const GfQuatd q = GfRotation(GfVec3d(1, 0, 0), GfVec3d(axis.x, axis.y, axis.z)).GetQuat();
+    const GfQuatf qf(float(q.GetReal()), GfVec3f(q.GetImaginary()));
+    physics.CreateLocalRot0Attr().Set(qf);
+    physics.CreateLocalRot1Attr().Set(qf);
+    // Stops (UsdPhysics: degrees for revolute joints, distance for prismatic ones).
+    double limit[2] = {-std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()};
+    for (size_t i = 0; joint.limits.is_array() && i < 2 && i < joint.limits.size(); ++i)
+        if (!joint.limits[i].is_null())
+            EvaluateNumber(joint.limits[i], limit[i], e);
+    if (UsdPhysicsRevoluteJoint revolute{prim})
+    {
+        revolute.CreateAxisAttr().Set(UsdPhysicsTokens->x);
+        revolute.CreateLowerLimitAttr().Set(float(limit[0] * 180.0 / std::numbers::pi));
+        revolute.CreateUpperLimitAttr().Set(float(limit[1] * 180.0 / std::numbers::pi));
+    }
+    if (UsdPhysicsPrismaticJoint prismatic{prim})
+    {
+        prismatic.CreateAxisAttr().Set(UsdPhysicsTokens->x);
+        prismatic.CreateLowerLimitAttr().Set(float(limit[0]));
+        prismatic.CreateUpperLimitAttr().Set(float(limit[1]));
+    }
+}
+
+bool Document::EvaluateNumber(const Json& value, double& out, std::string& error) const
+{
+    if (value.is_number())
+    {
+        out = value.get<double>();
+        return true;
+    }
+    if (value.is_string())
+        return Evaluate(value.get<std::string>(), Lookup(), out, error);
+    error = "expected a number or a formula, got " + value.dump();
+    return false;
+}
+
+// ---- Elements -----------------------------------------------------------------------------------------
+
+namespace
+{
+
+// Fields of each element type: kind (j joint, p part, b body or "ground", e element, n number or formula,
+// v [x, y, z], t true/false, P list of parts, V list of valves {joint, part}) and whether it is required.
+struct Field
+{
+    const char* name;
+    char kind;
+    bool required;
+};
+const std::map<std::string, std::vector<Field>> kElementFields = {
+    {"gear", {{"joint0", 'j', true}, {"joint1", 'j', true}, {"part0", 'p', true}, {"part1", 'p', true}, {"internal", 't', false}}},
+    {"belt", {{"joint0", 'j', true}, {"joint1", 'j', true}, {"part0", 'p', true}, {"part1", 'p', true}, {"belt", 'p', false}}},
+    {"rack", {{"joint0", 'j', true}, {"joint1", 'j', true}, {"part0", 'p', true}, {"part1", 'p', false}}},
+    {"contact", {{"part", 'p', true}, {"body", 'b', true}, {"point", 'v', true}, {"normal", 'v', true}, {"radius", 'n', true}, {"stiffness", 'n', false}}},
+    {"spring",
+     {{"part", 'p', true},
+      {"body0", 'b', true},
+      {"point0", 'v', true},
+      {"body1", 'b', true},
+      {"point1", 'v', true},
+      {"free_length", 'n', true},
+      {"active_turns", 'n', false},
+      {"damping", 'n', false}}},
+    {"load", {{"joint", 'j', true}, {"constant", 'n', false}, {"linear", 'n', false}, {"quadratic", 'n', false}}},
+    {"chamber",
+     {{"piston", 'j', true},
+      {"cylinder", 'p', true},
+      {"head", 'p', true},
+      {"intake", 'V', true},
+      {"exhaust", 'V', false},
+      {"ignition", 'e', false},
+      {"crank", 'j', false},
+      {"intake_pressure", 'n', false},
+      {"intake_temperature", 'n', false},
+      {"exhaust_pressure", 'n', false},
+      {"exhaust_temperature", 'n', false},
+      {"air_fuel_ratio", 'n', false},
+      {"burn_duration", 'n', false}}},
+    {"magneto",
+     {{"rotor", 'j', true},
+      {"magnet", 'p', true},
+      {"shoes", 'P', false},
+      {"core", 'P', true},
+      {"coil", 'p', false},
+      {"points_open", 'n', true},
+      {"points_close", 'n', false},
+      {"primary_turns", 'n', false},
+      {"secondary_turns", 'n', false}}}};
+
+}  // namespace
+
+SdfPath Document::ElementPath(const std::string& name) const
+{
+    return m_root.AppendChild(kElements).AppendChild(TfToken(PrimName(name)));
+}
+
+std::vector<ElementInfo> Document::Elements() const
+{
+    std::vector<ElementInfo> list;
+    if (const UsdPrim elements = m_stage->GetPrimAtPath(m_root.AppendChild(kElements)))
+        for (const UsdPrim& prim : elements.GetChildren())
+        {
+            const Json definition = ParseJson(GetString(prim, kDefinition));
+            list.push_back({GetString(prim, kName), GetString(prim, kJointType), definition.is_object() ? definition : Json::object()});
+        }
+    return list;
+}
+
+std::optional<ElementInfo> Document::FindElement(const std::string& name) const
+{
+    for (ElementInfo& e : Elements())
+        if (e.name == name)
+            return e;
+    return std::nullopt;
+}
+
+bool Document::DefineElement(const ElementInfo& element, std::string& error)
+{
+    const auto type = kElementFields.find(element.type);
+    if (element.name.empty())
+        error = "an element needs a name";
+    else if (type == kElementFields.end())
+        error = "unknown element type '" + element.type + "' (gear, belt, rack, contact, spring, load, chamber, magneto)";
+    else if (!element.definition.is_object())
+        error = "the definition is an object of fields";
+    if (!error.empty())
+        return false;
+    const std::vector<std::string> bodies = Bodies();
+    auto name = [](const Json& v) { return v.is_string() ? v.get<std::string>() : std::string(); };
+    auto part = [&](const std::string& field, const Json& v) -> std::string {
+        std::string e;
+        return FindPart(name(v), e) ? "" : field + ": " + (e.empty() ? std::string("expected a part name") : e);
+    };
+    auto check = [&](const std::string& field, char kind, const Json& v) -> std::string {
+        std::string e;
+        double number = 0;
+        kernel::Vec3 vector;
+        switch (kind)
+        {
+        case 'j': return FindJoint(name(v)) ? "" : std::format("{}: no joint '{}' (aiad_joints_list)", field, name(v));
+        case 'p': return part(field, v);
+        case 'b':
+            return name(v) == "ground" || std::find(bodies.begin(), bodies.end(), name(v)) != bodies.end()
+                       ? ""
+                       : std::format("{}: no body '{}' (or 'ground')", field, name(v));
+        case 'e': return name(v) != element.name && FindElement(name(v)) ? "" : std::format("{}: no element '{}'", field, name(v));
+        case 'n': return EvaluateNumber(v, number, e) ? "" : field + ": " + e;
+        case 'v': return EvaluateVector(v, vector, e) ? "" : field + ": " + e;
+        case 't': return v.is_boolean() ? "" : field + ": expected true or false";
+        }
+        if (!v.is_array())
+            return field + ": expected a list";
+        for (size_t i = 0; i < v.size(); ++i)
+        {
+            const std::string item = std::format("{}[{}]", field, i);
+            if (kind == 'P')
+            {
+                if (std::string m = part(item, v[i]); !m.empty())
+                    return m;
+            }
+            else if (!v[i].is_object() || !v[i].contains("joint") || !v[i].contains("part"))
+                return item + ": expected {\"joint\": the valve's joint, \"part\": the valve}";
+            else if (!FindJoint(name(v[i]["joint"])))
+                return std::format("{}.joint: no joint '{}'", item, name(v[i]["joint"]));
+            else if (std::string m = part(item + ".part", v[i]["part"]); !m.empty())
+                return m;
+        }
+        return "";
+    };
+    for (const auto& [key, value] : element.definition.items())
+    {
+        const auto field = std::find_if(type->second.begin(), type->second.end(), [&](const Field& f) { return key == f.name; });
+        if (field == type->second.end())
+        {
+            std::string known;
+            for (const Field& f : type->second)
+                known += (known.empty() ? "" : ", ") + std::string(f.name);
+            error = std::format("a {} has no field '{}' (its fields: {})", element.type, key, known);
+            return false;
+        }
+        if (error = check(key, field->kind, value); !error.empty())
+            return false;
+    }
+    for (const Field& f : type->second)
+        if (f.required && !element.definition.contains(f.name))
+        {
+            error = std::format("a {} needs '{}'", element.type, f.name);
+            return false;
+        }
+    UsdGeomScope::Define(m_stage, m_root.AppendChild(kElements));
+    UsdPrim prim = UsdGeomScope::Define(m_stage, ElementPath(element.name)).GetPrim();
+    SetString(prim, kName, element.name);
+    SetString(prim, kJointType, element.type);
+    SetString(prim, kDefinition, element.definition.dump());
+    Changed();
+    return true;
+}
+
+bool Document::DeleteElement(const std::string& name, std::string& error)
+{
+    if (!m_stage->GetPrimAtPath(ElementPath(name)))
+    {
+        error = "no element '" + name + "'";
+        return false;
+    }
+    m_stage->RemovePrim(ElementPath(name));
+    Changed();
+    return true;
+}
+
 
 Json Document::BodyOriginDefinition(const std::string& body) const
 {

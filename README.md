@@ -1,181 +1,253 @@
 # Tootega AIAD — Artificial Intelligence-Aided Design
 
-Ferramenta de CAD/CAE 3D para **Windows** em que o usuário **e uma IA** operam o mesmo modelo exato:
-geometria B-rep NURBS (USD BRep / SMLib) num documento **OpenUSD**, materiais **MaterialX**, viewport
-**Hydra** com path tracing **DirectX 12 (DXR)** e simulação em **CUDA** (MFEM, Project Chrono).
-Toda alteração do modelo passa pelo mesmo **Command Bus**, com undo, validação e trilha de auditoria,
-seja ela feita pela interface, por script ou pela IA (via MCP).
+A 3D CAD/CAE tool for **Windows** where the user **and an AI** operate the same exact model: B-rep NURBS
+geometry (USD BRep / SMLib) in an **OpenUSD** document, **MaterialX** materials, a **Hydra** viewport
+with **DirectX 12 (DXR)** path tracing, and simulation on **CUDA** (MFEM, Project Chrono). Every change
+to the model goes through the same **Command Bus**, with undo, validation and an audit trail, whether it
+comes from the UI, a script or the AI (through MCP).
 
-![Tootega AIAD: motor monocilíndrico em corte, chat da IA e AI Hub](Docs/images/aiad.png)
+![Tootega AIAD: single-cylinder engine in section, AI chat and AI Hub](Docs/images/aiad.png)
 
-## Fase do projeto
+## Project stage
 
-**Marco atual: motor de combustão de quatro tempos desenhado na ferramenta e funcionando no seu
-simulador.** As etapas M1.1 a M1.6d estão concluídas (ver [Docs/03-plano-execucao.md](Docs/03-plano-execucao.md)
-§0 e §6). Os spikes de infraestrutura S1 a S8 estão encerrados (o S6, eletromagnetismo com Palace,
-compila e roda; está fora do caminho do marco).
+**Current milestone: a four-stroke internal combustion engine designed in the tool and running in its
+simulator.** Steps M1.1 to M1.6d and the generic simulator (G-A to G-D) are done (see
+[Docs/03-plano-execucao.md](Docs/03-plano-execucao.md)). The infrastructure spikes S1 to S8 are closed.
+S6 (electromagnetics with Palace) compiles and runs; it is off the milestone's path.
 
-| Pronto | Em aberto |
-|--------|-----------|
-| Documento OpenUSD paramétrico: 34 parâmetros de projeto + derivados (fórmulas), 11 materiais, 9 corpos rígidos, 63 peças B-rep com histórico de features | arestas/silhuetas no viewport |
-| Simulação lida do desenho: massas e inércias das peças × densidade, levante de válvula medido no came desenhado | tubos ocos (escapamento/admissão) |
-| Mecanismo (Chrono) + ciclo Otto 0D (válvulas, combustão de Wiebe, perda de calor) + magneto 2D (MFEM) → faísca | correia cruzando o escapamento |
-| Viewport Hydra/Aurora com path tracing, seleção, destaque, vista em corte | tabela do magneto não é recalculada quando a geometria do magneto muda |
-| Camada de IA no nível do Cockpit: hub, sessões em abas, permissões, perguntas, planos, uso/custo | estimativa de custo ao vivo durante o turno |
-| Servidor MCP (`aiad-mcp.exe`) com o catálogo gerado do Command Bus + skill para o agente | |
+**The simulator is generic.** No machine is known to the code. A machine is a drawing plus:
 
-## O que ele faz e como
+- bodies;
+- joints;
+- elements: gears, belts, racks, cam/pad contacts, springs, loads, gas chambers, magnetos.
 
-### Aplicação (`aiad.exe`)
+Every physical input is measured on the drawn parts. The simulator criticises the drawing, and it refuses
+to run what would not work, saying how to fix it. Both example engines run on their own, built only from
+their documents:
 
-Abre `models\Engine_SingleCylinder.usda` (ao lado do executável) e monta o motor a partir do desenho.
+- an OHC engine with a timing belt: about 3000 rpm, 8.6 kW;
+- an OHV engine with a gear train, pushrods and rockers: about 2950 rpm, 8.4 kW.
 
-| Janela | O que faz |
-|--------|-----------|
-| **Viewport** | path tracing do modelo; **Espaço + arrastar com o botão esquerdo** (ou Alt + esquerdo, ou meio + direito) gira; botão do meio desloca; roda aproxima; clique seleciona a peça |
-| **Specification Tree** / **Properties** | árvore de corpos e peças; material, massa, volume, features e parâmetros da peça selecionada |
-| **Engine** | parâmetros do projeto (diâmetro, curso, comando de válvulas…) e grandezas derivadas do desenho |
-| **Simulation** / **Plots** | roda o motor (mecanismo + ciclo + ignição) e mostra rotação, pressão no cilindro por ângulo e levante de válvula medido nos cames desenhados |
-| **History** | histórico do Command Bus; **Ctrl+Z / Ctrl+Y** desfazem e refazem qualquer comando, inclusive os da IA |
-| **AI Hub** | sessões do Claude Code, uso e limites, servidores MCP, skills, plugins, cofre de credenciais, configurações; **+ New session** abre uma aba de chat |
-| **Chat** (uma aba por sessão) | prompt com fila (**Send** enquanto o turno anterior roda, **Stop** ao lado), Markdown, permissões (**Ctrl+Enter** permite, **Esc** nega), perguntas, planos, estatísticas ao vivo |
+| Done | Open |
+|------|------|
+| Parametric OpenUSD document: design parameters + formulas, materials, rigid bodies, B-rep parts with feature history, joints (UsdPhysics) and machine elements | edges/silhouettes in the viewport |
+| Generic machine simulation: Chrono mechanism + gear/belt/rack couplings, cam and rocker contacts, springs, stops, loads, timed motors | hollow pipes (exhaust/intake) |
+| Domain elements tied to the drawing: 0D Otto cycle chamber (bore, chamber volume and valves measured on the parts), 2D magneto (MFEM on the drawn magnet and core) → spark | valve–piston clash check; bevel/crossed gears |
+| The simulator's critique with a fix for every problem; everything it measured is listed | turbine and flow studies as document entities (next) |
+| Hydra/Aurora viewport with path tracing, selection, highlight, section view, 6-DOF animation of any body | live cost estimate during a turn |
+| AI layer at Cockpit level: hub, tabbed sessions, permissions, questions, plans, usage/cost | |
+| MCP server (`aiad-mcp.exe`) with the catalogue generated from the Command Bus + a skill for the agent | |
 
-Opções de linha de comando:
+## What it does and how
+
+### Application (`aiad.exe`)
+
+It opens with no document.
+
+- **Menus:** **File** has New (Ctrl+N), Open… (Ctrl+O), Open Recent, Save (Ctrl+S), Save As…
+  (Ctrl+Shift+S), Close and Exit, and asks before discarding unsaved changes. **Edit** undoes and redoes;
+  **View** fits the model, toggles the section and restores the layout.
+- **Opening a document:** the machine of the drawing is derived and checked.
+- **Example engines:** `models\Engine_SingleCylinder.usda` (OHC) and
+  `models\Engine_SingleCylinder_Pushrod.usda` (OHV), next to the executable.
+- **Saved layout:** panel layout, window placement and where the AI chat opens are kept in
+  `<exe folder>\.aiad\aiadconfig.json`.
+- **AI:** it works in the folder of the open document.
+
+| Window | What it does |
+|--------|--------------|
+| **Viewport** | path-traced model. **Space + left drag** (or Alt + left, or middle + right) rotates; middle button pans; wheel zooms; click selects a part |
+| **Specification Tree** / **Properties** | bodies and parts, joints, elements; material, mass, volume, features and parameters of the selected part |
+| **Study** | the simulator's findings (each with its fix), or the machine summary and what was measured on the drawing; design parameters (values or formulas) |
+| **Simulation** | runs the machine live: every joint (position and speed), chambers (pressure, volume, combustions), magnetos |
+| **Plots** | any channel (joint speed or position, chamber pressure and volume, spark voltage, contact and spring forces) against time or a joint's angle; p-V loops |
+| **History** | Command Bus history; **Ctrl+Z / Ctrl+Y** undo and redo any command, the AI's included |
+| **AI Hub** | Claude Code sessions, usage and limits, MCP servers, skills, plugins, credential vault, settings; **+ New session** opens a chat tab |
+| **Chat** (one tab per session) | prompt with a queue (**Send** while the previous turn runs, **Stop** next to it), Markdown, permissions (**Ctrl+Enter** allows, **Esc** denies), questions, plans, live statistics |
+
+Command line:
 
 ```text
-aiad.exe                      interface normal
-aiad.exe --run                abre e já põe o motor para rodar
-aiad.exe --snapshot <png>     teste sem janela: monta, anima 60 quadros, alterna corte/destaque, grava PNGs
-aiad.exe --ui-test <png>      teste com janela real: MCP -> bridge -> Command Bus, simulação, chat, captura
+aiad.exe                             UI, no document open
+aiad.exe <document.usda>             opens the document
+aiad.exe --run <doc.usda>            opens it and starts the machine
+aiad.exe --check <doc.usda>          the simulator's critique of the drawing, no window (exit 0 = it can run)
+aiad.exe --simulate <doc.usda> <s>   runs the drawing's machine for s seconds and prints what it measured
+aiad.exe --snapshot <png> [doc]      no window: builds, animates 60 frames, toggles section/highlight, writes PNGs
+aiad.exe --ui-test <png>             real window: MCP -> bridge -> Command Bus, simulation, chat, capture
 ```
 
-### IA e MCP
+### A machine is a drawing
 
-- O agente (Claude Code CLI, `stream-json`) roda com a **pasta do modelo aberto** como diretório de
-  trabalho, e lá encontra a skill [`models/.claude/skills/aiad-mcp/SKILL.md`](models/.claude/skills/aiad-mcp/SKILL.md).
-- `aiad-mcp.exe` é um servidor MCP stdio que conversa com a aplicação aberta pelo bridge loopback
-  `aiad-bridge/1` (token por instância). As ferramentas são os comandos do Command Bus:
-  parâmetros, materiais, peças e features, corpos, orientação, visibilidade, seleção, câmera,
-  snapshot do viewport, simulação (job assíncrono), salvar, undo/redo.
-- A IA é só mais um operador: tudo o que ela faz aparece no histórico, passa por permissão e pode
-  ser desfeito.
+Everything in the viewport is a part of the document, created by commands; there is no geometry in code.
 
-### Modelo por desenho (`aiad-model.exe`)
+| In the document | What the simulator takes from the drawing |
+|-----------------|-------------------------------------------|
+| Bodies (one may be fixed: the ground) | mass, centre of mass and inertia tensor from the parts × material density |
+| Joints (`revolute`, `prismatic`, `cylindrical`, `spherical`, `planar`, `fixed`), with motors and stops | point and axis as formulas over the parameters |
+| `gear`, `belt`, `rack` | teeth and pitch radii of the drawn wheels (sketch tools `gear`, `sprocket`) |
+| `contact` | the drawn profile (cam lobe, rocker pad) on a follower's flat face |
+| `spring` | wire, coil, turns and shear modulus of the drawn coil |
+| `load` | friction, brake or propeller torque on a joint |
+| `chamber` | bore, chamber volume and valve sizes measured on the parts |
+| `magneto` | magnet, pole shoes and core geometry; the field is computed with MFEM |
 
-Tudo o que aparece no viewport é peça do documento, criada por comandos; nada de geometria no código.
-O motor de exemplo é um script de comandos:
+The example engines are command scripts:
 
 ```powershell
 Dist\aiad-model.exe build models\Engine_SingleCylinder.aiad.json models\Engine_SingleCylinder.usda
-Dist\aiad-model.exe info  models\Engine_SingleCylinder.usda     # peças, massas por corpo, erros de regeneração
+Dist\aiad-model.exe info  models\Engine_SingleCylinder.usda     # parts, masses per body, regeneration errors
+Dist\aiad.exe --simulate models\Engine_SingleCylinder.usda 3     # runs it 3 s and reports
 ```
 
-## Requisitos
+### AI and MCP
 
-| Item | Versão |
-|------|--------|
-| Sistema | Windows 10/11 x64 |
-| GPU | NVIDIA com DXR (RTX), driver recente; CUDA e D3D12 no mesmo adaptador |
-| Visual Studio | **2026 (18) Community**, carga "Desenvolvimento para desktop com C++", toolset **v145** (MSVC 14.51), Windows SDK 10.0.26100, CMake 4.3 incluído |
-| CUDA Toolkit | **13.3** no caminho padrão (`C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3`) |
-| Ferramentas | Git, PowerShell 7, 7-Zip (opcional; sem ele o `tar` do Windows extrai os pacotes) |
-| IA (opcional) | [Claude Code CLI](https://claude.com/claude-code) no `PATH`, com login feito |
+- The agent (Claude Code CLI, `stream-json`) runs with the **open model's folder** as its working
+  directory. It finds the skill [`models/.claude/skills/aiad-mcp/SKILL.md`](models/.claude/skills/aiad-mcp/SKILL.md)
+  there.
+- `aiad-mcp.exe` is a stdio MCP server. It talks to the running application over the loopback bridge
+  `aiad-bridge/1` (one token per instance).
+- The tools are the Command Bus commands:
+  - parameters, materials, parts and features, bodies;
+  - joints, elements;
+  - the simulator's critique (`aiad_mechanism_check`), runs (`aiad_mechanism_run`, background jobs with
+    `aiad_sim_run`);
+  - visibility, selection, camera, viewport snapshot;
+  - save, undo/redo.
+- The AI is just another operator: everything it does shows up in the history, goes through permissions
+  and can be undone. When the simulator refuses a drawing, the agent fixes the drawing, not the app.
 
-## Compilar e executar
+## Requirements
+
+| Item | Version |
+|------|---------|
+| System | Windows 10/11 x64 |
+| GPU | NVIDIA with DXR (RTX), recent driver; CUDA and D3D12 on the same adapter |
+| Visual Studio | **2026 (18) Community**, "Desktop development with C++" workload, toolset **v145** (MSVC 14.51), Windows SDK 10.0.26100. Its CMake is only used to rebuild dependencies |
+| CUDA Toolkit | **13.3** in the default path (`C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3`) |
+| Tools | Git, PowerShell 7, **Python 3** with the `py` launcher (python.org installer; it packs Aurora's shaders during the build), 7-Zip (optional; without it Windows' `tar` extracts the packages) |
+| AI (optional) | [Claude Code CLI](https://claude.com/claude-code) on `PATH`, logged in |
+
+## Build and run
 
 ```powershell
 git clone --recurse-submodules https://github.com/HermesSilva/TootegaAIAD.git
 cd TootegaAIAD
-pwsh -File deps\fetch-prebuilt.ps1     # dependências pré-compiladas (~0,5 GB), verificadas por SHA-256
-pwsh -File build-dist.ps1              # compila, roda os testes, monta Dist\ e roda os testes da aplicação
-Dist\aiad.exe
+pwsh -File deps\fetch-prebuilt.ps1     # prebuilt dependencies (~0.5 GB), checked by SHA-256
+start TootegaAIAD.slnx                 # Visual Studio: Build, and F5 runs aiad (below)
+pwsh -File build-dist.ps1              # or: builds, runs the tests, assembles Dist\ and runs the app tests
+Dist\aiad.exe Dist\models\Engine_SingleCylinder.usda   # or File > Open
 ```
 
-O `build-dist.ps1` executa nove passos cronometrados e para no primeiro erro: configura (preset
-`vs2026`), compila `aiad.exe`, `aiad-mcp.exe`, `aiad-model.exe` e os testes, roda os testes unitários
-(`kernel`, `document`, `command_bus`, `agent_session`, `mcp_bridge`, `claude_cli`; o último é pulado
-sem a CLI), monta `Dist\` (verificando com `dumpbin` que só as DLLs permitidas são importadas), e roda
-`--snapshot` e `--ui-test`. `-SkipSnapshot` pula os dois últimos. `Dist\` é autocontido e pode ser
-copiado para outra máquina com GPU NVIDIA.
+`build-dist.ps1` runs nine timed steps and stops at the first error:
+
+1. It checks that `TootegaAIAD.slnx` loads in Visual Studio (`devenv`).
+2. It builds the solution with MSBuild: `aiad.exe`, `aiad-mcp.exe`, `aiad-model.exe` and the tests.
+3. It runs the unit tests: `kernel`, `document`, `multibody`, `command_bus`, `agent_session`,
+   `mcp_bridge`, `claude_cli`. The last one is skipped without the CLI.
+4. It assembles `Dist\`, checking with `dumpbin` that only the allowed DLLs are imported.
+5. It runs `--snapshot` and `--ui-test`. `-SkipSnapshot` skips these two.
+
+`Dist\` is self-contained and can be copied to another machine with an NVIDIA GPU. The first run of a
+magneto geometry computes its field table (about 70 s); it is then cached next to the executable.
 
 ### Visual Studio 2026
 
-```powershell
-cd src
-cmake --preset vs2026                  # gera src\_build\TootegaAIAD.slnx (um .vcxproj por alvo)
-start _build\TootegaAIAD.slnx
-```
+The solution **`TootegaAIAD.slnx`** is at the root. Each project has its **versioned `.vcxproj` next to
+its code** (`src\aiad_app\aiad.vcxproj`, `src\aiad_doc\aiad_doc.vcxproj`...). After the checkout and
+`fetch-prebuilt.ps1`, open the solution and build. The app has no CMake.
 
-A solução organiza os projetos do AIAD na raiz, os testes em **Tests** e os forks de dependências
-alterados para o AIAD em **ThirdParty**: `Aurora` (compilado junto com o app), `libCEED` e `Palace`
-(fora do build padrão; compile o projeto pelo menu). Para depurar, use `aiad` como projeto de
-inicialização; a pasta de execução é `src\_build\aurora\bin\Release`.
+| What | Where |
+|------|-------|
+| Paths (`AiadRoot`, `AiadDeps`, `AiadCuda`, `AiadPython`) | `Directory.Build.props` (root; MSBuild imports it by itself) |
+| Common settings (v145, C++20, `/MD`, AVX2, outputs) | `src\Aiad.props` |
+| Outputs | `_build\<Configuration>\bin` (executables), `lib`, `obj` |
+| Runtime for running/debugging from VS | copied to `_build\<Configuration>\bin` by the build (`src\aiad_app\AiadRuntime.targets`, `Aurora4AIAD.Runtime.targets`) |
 
-## Dependências
+Solution folders:
 
-Política: tudo o que é nosso ou de terceiros é **linkado estático** num único `aiad.exe`. As únicas
-DLLs permitidas são as do sistema (D3D12, DXGI, Win32), o driver NVIDIA, o compilador de shaders
-(`dxcompiler`/`dxil`, Slang), cuSPARSE/cuBLAS (a NVIDIA não os distribui estáticos), o runtime do
-MSVC (`/MD`) e, só nos solvers, o MS-MPI.
+- **Root:** the AIAD projects. `aiad` is the startup project: F5 runs (or debugs) it from
+  `_build\<Configuration>\bin`.
+- **Tests:** the unit tests.
+- **ThirdParty:** the dependency forks changed for AIAD.
+  - `Aurora` (Foundation, Aurora, HdAurora): `.vcxproj` in the fork, built with the app.
+  - `libCEED`: `.vcxproj` in the fork.
+  - `Palace`: `deps\vs\palace.vcxproj`, which runs the superbuild.
 
-| Dependência | Versão | Licença | Como vem |
-|-------------|--------|---------|----------|
-| OpenUSD (+ oneTBB 2021.13, OpenSubdiv 3.6.1) | 25.11 (`363a7c8d`), estático, sem Python | TOST 1.0 / Apache-2.0 | pré-compilado |
-| NVIDIA USD BRep (SMLib, `omniSolid`, `hdUsdBrep`) | 1.0.0 (`c9c5979f`), estático | Apache-2.0 | pré-compilado |
-| Autodesk Aurora + HdAurora | fork [aurora-4AIAD](https://github.com/HermesSilva/aurora-4AIAD) | Apache-2.0 | submódulo, compilado com o app |
-| Externals do Aurora (MaterialX 1.39.5 com Slang, Slang, DXC, NRD/NRI, Boost…) | ver `deps/_externals/aurora/*.version.txt` | várias | pré-compilado |
-| MFEM + CUDA | 4.10, fp64 | BSD-3 | pré-compilado |
-| Project Chrono (`Chrono_core`) | 10.0.0, estático | BSD-3 | pré-compilado |
-| Eigen | 3.4.1 | MPL-2.0 | submódulo |
-| Dear ImGui (docking) / ImPlot | v1.92.9-docking / v1.0 | MIT | submódulos |
-| nlohmann/json | 3.12.0 | MIT | no repositório (`deps/_src/nlohmann_json`) |
-| libCEED | fork [libceed-4AIAD](https://github.com/HermesSilva/libceed-4AIAD) | BSD-2 | submódulo (ThirdParty) |
-| Palace | fork [palace-4AIAD](https://github.com/HermesSilva/palace-4AIAD) | Apache-2.0 | submódulo (ThirdParty; precisa de MS-MPI SDK e LLVM `flang`) |
+  `libCEED` and `Palace` are left out of the solution build; build them from the menu.
 
-Os pacotes pré-compilados ficam no release [`deps-2026.10.19`](https://github.com/HermesSilva/TootegaAIAD/releases),
-listados com SHA-256 em [`deps/prebuilt.json`](deps/prebuilt.json). O `fetch-prebuilt.ps1` também
-corrige os caminhos absolutos gravados nos arquivos CMake dos pacotes para a pasta do clone.
+Configurations: **Release** (optimised) and **Debug** (no optimisation, with `assert`). Both use the release
+CRT (`/MD`), because all prebuilt dependencies are release builds.
 
-Para **recompilar as dependências a partir do código-fonte**, use os scripts de
-[`deps/_src`](deps/_src) e [`deps/_externals/aurora`](deps/_externals/aurora) com os patches de
-[`deps/patches`](deps/patches); ordem, versões e armadilhas estão em [deps/README.md](deps/README.md).
-O mantenedor publica os pacotes novos com `pwsh -File deps\pack-prebuilt.ps1 -Publish`.
+## Dependencies
 
-## Estrutura
+Policy: everything we build or vendor is **linked statically** into one `aiad.exe`. The only DLLs allowed
+are:
 
-| Pasta | Conteúdo |
-|-------|----------|
-| `src/aiad_core` | JSON, texto, caminhos, fila da thread principal |
-| `src/aiad_cmd` | Command Bus: registro, validação por JSON Schema, undo/redo, auditoria |
-| `src/aiad_bridge`, `src/aiad_mcp` | bridge loopback `aiad-bridge/1` e servidor MCP `aiad-mcp.exe` |
-| `src/aiad_ai` | processo do Claude Code CLI, sessão `stream-json`, transcrições, conta e uso |
-| `src/aiad_kernel` | fachada do USD BRep/SMLib (único módulo que o inclui; C++17) |
-| `src/aiad_doc` | documento OpenUSD paramétrico, expressões, features, comandos de documento, `aiad-model` |
-| `src/aiad_sim` | ciclo Otto 0D, magneto (MFEM), mecanismo (Chrono) |
-| `src/aiad_render` | viewport Hydra + HdAurora |
-| `src/aiad_app` | aplicação ImGui: cena, estudo do motor, comandos do motor, painéis de IA |
-| `models/` | documentos (`*.usda`) e scripts de comandos (`*.aiad.json`); skill do agente |
-| `deps/` | scripts, patches, manifesto dos pré-compilados e submódulos |
-| `spikes/` | spikes S2–S8 (código de validação de cada tecnologia) |
-| `Docs/` | levantamento, arquitetura, plano de execução, diagramas |
+- the system's (D3D12, DXGI, Win32) and the NVIDIA driver;
+- the shader compilers (`dxcompiler`/`dxil`, Slang);
+- cuSPARSE/cuBLAS (NVIDIA ships no static versions);
+- the MSVC runtime (`/MD`);
+- MS-MPI, only in the solvers.
 
-## Documentos
+| Dependency | Version | License | How it comes |
+|------------|---------|---------|--------------|
+| OpenUSD (+ oneTBB 2021.13, OpenSubdiv 3.6.1) | 25.11 (`363a7c8d`), static, no Python | TOST 1.0 / Apache-2.0 | prebuilt |
+| NVIDIA USD BRep (SMLib, `omniSolid`, `hdUsdBrep`) | 1.0.0 (`c9c5979f`), static | Apache-2.0 | prebuilt |
+| Autodesk Aurora + HdAurora | fork [aurora-4AIAD](https://github.com/HermesSilva/aurora-4AIAD) | Apache-2.0 | submodule, built with the app |
+| Aurora externals (MaterialX 1.39.5 with Slang, Slang, DXC, NRD/NRI, Boost…) | see `deps/_externals/aurora/*.version.txt` | various | prebuilt |
+| MFEM + CUDA | 4.10, fp64 | BSD-3 | prebuilt |
+| Project Chrono (`Chrono_core`) | 10.0.0, static | BSD-3 | prebuilt |
+| Eigen | 3.4.1 | MPL-2.0 | submodule |
+| Dear ImGui (docking) / ImPlot | v1.92.9-docking / v1.0 | MIT | submodules |
+| nlohmann/json | 3.12.0 | MIT | in the repository (`deps/_src/nlohmann_json`) |
+| libCEED | fork [libceed-4AIAD](https://github.com/HermesSilva/libceed-4AIAD) | BSD-2 | submodule (ThirdParty) |
+| Palace | fork [palace-4AIAD](https://github.com/HermesSilva/palace-4AIAD) | Apache-2.0 | submodule (ThirdParty; needs the MS-MPI SDK and LLVM `flang`) |
 
-| Documento | Conteúdo |
-|-----------|----------|
-| [Docs/01-levantamento.md](Docs/01-levantamento.md) | referências internas (Cockpit, DASE50), tecnologias, ambiente, riscos |
-| [Docs/02-arquitetura.md](Docs/02-arquitetura.md) | princípios, decisões, módulos, contratos (Command Bus, IA, Bridge, GPU, simulação, render) |
-| [Docs/03-plano-execucao.md](Docs/03-plano-execucao.md) | fases, spikes, critérios de aceite, registro de resultados |
-| [CLAUDE.md](CLAUDE.md) | regras do projeto para agentes (e para pessoas) |
+The prebuilt packages are in the [`deps-2026.10.19`](https://github.com/HermesSilva/TootegaAIAD/releases) release,
+listed with SHA-256 in [`deps/prebuilt.json`](deps/prebuilt.json). `fetch-prebuilt.ps1` also rewrites the
+absolute paths recorded in the packages' configuration files to the clone's folder.
 
-| Diagrama | O que mostra |
-|----------|--------------|
-| [arquitetura-blocos.svg](Docs/diagrams/arquitetura-blocos.svg) | blocos do sistema e protocolos entre processos |
-| [dependencias.svg](Docs/diagrams/dependencias.svg) | alvos CMake, dependências de build e runtime, terceiros e licenças |
-| [fluxo-ia.svg](Docs/diagrams/fluxo-ia.svg) | sequência de um pedido à IA, do prompt ao snapshot de verificação |
+To **rebuild the dependencies from source**, use the scripts in [`deps/_src`](deps/_src) and
+[`deps/_externals/aurora`](deps/_externals/aurora) with the patches in [`deps/patches`](deps/patches).
+[deps/README.md](deps/README.md) gives the order, the versions and the pitfalls. The maintainer publishes
+new packages with `pwsh -File deps\pack-prebuilt.ps1 -Publish`.
 
-## Licença
+## Layout
 
-Código aberto. A licença do projeto segue o que as dependências exigem; a recomendação atual é
-**Apache-2.0** (decisão pendente do mantenedor). Mantenedor: Tootega Pesquisa e Inovação
+| Folder | Contents |
+|--------|----------|
+| `src/aiad_core` | JSON, text, paths, main-thread queue |
+| `src/aiad_cmd` | Command Bus: registry, JSON Schema validation, undo/redo, audit |
+| `src/aiad_bridge`, `src/aiad_mcp` | loopback bridge `aiad-bridge/1` and MCP server `aiad-mcp.exe` |
+| `src/aiad_ai` | Claude Code CLI process, `stream-json` session, transcripts, account and usage |
+| `src/aiad_kernel` | USD BRep/SMLib facade (the only module that includes it; C++17) |
+| `src/aiad_doc` | parametric OpenUSD document (parts, bodies, joints, elements), expressions, features, document commands, `aiad-model` |
+| `src/aiad_sim` | generic mechanism (Chrono: couplings, contacts, springs, stops), machine (mechanism + chambers + magnetos), 0D Otto cycle, magneto (MFEM) |
+| `src/aiad_render` | Hydra + HdAurora viewport |
+| `src/aiad_app` | ImGui application: scene, machine study and critique, session, app commands, AI panels |
+| `models/` | documents (`*.usda`) and command scripts (`*.aiad.json`); the agent's skill |
+| `deps/` | scripts, patches, prebuilt manifest and submodules |
+| `spikes/` | spikes S2–S8 (validation code for each technology) |
+| `Docs/` | survey, architecture, execution plan, diagrams (in Portuguese) |
+
+## Documents
+
+| Document | Contents |
+|----------|----------|
+| [Docs/01-levantamento.md](Docs/01-levantamento.md) | internal references (Cockpit, DASE50), technologies, environment, risks |
+| [Docs/02-arquitetura.md](Docs/02-arquitetura.md) | principles, decisions, modules, contracts (Command Bus, AI, Bridge, GPU, simulation, render) |
+| [Docs/03-plano-execucao.md](Docs/03-plano-execucao.md) | phases, spikes, acceptance criteria, results log |
+| [CLAUDE.md](CLAUDE.md) | project rules for agents (and people) |
+
+| Diagram | What it shows |
+|---------|---------------|
+| [arquitetura-blocos.svg](Docs/diagrams/arquitetura-blocos.svg) | system blocks and protocols between processes |
+| [dependencias.svg](Docs/diagrams/dependencias.svg) | projects, build and runtime dependencies, third parties and licenses |
+| [fluxo-ia.svg](Docs/diagrams/fluxo-ia.svg) | sequence of a request to the AI, from the prompt to the verification snapshot |
+
+## License
+
+Open source. The project's license follows what the dependencies require; the current recommendation is
+**Apache-2.0** (the maintainer's decision is pending). Maintainer: Tootega Pesquisa e Inovação
 ([HermesSilva](https://github.com/HermesSilva)).

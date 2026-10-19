@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{47565CC5-F8CE-3669-9096-66EF499BFC72}</ProjectGuid>
+    <RootNamespace>aiad_imgui</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(AiadRoot)src\Aiad.props" />
+  </ImportGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(AiadRoot)deps\_src\imgui;$(AiadRoot)deps\_src\imgui\backends;$(AiadRoot)deps\_src\implot;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>PXR_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\deps\_src\imgui\imgui.cpp" />
+    <ClCompile Include="..\..\deps\_src\imgui\imgui_draw.cpp" />
+    <ClCompile Include="..\..\deps\_src\imgui\imgui_tables.cpp" />
+    <ClCompile Include="..\..\deps\_src\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="..\..\deps\_src\imgui\imgui_demo.cpp" />
+    <ClCompile Include="..\..\deps\_src\imgui\backends\imgui_impl_win32.cpp" />
+    <ClCompile Include="..\..\deps\_src\imgui\backends\imgui_impl_dx12.cpp" />
+    <ClCompile Include="..\..\deps\_src\imgui\misc\cpp\imgui_stdlib.cpp" />
+    <ClCompile Include="..\..\deps\_src\implot\implot.cpp" />
+    <ClCompile Include="..\..\deps\_src\implot\implot_items.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

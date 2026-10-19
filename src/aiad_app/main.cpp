@@ -1,26 +1,26 @@
-// Tootega AIAD - engine milestone: the single-cylinder engine model (drawing = simulated physics) in a
-// Hydra viewport (HdAurora, DXR), driven live by the coupled simulation (Chrono + 0D cycle + magneto).
-// The user and the AI agent (Claude Code through MCP -> bridge) operate it through the same Command Bus.
+// Tootega AIAD: a document (the drawing = the simulated physics) in a Hydra viewport (HdAurora, DXR),
+// driven live by the generic simulation of the machine it draws (Chrono mechanism + domain elements: 0D
+// gas chambers, magnetos). The user and the AI agent (Claude Code through MCP -> bridge) operate it
+// through the same Command Bus.
 #include "AiPanels.h"
 #include "Bridge.h"
 #include "ClaudeProcess.h"
 #include "CommandBus.h"
 #include "D3DContext.h"
-#include "EngineCommands.h"
+#include "AppCommands.h"
 #include "DocCommands.h"
 #include "DocumentScene.h"
-#include "EngineSession.h"
+#include "Session.h"
 #include "MainThreadQueue.h"
 #include "Paths.h"
 #include "Text.h"
 
 #include "HydraViewport.h"
-#include "engine/EngineSimulation.h"
 #include "magneto/MagnetoField.h"
-#include "magneto/MagnetoIgnition.h"
 
 #include <windows.h>
 #include <dbghelp.h>
+#include <shobjidl.h>
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -38,6 +38,7 @@
 #include <stb_image.h>
 #include <misc/cpp/imgui_stdlib.h>
 #include <map>
+#include <set>
 
 #include <algorithm>
 #include <atomic>
@@ -163,6 +164,163 @@ std::string Resource(const char* relative, const char* development)
     return std::filesystem::exists(deployed) ? deployed.string() : std::string(development);
 }
 
+bool g_closeRequested = false;  // window close button / Alt+F4 / File > Exit
+
+// Windows' Open / Save As dialogs for documents. Returns the chosen path (UTF-8), empty if cancelled.
+std::string DocumentDialog(HWND owner, bool save, const std::string& current)
+{
+    const COMDLG_FILTERSPEC filters[] = {{L"AIAD document (*.usda)", L"*.usda"}, {L"USD (*.usda;*.usdc;*.usd)", L"*.usda;*.usdc;*.usd"}};
+    IFileDialog* dialog = nullptr;
+    if (FAILED(CoCreateInstance(save ? CLSID_FileSaveDialog : CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER,
+                                save ? IID_IFileSaveDialog : IID_IFileOpenDialog, reinterpret_cast<void**>(&dialog))))
+        return {};
+    dialog->SetFileTypes(save ? 1 : 2, filters);
+    dialog->SetDefaultExtension(L"usda");
+    if (!current.empty())
+    {
+        const std::filesystem::path path = Widen(current);
+        IShellItem* folder = nullptr;
+        if (SUCCEEDED(SHCreateItemFromParsingName(path.parent_path().c_str(), nullptr, IID_PPV_ARGS(&folder))))
+        {
+            dialog->SetFolder(folder);
+            folder->Release();
+        }
+        if (save)
+            dialog->SetFileName(path.filename().c_str());
+    }
+    std::string chosen;
+    IShellItem* item = nullptr;
+    if (SUCCEEDED(dialog->Show(owner)) && SUCCEEDED(dialog->GetResult(&item)))
+    {
+        PWSTR name = nullptr;
+        if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &name)))
+        {
+            chosen = Narrow(name);
+            CoTaskMemFree(name);
+        }
+        item->Release();
+    }
+    dialog->Release();
+    return chosen;
+}
+
+// What the user arranged, kept between runs in <exe dir>\.aiad\aiadconfig.json: the panels (Dear ImGui's
+// settings: docking, sizes, positions, tabs) and the main window's placement. None in tests.
+class AppConfig
+{
+public:
+    static constexpr int kLayoutVersion = 4;   // bump when the default panels change: old layouts are dropped
+
+    explicit AppConfig(std::filesystem::path file) : m_file(std::move(file))
+    {
+        if (m_file.empty())
+            return;
+        const Json data = ParseJson(ReadTextFile(m_file));
+        if (data.is_object())
+            m_data = data;
+    }
+    // Dear ImGui settings (its ini text); empty = build the default layout.
+    std::string Layout() const
+    {
+        const auto layout = m_data.find("layout");
+        const auto version = m_data.find("layout_version");
+        if (layout == m_data.end() || !layout->is_string() || version == m_data.end() || *version != kLayoutVersion)
+            return {};
+        return layout->get<std::string>();
+    }
+    void SetLayout(std::string ini)
+    {
+        m_data["layout_version"] = kLayoutVersion;
+        m_data["layout"] = std::move(ini);
+    }
+    // Main window: normal-state rectangle and whether it was maximized.
+    bool Window(RECT& rect, bool& maximized) const
+    {
+        const auto w = m_data.find("window");
+        if (w == m_data.end() || !w->is_object() || !w->contains("rect") || !(*w)["rect"].is_array() || (*w)["rect"].size() != 4)
+            return false;
+        const Json& r = (*w)["rect"];
+        for (const Json& v : r)
+            if (!v.is_number_integer())
+                return false;
+        rect = {r[0].get<LONG>(), r[1].get<LONG>(), r[2].get<LONG>(), r[3].get<LONG>()};
+        maximized = !w->contains("maximized") || !(*w)["maximized"].is_boolean() || (*w)["maximized"].get<bool>();
+        return rect.right - rect.left > 200 && rect.bottom - rect.top > 150;
+    }
+    void SetWindow(const RECT& rect, bool maximized)
+    {
+        m_data["window"] = {{"rect", {rect.left, rect.top, rect.right, rect.bottom}}, {"maximized", maximized}};
+    }
+    // Where the last AI conversation window was (see AiPanels::ChatPlacement).
+    Json ChatWindow() const
+    {
+        const auto c = m_data.find("chat_window");
+        return c == m_data.end() ? Json() : *c;
+    }
+    void SetChatWindow(const Json& placement)
+    {
+        if (!placement.is_null())
+            m_data["chat_window"] = placement;
+    }
+    void Save() const
+    {
+        if (m_file.empty())
+            return;
+        std::error_code ec;
+        std::filesystem::create_directories(m_file.parent_path(), ec);
+        WriteTextFile(m_file, m_data.dump(2));
+    }
+
+private:
+    std::filesystem::path m_file;
+    Json m_data = Json::object();
+};
+
+// File > Open Recent: newest first, kept in %APPDATA%\Tootega\AIAD\recent_documents.json (none in tests).
+class RecentDocuments
+{
+public:
+    explicit RecentDocuments(std::filesystem::path file) : m_file(std::move(file))
+    {
+        if (m_file.empty())
+            return;
+        const Json list = ParseJson(ReadTextFile(m_file));
+        if (list.is_array())
+            for (const Json& item : list)
+                if (item.is_string())
+                    m_items.push_back(item.get<std::string>());
+    }
+    const std::vector<std::string>& Items() const { return m_items; }
+    void Add(const std::string& path)
+    {
+        const std::string full = Narrow(std::filesystem::absolute(Widen(path)).wstring());
+        std::erase_if(m_items, [&](const std::string& p) { return _stricmp(p.c_str(), full.c_str()) == 0; });
+        m_items.insert(m_items.begin(), full);
+        if (m_items.size() > 10)
+            m_items.resize(10);
+        Save();
+    }
+    void Remove(const std::string& path)
+    {
+        std::erase(m_items, path);
+        Save();
+    }
+    void Clear()
+    {
+        m_items.clear();
+        Save();
+    }
+
+private:
+    void Save() const
+    {
+        if (!m_file.empty())
+            WriteTextFile(m_file, Json(m_items).dump(2));
+    }
+    std::filesystem::path m_file;
+    std::vector<std::string> m_items;
+};
+
 LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
@@ -177,6 +335,9 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         if ((wParam & 0xfff0) == SC_KEYMENU)
             return 0;
         break;
+    case WM_CLOSE:
+        g_closeRequested = true;  // the main loop asks about unsaved changes first
+        return 0;
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;
@@ -184,39 +345,13 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
-using app::EngineSession;
+using app::Session;
 using app::OrbitCamera;
 
 
-const char* PhaseName(double cycleDeg, ImVec4& colour)
-{
-    if (cycleDeg < 180.0)
-        return colour = ImVec4(1.0f, 0.45f, 0.2f, 1), "Power";
-    if (cycleDeg < 360.0)
-        return colour = ImVec4(0.85f, 0.6f, 0.35f, 1), "Exhaust";
-    if (cycleDeg < 540.0)
-        return colour = ImVec4(0.35f, 0.65f, 1.0f, 1), "Intake";
-    return colour = ImVec4(0.6f, 0.85f, 0.5f, 1), "Compression";
-}
-
-const char* BodyLabel(const std::string& body)
-{
-    static const std::map<std::string, const char*> labels = {{"Frame", "Frame (fixed)"},
-                                                               {"Crankshaft", "Crankshaft (revolute, dynamic)"},
-                                                               {"Rod", "Connecting rod (planar, dynamic)"},
-                                                               {"Piston", "Piston (prismatic, dynamic)"},
-                                                               {"Camshaft", "Camshaft (2:1 belt, kinematic)"},
-                                                               {"IntakeValve", "Intake valve (cam follower)"},
-                                                               {"ExhaustValve", "Exhaust valve (cam follower)"},
-                                                               {"IntakeSpring", "Intake valve spring"},
-                                                               {"ExhaustSpring", "Exhaust valve spring"}};
-    auto it = labels.find(body);
-    return it == labels.end() ? body.c_str() : it->second;
-}
-
 // ---- Panels ---------------------------------------------------------------------------------------
 
-void SpecificationTree(EngineSession& session, int& selected)
+void SpecificationTree(Session& session, int& selected)
 {
     ImGui::Begin("Specification Tree");
     if (!session.scene)
@@ -231,7 +366,8 @@ void SpecificationTree(EngineSession& session, int& selected)
         for (const std::string& body : session.document->Bodies())
         {
             ImGui::PushID(body.c_str());
-            const bool open = ImGui::TreeNodeEx(BodyLabel(body), body == "Frame" || body == "Crankshaft" || body == "Rod" || body == "Piston" ? ImGuiTreeNodeFlags_DefaultOpen : 0);
+            const std::string label = body + (session.document->BodyFixed(body) ? " (fixed)" : "");
+            const bool open = ImGui::TreeNodeEx(label.c_str(), 0);
             if (open)
             {
                 for (size_t i = 0; i < parts.size(); ++i)
@@ -255,12 +391,32 @@ void SpecificationTree(EngineSession& session, int& selected)
             }
             ImGui::PopID();
         }
+        // The mechanism: joints and the elements tied to them.
+        const std::vector<doc::JointInfo> joints = session.document->Joints();
+        if (!joints.empty() && ImGui::TreeNodeEx(std::format("Joints ({})", joints.size()).c_str(), 0))
+        {
+            for (const doc::JointInfo& j : joints)
+                ImGui::BulletText("%s: %s, %s - %s%s", j.name.c_str(), j.type.c_str(), j.body0.c_str(), j.body1.empty() ? "ground" : j.body1.c_str(),
+                                  j.motor.is_null() ? "" : ", motor");
+            ImGui::TreePop();
+        }
+        const std::vector<doc::ElementInfo> elements = session.document->Elements();
+        if (!elements.empty() && ImGui::TreeNodeEx(std::format("Elements ({})", elements.size()).c_str(), 0))
+        {
+            for (const doc::ElementInfo& e : elements)
+            {
+                ImGui::BulletText("%s: %s", e.name.c_str(), e.type.c_str());
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("%s", e.definition.dump(1).c_str());
+            }
+            ImGui::TreePop();
+        }
         ImGui::TreePop();
     }
     ImGui::End();
 }
 
-void Properties(EngineSession& session, int selected)
+void Properties(Session& session, int selected)
 {
     ImGui::Begin("Properties");
     if (!session.scene || selected < 0 || selected >= int(session.scene->Parts().size()))
@@ -285,7 +441,7 @@ void Properties(EngineSession& session, int selected)
             ImGui::TableNextColumn();
             ImGui::Text(fmt, args...);
         };
-        row("Body", "%s", BodyLabel(part.body));
+        row("Body", "%s%s", part.body.c_str(), session.document->BodyFixed(part.body) ? " (fixed)" : "");
         row("Material", "%s", part.material.c_str());
         row("Density", "%.0f kg/m^3", material ? material->density : 0.0);
         row("Volume", "%.2f cm^3", mp.volume * 1e6);
@@ -321,27 +477,68 @@ void Properties(EngineSession& session, int selected)
     ImGui::End();
 }
 
-void EnginePanel(EngineSession& session)
+// What the simulator found wrong in the drawing, each with its fix (the study refuses to run it).
+void StudyFindingsView(const Session& session)
 {
-    ImGui::Begin("Engine");
+    const auto& findings = session.study.findings;
+    ImGui::PushTextWrapPos(0.0f);
+    if (findings.empty())
+    {
+        ImGui::TextColored(ImVec4(0.95f, 0.36f, 0.32f, 1), "Not simulated: %s", session.studyError.c_str());
+        ImGui::PopTextWrapPos();
+        return;
+    }
+    ImGui::TextColored(ImVec4(0.95f, 0.36f, 0.32f, 1), "Not simulated: the simulator found %d problem(s) in the drawing.", session.study.Errors());
+    for (size_t i = 0; i < findings.size(); ++i)
+    {
+        ImGui::Spacing();
+        ImGui::TextColored(findings[i].error ? ImVec4(0.95f, 0.55f, 0.45f, 1) : ImVec4(0.98f, 0.75f, 0.25f, 1), "%zu. %s%s", i + 1,
+                           findings[i].error ? "" : "(note) ", findings[i].problem.c_str());
+        ImGui::Indent();
+        ImGui::TextColored(ImVec4(0.55f, 0.85f, 0.55f, 1), "Fix: %s", findings[i].fix.c_str());
+        ImGui::Unindent();
+    }
+    ImGui::PopTextWrapPos();
+    ImGui::Spacing();
+}
+
+// The machine the simulation is built from: bodies (mass from the parts), joints, elements, what was
+// measured on the drawing, notes.
+void MachineSummary(const Session& session)
+{
+    const app::MechanismStudy& m = session.study;
+    const sim::mb::Model& model = m.machine.mechanism;
+    ImGui::Text("%zu bodies, %zu joints, %zu couplings, %zu contacts, %zu springs, %zu chambers, %zu magnetos; %d degree(s) of freedom", model.bodies.size(),
+                model.joints.size(), model.couplings.size(), model.contacts.size(), model.springs.size(), m.machine.chambers.size(), m.machine.magnetos.size(),
+                m.mobility);
+    ImGui::PushTextWrapPos(0.0f);
+    for (const app::StudyFinding& f : m.findings)
+    {
+        ImGui::TextColored(ImVec4(0.98f, 0.75f, 0.25f, 1), "Note: %s", f.problem.c_str());
+        ImGui::TextDisabled("%s", f.fix.c_str());
+    }
+    if (!m.measured.empty())
+    {
+        ImGui::SeparatorText("Measured on the drawing");
+        for (const std::string& line : m.measured)
+            ImGui::BulletText("%s", line.c_str());
+    }
+    ImGui::PopTextWrapPos();
+    ImGui::SeparatorText("Bodies (mass from the parts and their materials)");
+    for (const sim::mb::Body& b : model.bodies)
+        ImGui::BulletText("%s: %s%.3f kg, centre of mass (%.1f, %.1f, %.1f) mm", b.name.c_str(), b.fixed ? "fixed, " : "", b.mass, b.centroid[0] * 1e3,
+                          b.centroid[1] * 1e3, b.centroid[2] * 1e3);
+}
+
+void StudyPanel(Session& session)
+{
+    ImGui::Begin("Study");
     if (session.scene)
     {
         if (!session.studyError.empty())
-            ImGui::TextColored(ImVec4(0.95f, 0.36f, 0.32f, 1), "Not simulated: %s", session.studyError.c_str());
+            StudyFindingsView(session);
         else
-        {
-            const auto& sd = session.study.simulation;
-            const auto& g = sd.cylinder.geometry;
-            ImGui::Text("Bore %.1f mm   Stroke %.1f mm   %.1f cm^3   CR %.1f   Rod %.1f mm", g.bore * 1e3, g.stroke * 1e3, g.DisplacedVolume() * 1e6,
-                        g.compressionRatio, sd.rodLength * 1e3);
-            ImGui::SeparatorText("Simulated physics, read from the drawing");
-            ImGui::BulletText("Crankshaft + flywheel + magneto rotor: %.4f kg m^2 about the crank axis", sd.crankshaftInertia);
-            ImGui::BulletText("Connecting rod: %.3f kg, CoM %.1f mm from the crank pin", sd.rodMass, sd.rodCentreOfMass * 1e3);
-            ImGui::BulletText("Piston + rings + pin: %.3f kg", sd.pistonMass);
-            ImGui::BulletText("Valve lift measured on the drawn lobes: %.2f / %.2f mm", *std::max_element(sd.intakeLiftTable.begin(), sd.intakeLiftTable.end()) * 1e3,
-                              *std::max_element(sd.exhaustLiftTable.begin(), sd.exhaustLiftTable.end()) * 1e3);
-            ImGui::BulletText("Magneto: points open %+.0f deg, magnet at crank %.0f deg", sd.ignition.pointsOpenDeg, sd.magnetMountDeg);
-        }
+            MachineSummary(session);
         // The document's parameters: values or formulas. Enter applies (one undoable command that
         // regenerates the parts using them and the derived physics).
         ImGui::SeparatorText("Parameters (number or formula; Enter applies)");
@@ -417,121 +614,184 @@ void HistoryPanel()
     ImGui::End();
 }
 
-void SimulationPanel(EngineSession& session)
+void SimulationPanel(Session& session)
 {
     ImGui::Begin("Simulation");
-    if (session.scene)
+    if (session.scene && !session.studyError.empty())
+        StudyFindingsView(session);
+    else if (session.scene && session.machine)
     {
-        if (ImGui::Button(session.running ? "  Stop  " : "  Start engine  "))
+        if (ImGui::Button(session.running ? "  Stop  " : "  Run  "))
             UserCommand(session.running ? "aiad_sim_stop" : "aiad_sim_start", Json::object());
         ImGui::SameLine();
         float speed = float(session.timeScale);
         ImGui::SetNextItemWidth(220);
         if (ImGui::SliderFloat("time scale", &speed, 0.002f, 1.0f, "%.3fx", ImGuiSliderFlags_Logarithmic))
             session.timeScale = speed;
-        const auto& s = session.last;
-        const double cycleDeg = std::fmod(std::fmod(s.crankDeg, 720.0) + 720.0, 720.0);
-        ImVec4 colour;
-        const char* phase = PhaseName(cycleDeg, colour);
-        ImGui::Text("t = %.3f s   %.0f rpm   crank %.1f deg   ", s.time, s.rpm, cycleDeg);
-        ImGui::SameLine();
-        ImGui::TextColored(colour, "%s stroke", phase);
-        if (s.time < session.study.simulation.starterDuration && session.running)
+        const sim::machine::Machine& machine = *session.machine;
+        const sim::mb::Multibody& mb = machine.Mechanism();
+        const sim::mb::Model& model = session.study.machine.mechanism;
+        ImGui::Text("t = %.4f s   %d degree(s) of freedom", machine.Time(), session.study.mobility);
+        if (ImGui::BeginTable("##joints", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV))
         {
-            ImGui::SameLine();
-            ImGui::TextDisabled("(starter engaged)");
+            ImGui::TableSetupColumn("Joint");
+            ImGui::TableSetupColumn("Type");
+            ImGui::TableSetupColumn("Position");
+            ImGui::TableSetupColumn("Speed");
+            ImGui::TableHeadersRow();
+            static const char* types[] = {"revolute", "prismatic", "cylindrical", "spherical", "planar", "fixed"};
+            for (size_t j = 0; j < model.joints.size(); ++j)
+            {
+                const sim::mb::Joint& joint = model.joints[j];
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(joint.name.c_str());
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(types[int(joint.type)]);
+                if (joint.motor.mode == sim::mb::Motor::Mode::Torque && (joint.motor.duration <= 0.0 || machine.Time() < joint.motor.duration))
+                {
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("(motor on)");
+                }
+                const double c = mb.Coordinate(int(j)), rate = mb.Rate(int(j));
+                ImGui::TableNextColumn();
+                if (joint.type == sim::mb::JointType::Prismatic)
+                {
+                    ImGui::Text("%.2f mm", c * 1e3);
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%.3f m/s", rate);
+                }
+                else if (joint.type == sim::mb::JointType::Revolute || joint.type == sim::mb::JointType::Cylindrical)
+                {
+                    ImGui::Text("%.1f deg", c * 180.0 / kPi);
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%.0f rpm", rate * 30.0 / kPi);
+                }
+                else
+                {
+                    ImGui::TextDisabled("-");
+                    ImGui::TableNextColumn();
+                }
+            }
+            ImGui::EndTable();
         }
-        const double omega = s.rpm * 2.0 * kPi / 60.0;
-        ImGui::Text("Cylinder %.1f bar   gas torque %.1f N m", s.pressure / 1e5, s.gasTorque);
-        ImGui::Text("Load %.2f kW   combustions %d", session.study.simulation.loadCoefficient * omega * omega * omega / 1e3, session.combustions);
-        ImGui::Text("Valve lift: intake %.2f mm, exhaust %.2f mm", s.intakeLift * 1e3, s.exhaustLift * 1e3);
-        ImGui::Text("Magneto secondary at the last points opening: %.1f kV", session.lastSecondaryKv);
+        for (size_t c = 0; c < session.study.machine.chambers.size(); ++c)
+        {
+            const sim::machine::ChamberState& s = machine.Chamber(c);
+            ImGui::Text("Chamber %s: %.2f bar, %.1f cm^3, %.0f K, valves %.2f / %.2f mm, %d combustions%s", session.study.machine.chambers[c].name.c_str(),
+                        s.pressure / 1e5, s.volume * 1e6, s.temperature, s.intakeLift * 1e3, s.exhaustLift * 1e3, s.combustions, s.combustion ? "  (burning)" : "");
+        }
+        for (size_t g = 0; g < session.study.machine.magnetos.size(); ++g)
+            ImGui::Text("Magneto %s: magnet %+.0f deg from the core, %d sparks, secondary %.1f kV at the last points opening",
+                        session.study.machine.magnetos[g].name.c_str(), machine.Magneto(g).angleDeg, machine.Magneto(g).sparks, machine.Magneto(g).lastSecondaryKv);
     }
+    else if (session.scene)
+        ImGui::TextDisabled("Computing the magneto field table (MFEM, first run of this geometry only)...");
     ImGui::End();
 }
 
-void Plots(EngineSession& session)
+// Time histories of the running machine: any channel against time or against a turning joint's angle
+// (e.g. pressure over the crank cycle), and pressure-volume loops of the chambers.
+void Plots(Session& session)
 {
     ImGui::Begin("Plots");
-    if (!session.scene)
+    if (!session.machine || session.channels.empty())
     {
+        ImGui::TextDisabled("Run the machine to plot it.");
         ImGui::End();
         return;
     }
-    const auto& d = session.study.simulation;
-    const double sparkAdvance = session.document->Value("spark_advance");
-    const double cycleDeg = std::fmod(std::fmod(session.last.crankDeg, 720.0) + 720.0, 720.0);
-    static std::vector<double> angles = [] {
-        std::vector<double> a(720);
-        for (int i = 0; i < 720; ++i)
-            a[i] = i;
-        return a;
-    }();
-    auto events = [&]() {
-        const double tdc[] = {0.0, 360.0, 720.0}, bdc[] = {180.0, 540.0};
-        ImPlot::PlotInfLines("TDC", tdc, 3, ImPlotSpec(ImPlotProp_LineColor, ImVec4(0.75f, 0.75f, 0.75f, 0.6f)));
-        ImPlot::PlotInfLines("BDC", bdc, 2, ImPlotSpec(ImPlotProp_LineColor, ImVec4(0.5f, 0.5f, 0.5f, 0.5f)));
-        const double spark = 720.0 - sparkAdvance;
-        ImPlot::PlotInfLines("Spark", &spark, 1, ImPlotSpec(ImPlotProp_LineColor, ImVec4(1.0f, 0.85f, 0.3f, 1.0f)));
-        ImPlot::TagX(d.intake.openDeg, ImVec4(0.35f, 0.65f, 1, 1), "IVO");
-        ImPlot::TagX(d.intake.closeDeg, ImVec4(0.35f, 0.65f, 1, 1), "IVC");
-        ImPlot::TagX(d.exhaust.openDeg, ImVec4(1, 0.55f, 0.25f, 1), "EVO");
-        ImPlot::TagX(d.exhaust.closeDeg, ImVec4(1, 0.55f, 0.25f, 1), "EVC");
-        ImPlot::PlotInfLines("Now", &cycleDeg, 1, ImPlotSpec(ImPlotProp_LineColor, ImVec4(1, 1, 1, 0.9f), ImPlotProp_LineWeight, 2.0f));
-    };
-    // ImPlot's own grid (plots inside ImGui tables do not draw their items with Dear ImGui 1.93).
-    if (ImPlot::BeginSubplots("##plots", 2, 2, ImGui::GetContentRegionAvail(), ImPlotSubplotFlags_NoTitle))
+    static std::set<std::string> shown;
+    static std::string axis = "Time";
+    static int cycle = 1;   // 0: 360 deg, 1: 720 deg
+    const sim::mb::Model& model = session.study.machine.mechanism;
+    if (shown.empty())
+        shown.insert(session.channels.front().name);
+    ImGui::SetNextItemWidth(220);
+    if (ImGui::BeginCombo("X axis", axis.c_str()))
     {
-        const ImVec2 h(-1, -1);
-        if (ImPlot::BeginPlot("Cylinder pressure", h))
+        if (ImGui::Selectable("Time", axis == "Time"))
+            axis = "Time";
+        for (const sim::mb::Joint& j : model.joints)
+            if (j.type == sim::mb::JointType::Revolute || j.type == sim::mb::JointType::Cylindrical)
+                if (ImGui::Selectable((j.name + " angle").c_str(), axis == j.name + " angle"))
+                    axis = j.name + " angle";
+        ImGui::EndCombo();
+    }
+    if (axis != "Time")
+    {
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(160);
+        ImGui::Combo("cycle", &cycle, "360 deg\0" "720 deg\0");
+    }
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(260);
+    if (ImGui::BeginCombo("channels", std::format("{} shown", shown.size()).c_str()))
+    {
+        for (const app::Channel& c : session.channels)
         {
-            ImPlot::SetupAxes("Crank angle [deg]", "Pressure [bar]", 0, ImPlotAxisFlags_AutoFit);
-            ImPlot::SetupAxisLimits(ImAxis_X1, 0, 720, ImPlotCond_Always);
-            ImPlot::PlotLine("p", angles.data(), session.pressureByAngle.data(), 720,
-                             ImPlotSpec(ImPlotProp_LineColor, ImVec4(1.0f, 0.62f, 0.2f, 1), ImPlotProp_LineWeight, 2.0f));
-            events();
-            ImPlot::EndPlot();
+            bool on = shown.contains(c.name);
+            if (ImGui::Checkbox(std::format("{} [{}]", c.name, c.unit).c_str(), &on))
+                on ? (void)shown.insert(c.name) : (void)shown.erase(c.name);
         }
-        if (ImPlot::BeginPlot("Valve lift (measured on the drawn cam lobes)", h))
+        ImGui::EndCombo();
+    }
+    const int period = cycle == 0 ? 360 : 720;
+    // The X values: time, or the joint's angle wrapped to the cycle, rebuilt from its speed history.
+    const size_t n = session.historyTime.size();
+    std::vector<double> x(session.historyTime.begin(), session.historyTime.end());
+    if (axis != "Time")
+    {
+        const std::string speed = axis.substr(0, axis.size() - 6) + " speed";
+        const auto it = std::find_if(session.channels.begin(), session.channels.end(), [&](const app::Channel& c) { return c.name == speed; });
+        const auto joint = std::find_if(model.joints.begin(), model.joints.end(), [&](const sim::mb::Joint& j) { return j.name + " angle" == axis; });
+        if (it != session.channels.end() && joint != model.joints.end() && n > 0)
         {
-            ImPlot::SetupAxes("Crank angle [deg]", "Lift [mm]");
-            ImPlot::SetupAxesLimits(0, 720, 0, 10, ImPlotCond_Always);
-            static std::vector<double> inMm, exMm;
-            inMm.resize(720);
-            exMm.resize(720);
-            for (int i = 0; i < 720; ++i)
+            // Integrate the sampled speed back from the current angle.
+            double angle = session.machine->Mechanism().Coordinate(int(joint - model.joints.begin())) * 180.0 / kPi;
+            for (size_t i = n; i-- > 0;)
             {
-                inMm[i] = (session.study.intakeLift.empty() ? 0.0 : session.study.intakeLift[i]) * 1e3;
-                exMm[i] = (session.study.exhaustLift.empty() ? 0.0 : session.study.exhaustLift[i]) * 1e3;
+                x[i] = std::fmod(std::fmod(angle, double(period)) + period, double(period));
+                if (i > 0)
+                    angle -= it->values[i] * 6.0 * (session.historyTime[i] - session.historyTime[i - 1]);   // rpm -> deg/s
             }
-            ImPlot::PlotLine("Intake", angles.data(), inMm.data(), 720, ImPlotSpec(ImPlotProp_LineColor, ImVec4(0.35f, 0.65f, 1, 1), ImPlotProp_LineWeight, 2.0f));
-            ImPlot::PlotLine("Exhaust", angles.data(), exMm.data(), 720, ImPlotSpec(ImPlotProp_LineColor, ImVec4(1, 0.55f, 0.25f, 1), ImPlotProp_LineWeight, 2.0f));
-            events();
+        }
+    }
+    const bool loops = !session.study.machine.chambers.empty();
+    static float columns[2] = {0.65f, 0.35f};   // ImPlot writes the user's resizing back
+    if (ImPlot::BeginSubplots("##plots", 1, loops ? 2 : 1, ImGui::GetContentRegionAvail(), ImPlotSubplotFlags_NoTitle, nullptr, loops ? columns : nullptr))
+    {
+        if (ImPlot::BeginPlot("Channels", ImVec2(-1, -1)))
+        {
+            ImPlot::SetupAxes(axis == "Time" ? "Time [s]" : (axis + " [deg]").c_str(), nullptr, ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
+            if (axis != "Time")
+                ImPlot::SetupAxisLimits(ImAxis_X1, 0, period, ImPlotCond_Always);
+            for (const app::Channel& c : session.channels)
+                if (shown.contains(c.name) && c.values.size() == n)
+                {
+                    std::vector<double> y(c.values.begin(), c.values.end());
+                    const std::string label = std::format("{} [{}]", c.name, c.unit);
+                    if (axis == "Time")
+                        ImPlot::PlotLine(label.c_str(), x.data(), y.data(), int(n), ImPlotSpec(ImPlotProp_LineWeight, 2.0f));
+                    else
+                        ImPlot::PlotScatter(label.c_str(), x.data(), y.data(), int(n), ImPlotSpec(ImPlotProp_MarkerSize, 1.5f));
+                }
             ImPlot::EndPlot();
         }
-        if (ImPlot::BeginPlot("p-V diagram (last cycle)", h))
+        if (loops && ImPlot::BeginPlot("p-V", ImVec2(-1, -1)))
         {
             ImPlot::SetupAxes("Volume [cm^3]", "Pressure [bar]");
             ImPlot::SetupAxisScale(ImAxis_X1, ImPlotScale_Log10);
             ImPlot::SetupAxisScale(ImAxis_Y1, ImPlotScale_Log10);
-            ImPlot::SetupAxesLimits(20, 500, 0.3, 120, ImPlotCond_Once);
-            if (!session.pvShownVolume.empty())
-                ImPlot::PlotLine("cycle", session.pvShownVolume.data(), session.pvShownPressure.data(), int(session.pvShownVolume.size()),
-                                 ImPlotSpec(ImPlotProp_LineColor, ImVec4(1.0f, 0.62f, 0.2f, 1), ImPlotProp_LineWeight, 2.0f));
-            ImPlot::EndPlot();
-        }
-        if (ImPlot::BeginPlot("Speed and gas torque", h))
-        {
-            ImPlot::SetupAxes("Time [s]", "Speed [rpm]", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
-            ImPlot::SetupAxis(ImAxis_Y2, "Gas torque [N m]", ImPlotAxisFlags_AuxDefault | ImPlotAxisFlags_AutoFit);
-            if (!session.historyTime.empty())
+            ImPlot::SetupAxesLimits(10, 1000, 0.2, 150, ImPlotCond_Once);
+            for (const sim::machine::Chamber& c : session.study.machine.chambers)
             {
-                std::vector<double> t(session.historyTime.begin(), session.historyTime.end());
-                std::vector<double> rpm(session.historyRpm.begin(), session.historyRpm.end());
-                std::vector<double> torque(session.historyTorque.begin(), session.historyTorque.end());
-                ImPlot::PlotLine("rpm", t.data(), rpm.data(), int(t.size()), ImPlotSpec(ImPlotProp_LineColor, ImVec4(0.4f, 0.85f, 0.5f, 1), ImPlotProp_LineWeight, 2.0f));
-                ImPlot::SetAxes(ImAxis_X1, ImAxis_Y2);
-                ImPlot::PlotLine("torque", t.data(), torque.data(), int(t.size()), ImPlotSpec(ImPlotProp_LineColor, ImVec4(0.85f, 0.85f, 0.4f, 0.8f)));
+                const auto p = std::find_if(session.channels.begin(), session.channels.end(), [&](const app::Channel& ch) { return ch.name == c.name + " pressure"; });
+                const auto v = std::find_if(session.channels.begin(), session.channels.end(), [&](const app::Channel& ch) { return ch.name == c.name + " volume"; });
+                if (p == session.channels.end() || v == session.channels.end())
+                    continue;
+                std::vector<double> pv(p->values.begin(), p->values.end()), vv(v->values.begin(), v->values.end());
+                ImPlot::PlotLine(c.name.c_str(), vv.data(), pv.data(), int(pv.size()), ImPlotSpec(ImPlotProp_LineColor, ImVec4(1.0f, 0.62f, 0.2f, 1), ImPlotProp_LineWeight, 2.0f));
             }
             ImPlot::EndPlot();
         }
@@ -585,7 +845,7 @@ void BuildDefaultLayout(ImGuiID dockspace)
     ImGui::DockBuilderDockWindow("History", leftBottom);
     ImGui::DockBuilderDockWindow("Viewport", centre);
     ImGui::DockBuilderDockWindow("Plots", bottom);
-    ImGui::DockBuilderDockWindow("Engine", bottom);
+    ImGui::DockBuilderDockWindow("Study", bottom);
     ImGui::DockBuilderDockWindow("Simulation", bottom);
     ImGui::DockBuilderDockWindow("AI Hub", hub);
     ImGui::DockBuilderFinish(dockspace);
@@ -617,16 +877,18 @@ void ApplyStyle(float scale)
     style.FontScaleDpi = scale;
 }
 
-// The engine drawing: Dist/models next to the executable, else the repository's models folder.
-std::string ModelPath()
+// The engine drawing used by the verification modes (--snapshot, --ui-test): Dist/models next to the
+// executable, else the repository's models folder. The interactive app opens nothing by itself.
+std::string EngineModelPath()
 {
     return Resource("models/Engine_SingleCylinder.usda", AIAD_MODELS_DIR "/Engine_SingleCylinder.usda");
 }
 
-// Opens the drawing and derives the study; the magneto table comes from the drawn magneto geometry.
-bool LoadEngine(EngineSession& session, const std::string& magnetoCache, std::string& error)
+// Opens a document and prepares its machine: the study and the magneto field tables (computed here, or
+// read from the cache next to the executable).
+bool LoadDocument(Session& session, const std::string& path, const std::string& cacheFolder, std::string& error)
 {
-    session.document = doc::Document::Open(ModelPath(), error);
+    session.document = doc::Document::Open(path, error);
     if (!session.document)
         return false;
     if (!session.Build())
@@ -634,37 +896,102 @@ bool LoadEngine(EngineSession& session, const std::string& magnetoCache, std::st
         error = session.studyError;
         return false;
     }
-    session.magnetoTable = sim::magneto::CachedMagnetoTable(magnetoCache.c_str(), session.study.magneto, {}, 45.0, 1.0);
+    session.SetTables(Session::ComputeTables(session.MagnetoGeometry(), cacheFolder), session.MagnetoGeometry());
     session.Restart();
     return true;
 }
 
-// Verification mode (no window): open the drawing, run the engine for 2 s, render the posed scene.
-int Snapshot(const char* pngPath, const std::string& magnetoCache, const std::string& environment)
+// Verification of any document (no window): its machine runs `seconds` with everything it is made of and
+// the measured result is printed (exit 0 = it ran).
+int SimulateDocument(const char* documentPath, double seconds, const std::string& cacheFolder)
 {
-    EngineSession session;
+    Session session;
     std::string error;
-    if (!LoadEngine(session, magnetoCache, error))
+    if (!LoadDocument(session, documentPath, cacheFolder, error))
+    {
+        std::printf("%s\n", error.c_str());
+        return 1;
+    }
+    for (const std::string& line : session.study.measured)
+        std::printf("measured: %s\n", line.c_str());
+    std::string text;
+    const auto t0 = std::chrono::steady_clock::now();
+    const Json result = app::RunMachine(session.study, session.magnetoTables, seconds, text);
+    std::printf("%s\n(%.1f s of computing)\n", text.c_str(), std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count());
+    return result.value("runs_on_its_own", true) ? 0 : 1;
+}
+
+// Verification of any document (no window): a mechanism runs 0.5 s, then the posed drawing is rendered to
+// a PNG.
+int SnapshotDocument(const char* pngPath, const char* documentPath, const std::string& environment, const std::string& cacheFolder)
+{
+    Session session;
+    std::string error;
+    if (!LoadDocument(session, documentPath, cacheFolder, error) && !session.document)
+    {
+        std::printf("cannot open %s: %s\n", documentPath, error.c_str());
+        return 1;
+    }
+    if (session.machine)
+    {
+        session.running = true;
+        session.timeScale = 1.0;
+        while (session.Time() < 0.5)
+            session.Advance(0.05, 0.0);
+        std::printf("machine: %zu bodies, %zu joints, %d degree(s) of freedom, simulated %.3f s\n", session.study.machine.mechanism.bodies.size(),
+                    session.study.machine.mechanism.joints.size(), session.study.mobility, session.Time());
+    }
+    else
+        std::printf("%s\nthe drawing at rest\n", session.studyError.c_str());
+    app::DocumentScene scene(*session.document, environment);
+    scene.SetMotion(session.Motion());
+    render::HydraViewport viewport;
+    viewport.SetStage(session.document->Stage());
+    viewport.Resize(1200, 675);
+    OrbitCamera camera;
+    camera.yaw = -60.0;
+    camera.pitch = 25.0;
+    camera.Fit(scene.WorldBounds());
+    viewport.SetCamera(camera.CameraToWorld(), camera.fovDeg, 0.001, 50.0);
+    int frames = 0;
+    for (; frames < 256 && !(frames > 8 && viewport.IsConverged()); ++frames)
+        viewport.Render();
+    const render::ViewportImage& image = viewport.ReadImage();
+    const bool written = stbi_write_png(pngPath, image.width, image.height, 4, image.rgba.data(), image.width * 4) != 0;
+    std::printf("rendered %d frames, %s %s\n", frames, written ? "wrote" : "FAILED to write", pngPath);
+    return written ? 0 : 1;
+}
+
+// Verification mode (no window): the engine drawing runs 2 s with everything it is made of, then its view
+// is animated and rendered.
+int Snapshot(const char* pngPath, const std::string& cacheFolder, const std::string& environment)
+{
+    Session session;
+    std::string error;
+    if (!LoadDocument(session, EngineModelPath(), cacheFolder, error))
     {
         std::printf("cannot load the engine drawing: %s\n", error.c_str());
         return 1;
     }
-    const auto& sd = session.study.simulation;
-    std::printf("read from the drawing (%zu parts): crank+flywheel inertia %.4f kg m^2, rod %.3f kg (CoM %.1f mm), piston %.3f kg, "
-                "max lift %.2f/%.2f mm\n",
-                session.document->Parts().size(), sd.crankshaftInertia, sd.rodMass, sd.rodCentreOfMass * 1e3, sd.pistonMass,
-                *std::max_element(sd.intakeLiftTable.begin(), sd.intakeLiftTable.end()) * 1e3,
-                *std::max_element(sd.exhaustLiftTable.begin(), sd.exhaustLiftTable.end()) * 1e3);
+    std::printf("read from the drawing (%zu parts):\n", session.document->Parts().size());
+    for (const std::string& line : session.study.measured)
+        std::printf("  %s\n", line.c_str());
     session.running = true;
     session.timeScale = 1.0;
-    while (session.last.time < 2.0)
+    while (session.Time() < 2.0)
         session.Advance(0.05, 0.0);
-    std::printf("engine at t = %.2f s: %.0f rpm, crank %.1f deg\n", session.last.time, session.last.rpm,
-                std::fmod(session.last.crankDeg, 720.0));
+    const sim::mb::Multibody& mb = session.machine->Mechanism();
+    for (size_t j = 0; j < session.study.machine.mechanism.joints.size(); ++j)
+        if (session.study.machine.mechanism.joints[j].type == sim::mb::JointType::Revolute)
+            std::printf("at t = %.2f s: '%s' %.0f rpm\n", session.Time(), session.study.machine.mechanism.joints[j].name.c_str(), mb.Rate(int(j)) * 30.0 / kPi);
+    for (size_t c = 0; c < session.study.machine.chambers.size(); ++c)
+        std::printf("chamber '%s': %d combustions, peak %.1f bar\n", session.study.machine.chambers[c].name.c_str(), session.machine->Chamber(c).combustions,
+                    session.machine->Chamber(c).peakPressure / 1e5);
 
     app::DocumentScene scene(*session.document, environment);
     std::printf("view of the drawing: %zu parts tessellated in %.2f s\n", scene.Parts().size(), scene.TessellationSeconds());
-    scene.SetMotion(session.Motion());    render::HydraViewport viewport;
+    scene.SetMotion(session.Motion());
+    render::HydraViewport viewport;
     viewport.SetStage(session.document->Stage());
     // A width whose rows are not 256-byte aligned on the GPU (1200 x 8 bytes): catches read-back stride bugs.
     viewport.Resize(1200, 675);
@@ -676,6 +1003,14 @@ int Snapshot(const char* pngPath, const std::string& magnetoCache, const std::st
     const char* phaseNames[] = {"simulation", "pose", "camera", "render", "read-back"};
     double phaseSum[5] = {}, phaseMax[5] = {};
     auto clock = [] { return std::chrono::steady_clock::now(); };
+    // A part of the first moving body (hidden, shown, highlighted while it moves).
+    int movingPart = 0;
+    for (size_t i = 0; i < scene.Parts().size(); ++i)
+        if (!session.document->BodyFixed(scene.Parts()[i].body))
+        {
+            movingPart = int(i);
+            break;
+        }
     for (int f = 0; f < 60; ++f)
     {
         auto t0 = clock();
@@ -687,9 +1022,6 @@ int Snapshot(const char* pngPath, const std::string& magnetoCache, const std::st
         viewport.SetCamera(OrbitCamera{}.CameraToWorld(), 35.0, 0.01, 20.0);
         auto t3 = clock();
         // What the user does while it runs: hide/show a moving part, select, toggle the section.
-        const int movingPart = int(std::find_if(scene.Parts().begin(), scene.Parts().end(),
-                                                [](const app::ScenePart& p) { return p.body == "Crankshaft"; }) -
-                                   scene.Parts().begin());
         if (f == 10)
             scene.SetVisible(movingPart, false);
         if (f == 20)
@@ -752,37 +1084,98 @@ int main(int argc, char** argv)
     // The kernel reads the omniSolid schema folder from this variable (CRT copy, set before any stage).
     _putenv_s("OMNISOLID_PLUGIN_PATH", Resource("usd/omniSolid/resources", AIAD_OMNISOLID_RESOURCES_DIR).c_str());
     kernel::Initialize();
-    const std::string magnetoCache = (ExeDir() / "magneto_table.txt").string();
+    const std::string magnetoCache = ExeDir().string();   // magneto field tables (cached per drawn geometry)
     const std::string environment = (ExeDir() / "studio_env.hdr").string();
     app::WriteStudioEnvironment(environment);
     if (argc == 3 && std::string(argv[1]) == "--snapshot")
         return Snapshot(argv[2], magnetoCache, environment);
+    if (argc == 4 && std::string(argv[1]) == "--snapshot")
+        return SnapshotDocument(argv[2], argv[3], environment, magnetoCache);
+    if (argc == 4 && std::string(argv[1]) == "--simulate")
+        return SimulateDocument(argv[2], std::atof(argv[3]), magnetoCache);
+    if (argc == 3 && std::string(argv[1]) == "--check")
+    {
+        // The simulator's critique of a drawing, without a window (exit 0 = it can be simulated).
+        std::string error;
+        const std::unique_ptr<doc::Document> document = doc::Document::Open(argv[2], error);
+        if (!document)
+        {
+            std::printf("cannot open %s: %s\n", argv[2], error.c_str());
+            return 2;
+        }
+        app::MechanismStudy study;
+        if (!app::DeriveMechanismStudy(*document, study))
+        {
+            std::printf("The document has no joints: it is a drawing, not a mechanism yet.\n");
+            return 1;
+        }
+        for (const std::string& line : study.measured)
+            std::printf("measured: %s\n", line.c_str());
+        std::printf("%s\n", study.findings.empty() ? "No problem found: the drawing is the machine the simulator runs." : study.Report().c_str());
+        return study.Runnable() ? 0 : 1;
+    }
+
+    // aiad.exe [--run] [document.usda]: opens the document given, if any (--run starts its engine);
+    // --ui-test <png>: verification with a real window.
+    const bool uiTest = argc == 3 && std::string(argv[1]) == "--ui-test";
+    bool autoRun = false;
+    std::string startDocument;
+    for (int i = 1; i < argc && !uiTest; ++i)
+    {
+        if (std::string(argv[i]) == "--run")
+            autoRun = true;
+        else
+            startDocument = argv[i];
+    }
+    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);  // file dialogs
 
     ImGui_ImplWin32_EnableDpiAwareness();
     const float scale = ImGui_ImplWin32_GetDpiScaleForMonitor(MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY));
     WNDCLASSEXW wc = {sizeof(wc), CS_CLASSDC, WndProc, 0, 0, GetModuleHandleW(nullptr), nullptr, nullptr, nullptr, nullptr,
                       L"TootegaAIAD", nullptr};
     RegisterClassExW(&wc);
-    HWND hwnd = CreateWindowW(wc.lpszClassName, L"Tootega AIAD - Engine_SingleCylinder", WS_OVERLAPPEDWINDOW, 60, 40,
+    HWND hwnd = CreateWindowW(wc.lpszClassName, L"Tootega AIAD", WS_OVERLAPPEDWINDOW, 60, 40,
                               int(1700 * scale), int(1000 * scale), nullptr, nullptr, wc.hInstance, nullptr);
     if (!g_d3d.Create(hwnd))
     {
         std::fprintf(stderr, "DirectX 12 device creation failed\n");
         return 1;
     }
-    ShowWindow(hwnd, SW_SHOWMAXIMIZED);
+    // The window where the user left it (still on a monitor), maximized the first time.
+    AppConfig config(uiTest ? std::filesystem::path() : ExeDir() / ".aiad" / "aiadconfig.json");
+    RECT savedRect{};
+    bool savedMaximized = true;
+    if (config.Window(savedRect, savedMaximized) && MonitorFromRect(&savedRect, MONITOR_DEFAULTTONULL))
+    {
+        WINDOWPLACEMENT placement{sizeof(placement)};
+        placement.showCmd = savedMaximized ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL;
+        placement.rcNormalPosition = savedRect;
+        SetWindowPlacement(hwnd, &placement);
+    }
+    else
+        ShowWindow(hwnd, SW_SHOWMAXIMIZED);
     UpdateWindow(hwnd);
+    auto rememberWindow = [&] {
+        WINDOWPLACEMENT placement{sizeof(placement)};
+        if (GetWindowPlacement(hwnd, &placement))
+            config.SetWindow(placement.rcNormalPosition, placement.showCmd == SW_SHOWMAXIMIZED);
+    };
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImPlot::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    const bool uiTest = argc == 3 && std::string(argv[1]) == "--ui-test";
-    // v3: conversations are tabs opened from the hub (no fixed chat panel). The UI test always starts from the default layout.
-    static const std::string iniPath = (ExeDir() / "aiad_layout_v3.ini").string();
-    const bool firstRun = uiTest || !std::filesystem::exists(iniPath);
-    io.IniFilename = uiTest ? nullptr : iniPath.c_str();
+    // Panels as the user left them (aiadconfig.json; the layout file of earlier versions is taken over once).
+    // The UI test always starts from the default layout.
+    io.IniFilename = nullptr;
+    std::string layout = config.Layout();
+    if (layout.empty() && !uiTest)
+        if (const std::filesystem::path old = ExeDir() / "aiad_layout_v3.ini"; std::filesystem::exists(old))
+            layout = ReadTextFile(old);
+    if (!layout.empty())
+        ImGui::LoadIniSettingsFromMemory(layout.c_str(), layout.size());
+    const bool firstRun = uiTest || layout.empty();
     ApplyStyle(scale);
     ImGui_ImplWin32_Init(hwnd);
     ImGui_ImplDX12_InitInfo init = {};
@@ -828,29 +1221,36 @@ int main(int argc, char** argv)
     bridge::BridgeServer bridgeServer;
     ChatTextures chatTextures;
 
-    // The drawing: opened at once; its study is derived from it. The magneto field table (from the drawn
-    // magneto geometry) is computed in the background (cached; about 70 s the first time).
-    EngineSession session;
-    std::string loadError;
-    session.document = doc::Document::Open(ModelPath(), loadError);
-    if (session.document)
-        session.Build();
+    // The open document (none at start: File > New / Open, or a path on the command line). Its machine is
+    // derived from it; the magneto field tables (from the drawn magneto geometry) are computed in the
+    // background (cached; about 70 s the first time).
+    Session session;
     bool documentChanged = false;
-    if (session.document)
-        session.document->OnChanged = [&] { documentChanged = true; };
-    std::atomic<bool> magnetoReady = false;
-    std::thread magnetoThread([&] {
-        if (session.document && session.studyError.empty())
-            session.magnetoTable = sim::magneto::CachedMagnetoTable(magnetoCache.c_str(), session.study.magneto, {}, 45.0, 1.0);
-        magnetoReady = true;
-    });
+    uint64_t changeCount = 0, savedChangeCount = 0;  // unsaved changes = the counts differ
+    std::atomic<bool> magnetoReady = true;
+    std::thread magnetoThread;
+    std::vector<std::vector<sim::magneto::MagnetoSample>> computedTables;
+    std::vector<sim::magneto::MagnetoGeometry> computedGeometry;
+    // Field tables for the drawn magnetos, off the main thread; the frame loop hands them to the session.
+    auto startTables = [&] {
+        if (magnetoThread.joinable())
+            magnetoThread.join();
+        if (!session.NeedsTables())
+            return;
+        magnetoReady = false;
+        magnetoThread = std::thread([&, geometry = session.MagnetoGeometry()] {
+            computedTables = Session::ComputeTables(geometry, magnetoCache);
+            computedGeometry = geometry;
+            magnetoReady = true;
+        });
+    };
 
     std::unique_ptr<render::HydraViewport> viewport;
     app::UploadTexture texture;
     OrbitCamera camera;
     int selected = -1;
     bool sceneReady = false, layoutBuilt = !firstRun;
-    const bool autoRun = argc == 2 && std::string(argv[1]) == "--run";
+    RecentDocuments recent(uiTest ? std::filesystem::path() : AppDataDir() / "recent_documents.json");
     const auto start = std::chrono::steady_clock::now();
     double previousTime = 0.0;
 
@@ -860,7 +1260,7 @@ int main(int argc, char** argv)
 
     appContext.snapshot = [&] { return viewport ? EncodePng(viewport->ReadImage()) : std::vector<uint8_t>(); };
     doc::RegisterDocumentCommands(bus, [&] { return session.document.get(); });
-    app::RegisterEngineCommands(bus, appContext, simulationJobs);
+    app::RegisterAppCommands(bus, appContext, simulationJobs);
 
     std::string bridgeError;
     auto bridgeHandler = [&](const Json& request) -> Json {
@@ -875,14 +1275,12 @@ int main(int argc, char** argv)
             images.push_back({{"mimeType", image.mimeType}, {"data", Base64Encode(image.bytes.data(), image.bytes.size())}});
         return {{"ok", out.ok}, {"text", out.text}, {"result", out.result}, {"error", out.error}, {"images", images}};
     };
-    // The agent works where the model is: its folder is the workspace (also for aiad-mcp discovery).
-    const std::filesystem::path modelFolder = std::filesystem::absolute(std::filesystem::path(Widen(ModelPath()))).parent_path();
-    if (!bridgeServer.Start(mainQueue, bridgeHandler, modelFolder, bridgeError))
-        std::fprintf(stderr, "agent bridge: %s\n", bridgeError.c_str());
-
+    // The agent works where the document is: its folder is the workspace (also for aiad-mcp discovery);
+    // without a saved document, the default folder (Documents\Tootega AIAD).
     app::AiHost aiHost;
     aiHost.bus = &bus;
-    aiHost.workspace = Narrow(modelFolder.wstring());
+    if (!bridgeServer.Start(mainQueue, bridgeHandler, std::filesystem::path(), bridgeError))
+        std::fprintf(stderr, "agent bridge: %s\n", bridgeError.c_str());
     aiHost.bridgeUrl = bridgeServer.Url();
     aiHost.bridgeToken = bridgeServer.Token();
     aiHost.mcpExe = ExeDir() / "aiad-mcp.exe";
@@ -898,6 +1296,8 @@ int main(int argc, char** argv)
     aiHost.viewportPng = appContext.snapshot;
     aiHost.texture = [&](const std::string& base64, int& w, int& h) { return chatTextures.Get(base64, w, h); };
     app::AiPanels ai(aiHost, fonts);
+    ai.SetChatPlacement(config.ChatWindow());
+    bridgeServer.SetWorkspace(Widen(ai.Workspace()));
 
     // The drawing changed (user, AI or undo): the view and the simulation follow it, right after the
     // command (so the next command already sees the derived physics) and once per frame (undo/redo).
@@ -908,14 +1308,124 @@ int main(int argc, char** argv)
         const bool wasRunning = session.running;
         session.scene->Refresh();
         session.Build();
-        session.running = wasRunning && session.studyError.empty();
+        session.running = wasRunning && session.machine != nullptr;
+        if (magnetoReady)
+            startTables();
         if (selected >= int(session.scene->Parts().size()))
             selected = -1;
     };
-    bus.OnExecuted = [&](const cmd::AuditEntry&) { syncDocument(); };
+
+    // ---- Document lifecycle (File menu) ----
+    // The agent and aiad-mcp discovery follow the document's folder (the default one when unsaved).
+    auto followDocumentFolder = [&] {
+        const std::string path = session.document ? session.document->Path() : std::string();
+        ai.SetWorkspace(path.empty() ? std::string() : Narrow(std::filesystem::absolute(Widen(path)).parent_path().wstring()));
+        bridgeServer.SetWorkspace(Widen(ai.Workspace()));
+    };
+    auto closeDocument = [&] {
+        if (magnetoThread.joinable())
+            magnetoThread.join();
+        g_d3d.WaitIdle();
+        session.scene.reset();  // the scene refers to the document: before it
+        viewport.reset();
+        texture.Destroy(g_d3d);
+        session = Session{};
+        selected = -1;
+        sceneReady = false;
+        documentChanged = false;
+        changeCount = savedChangeCount = 0;
+        bus.ClearHistory();  // undo steps of the closed document must not run against the next one
+        followDocumentFolder();
+    };
+    // Takes an opened or new document: derives its study and starts the magneto table in the background;
+    // the frame loop builds its view when that is done.
+    auto adoptDocument = [&](std::unique_ptr<doc::Document> document) {
+        session.document = std::move(document);
+        session.document->OnChanged = [&] {
+            documentChanged = true;
+            ++changeCount;
+        };
+        session.Build();
+        startTables();
+        followDocumentFolder();
+    };
+    auto openDocument = [&](const std::string& path) {
+        std::string error;
+        std::unique_ptr<doc::Document> document = doc::Document::Open(path, error);
+        if (!document)
+        {
+            g_lastError = "Cannot open " + path + ": " + error;
+            return false;
+        }
+        closeDocument();
+        adoptDocument(std::move(document));
+        recent.Add(path);
+        return true;
+    };
+    auto newDocument = [&] {
+        closeDocument();
+        adoptDocument(doc::Document::Create("Untitled"));
+    };
+    // Save through the Command Bus (the same command the agent uses); without a file yet, Save As.
+    auto saveDocumentAs = [&](std::string path) {
+        if (path.empty())
+            path = DocumentDialog(hwnd, true, session.document->Path().empty() ? Narrow((std::filesystem::path(Widen(ai.Workspace())) / "Untitled.usda").wstring())
+                                                                                 : session.document->Path());
+        return !path.empty() && UserCommand("aiad_doc_save", {{"path", path}});
+    };
+    auto saveDocument = [&] { return session.document->Path().empty() ? saveDocumentAs("") : UserCommand("aiad_doc_save", Json::object()); };
+    auto documentTitle = [&] {
+        if (!session.document)
+            return std::string();
+        const std::string path = session.document->Path();
+        return path.empty() ? std::string("Untitled") : Narrow(std::filesystem::path(Widen(path)).filename().wstring());
+    };
+    auto unsavedChanges = [&] { return session.document && changeCount != savedChangeCount; };
+
+    bus.OnExecuted = [&](const cmd::AuditEntry& entry) {
+        syncDocument();
+        // Saved (by the user or the agent): no unsaved changes; the file joins the recent list and
+        // the agent follows it if it went to another folder.
+        if (entry.ok && entry.command == "aiad_doc_save" && session.document)
+        {
+            savedChangeCount = changeCount;
+            recent.Add(session.document->Path());
+            followDocumentFolder();
+        }
+    };
+
+    // Actions that would discard unsaved changes ask first: Save / Don't save / Cancel.
+    std::function<void()> pendingAction;
+    bool askToSave = false;
+    auto guarded = [&](std::function<void()> action) {
+        if (unsavedChanges())
+        {
+            pendingAction = std::move(action);
+            askToSave = true;
+        }
+        else
+            action();
+    };
+    std::vector<std::function<void()>> fileActions;  // run between frames (see the frame loop)
+    auto fileNew = [&] { guarded(newDocument); };
+    auto fileOpen = [&] {
+        guarded([&] {
+            if (const std::string path = DocumentDialog(hwnd, false, session.document ? session.document->Path() : Narrow((std::filesystem::path(Widen(ai.Workspace())) / "x").wstring()));
+                !path.empty())
+                openDocument(path);
+        });
+    };
+    auto fileSave = [&] { saveDocument(); };
+    auto fileSaveAs = [&] { saveDocumentAs(""); };
+    std::string windowTitle;
+    bool quit = false, showAbout = false;
+    if (!startDocument.empty() && !openDocument(startDocument))
+        std::fprintf(stderr, "%s\n", g_lastError.c_str());
 
     // --ui-test: drive the real app (bridge + MCP + commands + chat fixture), capture the window.
     int uiFrame = 0, uiFailures = 0, uiCaptureFrames = -1;  // -1 = agent phase, then frames since the chat fixture
+    bool uiFilesChecked = false;
+    Json uiChatBefore;
     std::thread uiTestThread;
     std::atomic<bool> uiTestDone = false;
     std::vector<std::string> uiTestLog;
@@ -930,7 +1440,12 @@ int main(int argc, char** argv)
             DispatchMessageW(&msg);
             done = done || msg.message == WM_QUIT;
         }
-        if (done)
+        if (g_closeRequested)
+        {
+            g_closeRequested = false;
+            guarded([&] { quit = true; });
+        }
+        if (done || quit)
             break;
         // Minimized or occluded: no drawing, but the agent's bridge calls and the CLI stream are still
         // served (an agent working while the window is hidden must not hang). The UI test always draws.
@@ -945,15 +1460,80 @@ int main(int argc, char** argv)
         const double wallDt = std::min(now - previousTime, 0.1);
         previousTime = now;
 
-        if (!sceneReady && magnetoReady && session.document)
+        // --ui-test, file part: nothing is open at start; New, Save As and Open through the same
+        // functions as the File menu (then the agent phase works on the opened engine).
+        if (uiTest && uiFrame == 0 && !session.document && !uiFilesChecked)
+        {
+            uiFilesChecked = true;
+            auto check = [&](bool ok, const char* what) {
+                std::printf("%s %s\n", ok ? "ok   " : "FAIL ", what);
+                uiFailures += ok ? 0 : 1;
+            };
+            check(!session.document, "no document at start (nothing opened automatically)");
+            newDocument();
+            check(session.document && session.document->Parts().empty() && session.document->Path().empty() && documentTitle() == "Untitled",
+                  "File > New: an empty untitled document");
+            // Any machine, made only of commands (no code knows it): a fixed base and an arm turned by a motor.
+            {
+                auto run = [&](const char* name, const Json& args) { return bus.Execute(name, args, "user"); };
+                auto says = [](const cmd::CommandOutput& o, const char* text) { return o.text.find(text) != std::string::npos; };
+                auto box = [](double x, double y, double z, double sx, double sy, double sz) {
+                    return Json::array({{{"op", "box"}, {"corner", Json::array({x, y, z})}, {"size", Json::array({sx, sy, sz})}}});
+                };
+                check(!run("aiad_mechanism_check", Json::object()).result.value("mechanism", true), "mechanism: a drawing without joints is not one yet");
+                const bool drawn = run("aiad_material_define", {{"name", "Steel"}, {"density", 7850}}).ok &&
+                                   run("aiad_body_define", {{"body", "Base"}, {"origin", Json::array({0, 0, 0})}, {"fixed", true}}).ok &&
+                                   run("aiad_part_create", {{"name", "Base block"}, {"body", "Base"}, {"material", "Steel"}, {"features", box(-0.05, -0.05, -0.05, 0.1, 0.1, 0.1)}}).ok &&
+                                   run("aiad_body_define", {{"body", "Arm"}, {"origin", Json::array({0, 0, 0})}}).ok &&
+                                   run("aiad_part_create", {{"name", "Arm bar"}, {"body", "Arm"}, {"material", "Steel"}, {"features", box(0, -0.01, 0.05, 0.2, 0.02, 0.02)}}).ok;
+                const Json motor = {{"mode", "speed"}, {"value", 2.0}};
+                const bool misplaced = run("aiad_joint_define", {{"name", "Pivot"}, {"type", "revolute"}, {"body0", "Arm"}, {"body1", "Base"},
+                                                                 {"point", Json::array({0.5, 0, 0.05})}, {"axis", Json::array({0, 0, 1})}, {"motor", motor}}).ok;
+                const cmd::CommandOutput bad = run("aiad_mechanism_check", Json::object());
+                check(drawn && misplaced && !bad.result.value("runnable", true) && says(bad, "outside the parts of 'Arm'") && says(bad, "Fix: ") &&
+                          !run("aiad_mechanism_run", {{"seconds", 0.1}}).ok,
+                      "mechanism: a joint away from the parts it joins is criticised (with the fix) and does not run");
+                run("aiad_joint_define", {{"name", "Pivot"}, {"type", "revolute"}, {"body0", "Arm"}, {"body1", "Base"},
+                                          {"point", Json::array({0, 0, 0.05})}, {"axis", Json::array({0, 0, 1})}, {"motor", motor}});
+                const cmd::CommandOutput good = run("aiad_mechanism_check", Json::object());
+                const cmd::CommandOutput ran = run("aiad_mechanism_run", {{"seconds", 0.5}});
+                const double angle = ran.ok ? ran.result["joints"][0].value("coordinate", 0.0) : 0.0;
+                const double turned = ran.ok ? ran.result["bodies"][0].value("rotation_rad", 0.0) : 0.0;
+                check(good.result.value("runnable", false) && good.result.value("degrees_of_freedom", -1) == 0 && std::abs(angle - 1.0) < 0.01 &&
+                          std::abs(turned - 1.0) < 0.01,
+                      "mechanism: the arm, driven at 2 rad/s for 0.5 s, turned 1 rad (generic solver, no machine code)");
+            }
+            const std::string saved = (std::filesystem::temp_directory_path() / "aiad_ui_test_new.usda").string();
+            std::error_code ec;
+            std::filesystem::remove(saved, ec);
+            check(saveDocumentAs(saved) && std::filesystem::exists(saved) && session.document->Path() == saved && !unsavedChanges(),
+                  "File > Save As writes it; no unsaved changes");
+            check(openDocument(EngineModelPath()) && session.document->Parts().size() > 50 && documentTitle() == "Engine_SingleCylinder.usda" &&
+                      !bus.CanUndo() && recent.Items().size() == 2,
+                  "File > Open: the engine drawing (new undo history, listed in Open Recent)");
+            std::fflush(stdout);
+        }
+        if (magnetoReady && magnetoThread.joinable())
         {
             magnetoThread.join();
+            session.SetTables(std::move(computedTables), std::move(computedGeometry));
+            const bool wasRunning = session.running;
             session.Restart();
+            session.running = wasRunning && session.machine != nullptr;
+            startTables();   // the drawing changed while they were computed
+        }
+        if (!sceneReady && magnetoReady && session.document)
+        {
             session.scene = std::make_unique<app::DocumentScene>(*session.document, environment);
             viewport = std::make_unique<render::HydraViewport>();
             viewport->SetStage(session.document->Stage());
             sceneReady = true;
-            session.running = autoRun && session.studyError.empty();  // --run: start the engine as soon as the model is built
+            camera = OrbitCamera{};
+            if (session.machine)
+                session.running = autoRun;  // --run: start the machine as soon as the model is built
+            else
+                camera.Fit(session.scene->WorldBounds());  // other documents: frame what is drawn
+            autoRun = false;
         }
         syncDocument();
 
@@ -1014,9 +1594,25 @@ int main(int argc, char** argv)
                     std::format("bore 84 mm regenerates the parts that depend on it ({} parts)", set.contains("structuredContent") ? set["structuredContent"]["regenerated"].size() : 0));
                 const Json piston = call("aiad_part_get", {{"part", "Piston"}});
                 log(!piston.value("isError", true) && text(piston).find("piston_r") != std::string::npos, "the AI reads a part's feature history");
-                const Json derived = call("aiad_engine_get_derived", Json::object());
-                const double displacement = derived.contains("structuredContent") ? derived["structuredContent"].value("displacement_cm3", 0.0) : 0.0;
-                log(std::abs(displacement - 332.5) < 0.1, std::format("derived displacement {:.1f} cm^3 (pi/4 x 84^2 x 60 = 332.5)", displacement));
+                // The machine is read from the drawing: the chamber's bore measured on the regenerated liner.
+                const Json derived = call("aiad_mechanism_check", Json::object());
+                log(text(derived).find("bore 84.00 mm") != std::string::npos && derived.contains("structuredContent") &&
+                        derived["structuredContent"].value("runnable", false),
+                    "the machine is measured on the drawing: chamber bore 84.00 mm, it can run");
+                // The simulator criticises a drawing that would not work: with 12 mm of valve lash the 8 mm lobes
+                // never reach the tappets; refused, with the fix.
+                const Json lash = call("aiad_parameters_set", {{"values", {{"valve_lash", 0.012}}}});
+                const Json check = call("aiad_mechanism_check", Json::object());
+                const std::string critique = text(check);
+                log(!lash.value("isError", true) && check.contains("structuredContent") && !check["structuredContent"].value("runnable", true) &&
+                        critique.find("never reaches the face") != std::string::npos && critique.find("Fix: ") != std::string::npos,
+                    "valve lash larger than the lobe lift: the simulator says why and how to fix it");
+                const Json refused = call("aiad_sim_run", {{"seconds", 1.0}});
+                log(refused.value("isError", false) && text(refused).find("never reaches") != std::string::npos, "and refuses to simulate it");
+                const Json undoLash = call("aiad_undo", Json::object());
+                const Json fixedCheck = call("aiad_mechanism_check", Json::object());
+                log(fixedCheck.contains("structuredContent") && fixedCheck["structuredContent"].value("runnable", false),
+                    "undo (" + text(undoLash) + "): the engine drawing runs again");
                 const Json snapshot = call("aiad_viewport_snapshot", Json::object());
                 const bool image = snapshot.contains("content") && snapshot["content"].size() == 2 && snapshot["content"][1]["type"] == "image";
                 log(image, "viewport snapshot returns a PNG");
@@ -1033,7 +1629,9 @@ int main(int argc, char** argv)
                     Sleep(250);
                 }
                 const Json result = status.contains("structuredContent") ? status["structuredContent"].value("result", Json::object()) : Json::object();
-                log(result.value("runs_on_its_own", false), "simulation job: " + text(status));
+                const double displacement = result.contains("chambers") && !result["chambers"].empty() ? result["chambers"][0].value("displacement_cm3", 0.0) : 0.0;
+                log(result.value("runs_on_its_own", false), "simulation job: " + (job > 0 ? text(status) : text(run)));
+                log(std::abs(displacement - 332.5) < 1.0, std::format("measured displacement {:.1f} cm^3 (pi/4 x 84^2 x 60 = 332.5)", displacement));
                 const Json undo1 = call("aiad_undo", Json::object()), undo2 = call("aiad_undo", Json::object());
                 log(text(call("aiad_parameters_get", Json::object())).find("| bore | 0.08 | 0.08 | m |") != std::string::npos, "two undos: bore back to 80 mm");
                 const Json redo = call("aiad_redo", Json::object());
@@ -1086,6 +1684,7 @@ int main(int argc, char** argv)
             ai.OpenNewSession();
             std::printf("%s no conversation at start, + New session opens one tab\n", noneAtStart && ai.ChatCount() == 1 ? "ok   " : "FAIL ");
             uiFailures += noneAtStart && ai.ChatCount() == 1 ? 0 : 1;
+            const std::filesystem::path modelFolder = std::filesystem::absolute(Widen(EngineModelPath())).parent_path();
             const bool inModelFolder = ai.Workspace() == Narrow(modelFolder.wstring()) && ai.Session() && ai.Session()->Options().cwd == modelFolder;
             std::printf("%s the agent works in the model's folder (%s)\n", inModelFolder ? "ok   " : "FAIL ", ai.Workspace().c_str());
             uiFailures += inModelFolder ? 0 : 1;
@@ -1094,15 +1693,104 @@ int main(int argc, char** argv)
             uiCaptureFrames = 0;  // capture phase
         }
 
-        // Undo / redo (not while typing).
-        if (!io.WantTextInput && io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z, false))
-            bus.Undo();
-        if (!io.WantTextInput && io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y, false))
-            bus.Redo();
+        // Shortcuts (not while typing): Ctrl+N/O/S, Ctrl+Shift+S, Ctrl+Z/Y.
+        if (!io.WantTextInput && io.KeyCtrl)
+        {
+            if (ImGui::IsKeyPressed(ImGuiKey_N, false))
+                fileActions.push_back(fileNew);
+            if (ImGui::IsKeyPressed(ImGuiKey_O, false))
+                fileActions.push_back(fileOpen);
+            if (ImGui::IsKeyPressed(ImGuiKey_S, false) && session.document)
+                fileActions.push_back(io.KeyShift ? std::function<void()>(fileSaveAs) : std::function<void()>(fileSave));
+            if (ImGui::IsKeyPressed(ImGuiKey_Z, false))
+                bus.Undo();
+            if (ImGui::IsKeyPressed(ImGuiKey_Y, false))
+                bus.Redo();
+        }
+        // File actions chosen in the previous frame run here, between frames: closing a document
+        // releases the viewport texture, which a frame being drawn may still reference.
+        for (std::vector<std::function<void()>> actions = std::exchange(fileActions, {}); const auto& action : actions)
+            action();
+        // Window title: the document and its unsaved-changes mark.
+        if (const std::string title = session.document ? std::format("Tootega AIAD - {}{}", documentTitle(), unsavedChanges() ? " *" : "") : "Tootega AIAD";
+            title != windowTitle)
+        {
+            windowTitle = title;
+            SetWindowTextW(hwnd, Widen(title).c_str());
+        }
 
         ImGui_ImplDX12_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
+        // ---- Main menu (above the dockspace) ----
+        if (ImGui::BeginMainMenuBar())
+        {
+            const bool open = session.document != nullptr;
+            if (ImGui::BeginMenu("File"))
+            {
+                if (ImGui::MenuItem("New", "Ctrl+N"))
+                    fileActions.push_back(fileNew);
+                if (ImGui::MenuItem("Open...", "Ctrl+O"))
+                    fileActions.push_back(fileOpen);
+                if (ImGui::BeginMenu("Open Recent", !recent.Items().empty()))
+                {
+                    for (const std::string& path : recent.Items())
+                        if (ImGui::MenuItem(path.c_str()))
+                            fileActions.push_back([&, path] {
+                                guarded([&, path] {
+                                    if (!openDocument(path) && !std::filesystem::exists(Widen(path)))
+                                        recent.Remove(path);  // gone: drop it from the list
+                                });
+                            });
+                    ImGui::Separator();
+                    if (ImGui::MenuItem("Clear Recent List"))
+                        recent.Clear();
+                    ImGui::EndMenu();
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Save", "Ctrl+S", false, open))
+                    fileActions.push_back(fileSave);
+                if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S", false, open))
+                    fileActions.push_back(fileSaveAs);
+                ImGui::Separator();
+                if (ImGui::MenuItem("Close", nullptr, false, open))
+                    fileActions.push_back([&] { guarded(closeDocument); });
+                ImGui::Separator();
+                if (ImGui::MenuItem("Exit", "Alt+F4"))
+                    g_closeRequested = true;
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Edit"))
+            {
+                const auto history = bus.History();
+                const std::string undo = bus.CanUndo() ? "Undo " + history[bus.Depth() - 1].label : std::string("Undo");
+                const std::string redo = bus.CanRedo() ? "Redo " + history[bus.Depth()].label : std::string("Redo");
+                if (ImGui::MenuItem(undo.c_str(), "Ctrl+Z", false, bus.CanUndo()))
+                    bus.Undo();
+                if (ImGui::MenuItem(redo.c_str(), "Ctrl+Y", false, bus.CanRedo()))
+                    bus.Redo();
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("View"))
+            {
+                if (ImGui::MenuItem("Fit All", nullptr, false, sceneReady))
+                    camera.Fit(session.scene->WorldBounds());
+                bool section = sceneReady && session.scene->SectionView();
+                if (ImGui::MenuItem("Section View", nullptr, &section, sceneReady))
+                    session.scene->SetSectionView(section);
+                ImGui::Separator();
+                if (ImGui::MenuItem("Reset Layout"))
+                    layoutBuilt = false;
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Help"))
+            {
+                if (ImGui::MenuItem("About Tootega AIAD"))
+                    showAbout = true;
+                ImGui::EndMenu();
+            }
+            ImGui::EndMainMenuBar();
+        }
         const ImGuiID dockspace = ImGui::DockSpaceOverViewport();
         if (!layoutBuilt)
         {
@@ -1115,9 +1803,36 @@ int main(int argc, char** argv)
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
         ImGui::PopStyleVar();
-        if (!sceneReady)
+        if (!session.document)
         {
-            ImGui::TextUnformatted("  Opening the drawing and computing the magneto field table (MFEM, first run only, about 70 s)...");
+            // Start page: nothing is open until the user asks for it.
+            ImGui::SetCursorPos(ImVec2(ImGui::GetCursorPosX() + 24, ImGui::GetCursorPosY() + 20));
+            ImGui::BeginGroup();
+            ImGui::PushFont(fonts.bold, fonts.size * 1.3f);
+            ImGui::TextUnformatted("No document open");
+            ImGui::PopFont();
+            ImGui::Spacing();
+            if (ImGui::Button("New document"))
+                fileActions.push_back(fileNew);
+            ImGui::SameLine();
+            if (ImGui::Button("Open..."))
+                fileActions.push_back(fileOpen);
+            if (!recent.Items().empty())
+            {
+                ImGui::SeparatorText("Recent");
+                for (const std::string& path : recent.Items())
+                    if (ImGui::Selectable(path.c_str()))
+                        fileActions.push_back([&, path] {
+                            if (!openDocument(path) && !std::filesystem::exists(Widen(path)))
+                                recent.Remove(path);
+                        });
+            }
+            ImGui::EndGroup();
+        }
+        else if (!sceneReady)
+        {
+            ImGui::Text("  Opening %s%s...", documentTitle().c_str(),
+                        session.NeedsTables() ? " and computing the magneto field table (MFEM, first run of this geometry only, about 70 s)" : "");
         }
         else
         {
@@ -1202,11 +1917,62 @@ int main(int argc, char** argv)
         SpecificationTree(session, selected);
         Properties(session, selected);
         HistoryPanel();
-        EnginePanel(session);
+        StudyPanel(session);
         SimulationPanel(session);
         Plots(session);
         ai.DrawHub();
         ai.DrawChats();
+
+        // New / Open / Close / Exit with unsaved changes: Save, Don't Save or Cancel.
+        if (askToSave)
+        {
+            ImGui::OpenPopup("Unsaved changes");
+            askToSave = false;
+        }
+        if (ImGui::BeginPopupModal("Unsaved changes", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::Text("Save the changes to %s?", documentTitle().c_str());
+            ImGui::TextDisabled("They are lost otherwise.");
+            ImGui::Spacing();
+            if (ImGui::Button("Save") || ImGui::IsKeyPressed(ImGuiKey_Enter))
+            {
+                ImGui::CloseCurrentPopup();
+                fileActions.push_back([&, action = std::move(pendingAction)] {
+                    if (saveDocument())
+                        action();
+                });
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Don't Save"))
+            {
+                ImGui::CloseCurrentPopup();
+                fileActions.push_back(std::move(pendingAction));
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape))
+            {
+                ImGui::CloseCurrentPopup();
+                pendingAction = nullptr;
+            }
+            ImGui::EndPopup();
+        }
+        if (showAbout)
+        {
+            ImGui::OpenPopup("About Tootega AIAD");
+            showAbout = false;
+        }
+        if (ImGui::BeginPopupModal("About Tootega AIAD", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::PushFont(fonts.bold, fonts.size * 1.2f);
+            ImGui::TextUnformatted("Tootega AIAD - Artificial Intelligence-Aided Design");
+            ImGui::PopFont();
+            ImGui::TextUnformatted("CAD/CAE where the user and an AI operate the same exact B-rep model.");
+            ImGui::TextDisabled("OpenUSD 25.11 - USD BRep - Hydra/Aurora (DXR) - MFEM + CUDA - Project Chrono");
+            ImGui::TextDisabled("Tootega Pesquisa e Inovação -github.com/HermesSilva/TootegaAIAD");
+            if (ImGui::Button("OK") || ImGui::IsKeyPressed(ImGuiKey_Escape))
+                ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+        }
         if (!g_lastError.empty())
         {
             ImGui::OpenPopup("Command refused");
@@ -1225,6 +1991,16 @@ int main(int argc, char** argv)
         }
 
         ImGui::Render();
+        // Panels moved, docked, resized or closed: saved a few seconds after they settle (Dear ImGui's
+        // saving rate), with the window placement, so a crash loses at most that.
+        if (io.WantSaveIniSettings)
+        {
+            config.SetLayout(ImGui::SaveIniSettingsToMemory());
+            config.SetChatWindow(ai.ChatPlacement());
+            rememberWindow();
+            config.Save();
+            io.WantSaveIniSettings = false;
+        }
         const float clear[4] = {0.08f, 0.09f, 0.11f, 1.0f};
         ID3D12GraphicsCommandList* list = g_d3d.BeginFrame(clear);
         if (sceneReady && texture.Width() > 0)
@@ -1269,13 +2045,48 @@ int main(int argc, char** argv)
                 const bool asked = !ai.Session()->Pending().empty() && ai.Session()->Pending().front().questions.size() == 2;
                 std::printf("%s question modal shows the agent's 2 questions\n", asked ? "ok   " : "FAIL ");
                 uiFailures += asked ? 0 : 1;
-                std::printf("ui-test: %s (%d failure(s))\n", uiFailures ? "FAIL" : "ok", uiFailures);
-                done = true;
+                // The panels and the window are kept between runs: what is written is read back.
+                const std::filesystem::path configFile = std::filesystem::temp_directory_path() / "aiad_ui_test" / ".aiad" / "aiadconfig.json";
+                std::error_code ec;
+                std::filesystem::remove(configFile, ec);
+                {
+                    AppConfig written(configFile);
+                    written.SetLayout(ImGui::SaveIniSettingsToMemory());
+                    written.SetWindow(RECT{40, 30, 1640, 1030}, false);
+                    written.Save();
+                }
+                const AppConfig readBack(configFile);
+                RECT rect{};
+                bool maximized = true;
+                const bool kept = readBack.Layout().find("[Window][Viewport]") != std::string::npos &&
+                                  readBack.Layout().find("[Docking]") != std::string::npos && readBack.Window(rect, maximized) &&
+                                  rect.left == 40 && rect.bottom == 1030 && !maximized;
+                std::printf("%s panels (docking) and window placement saved to and read back from .aiad\\aiadconfig.json\n", kept ? "ok   " : "FAIL ");
+                uiFailures += kept ? 0 : 1;
+                // Where the conversation was; then every conversation is closed (its dock node goes away).
+                uiChatBefore = ai.ChatPlacement();
+                ai.CloseChats();
             }
             std::fflush(stdout);
         }
         else
             g_d3d.EndFrame();
+        if (uiTest && uiCaptureFrames == 124)
+            ai.OpenNewSession();
+        if (uiTest && uiCaptureFrames == 134)
+        {
+            // The new conversation opens where the last one was.
+            const Json after = ai.ChatPlacement();
+            bool same = uiChatBefore.is_object() && after.is_object() && !after.value("floating", true) && ai.ChatCount() == 1;
+            for (int i = 0; same && i < 4; ++i)
+                same = std::abs(after["rect"][i].get<double>() - uiChatBefore["rect"][i].get<double>()) < 12.0;
+            std::printf("%s a new conversation opens where the last one was (%s)\n", same ? "ok   " : "FAIL ",
+                        after.contains("rect") ? after["rect"].dump().c_str() : "-");
+            uiFailures += same ? 0 : 1;
+            std::printf("ui-test: %s (%d failure(s))\n", uiFailures ? "FAIL" : "ok", uiFailures);
+            std::fflush(stdout);
+            done = true;
+        }
     }
 
     if (uiTestThread.joinable())
@@ -1287,6 +2098,11 @@ int main(int argc, char** argv)
     chatTextures.Destroy();
     viewport.reset();
     texture.Destroy(g_d3d);
+    // Keep the panels and the window as they are now for the next run.
+    config.SetLayout(ImGui::SaveIniSettingsToMemory());
+    config.SetChatWindow(ai.ChatPlacement());
+    rememberWindow();
+    config.Save();
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImPlot::DestroyContext();

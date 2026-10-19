@@ -97,6 +97,8 @@ public:
     // Undo stack depth now; UndoTo(depth) rewinds the model to that point (prompt rewind).
     size_t Depth() const { return m_cursor; }
     void UndoTo(size_t depth);
+    // Another document was opened: its undo history starts empty (the audit trail is kept).
+    void ClearHistory();
     std::vector<HistoryEntry> History() const;
     const std::vector<AuditEntry>& Audit() const { return m_audit; }
     // Bumped on every successful execute/undo/redo (UI refresh).

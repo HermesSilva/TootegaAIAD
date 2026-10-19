@@ -11,17 +11,15 @@ param([switch]$SkipSnapshot)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$Repo    = $PSScriptRoot
-$Src     = Join-Path $Repo 'src'
-$Build   = Join-Path $Src '_build'
-$Dist    = Join-Path $Repo 'Dist'
-$Deps    = Join-Path $Repo 'deps'
-$Vs      = 'C:\Program Files\Microsoft Visual Studio\18\Community'
-$CMake   = Join-Path $Vs 'Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
-$CudaBin = 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3\bin\x64'
-$Runtime = Join-Path $Build 'aurora\bin\Release'   # aiad.exe lands here
-# Aurora's runtime files come straight from its externals (its own copy steps belong to Aurora targets
-# that building aiad alone does not run).
+$Repo     = $PSScriptRoot
+$Src      = Join-Path $Repo 'src'
+$Solution = Join-Path $Repo 'TootegaAIAD.slnx'
+$Dist     = Join-Path $Repo 'Dist'
+$Deps     = Join-Path $Repo 'deps'
+$Vs       = 'C:\Program Files\Microsoft Visual Studio\18\Community'
+$MSBuild  = Join-Path $Vs 'MSBuild\Current\Bin\amd64\MSBuild.exe'
+$CudaBin  = Join-Path $(if ($env:CUDA_PATH_V13_3) { $env:CUDA_PATH_V13_3 } else { $env:CUDA_PATH }) 'bin\x64'
+$Runtime  = Join-Path $Repo '_build\Release\bin'   # aiad.exe, aiad-mcp.exe, aiad-model.exe and the tests
 $Externals = Join-Path $Deps '_externals\aurora'
 $DllDirs = @($Runtime, (Join-Path $Externals 'DXC\bin'), (Join-Path $Externals 'NRD\bin'), (Join-Path $Externals 'NRI\bin'),
              (Join-Path $Externals 'Slang\bin'), $CudaBin)
@@ -56,28 +54,41 @@ Step '2/9 Visual Studio 18 developer environment (x64, MSVC v145)' {
     Import-Module (Join-Path $Vs 'Common7\Tools\Microsoft.VisualStudio.DevShell.dll')
     Enter-VsDevShell -VsInstallPath $Vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64' | Out-Null
     $env:NoDefaultCurrentDirectoryInExePath = $null
-    $env:CMAKE_POLICY_VERSION_MINIMUM = '3.5'
     Write-Host "    cl: $((Get-Command cl.exe).Source)"
 }
 
-Step '3/9 Configure (CMake preset vs2026: Visual Studio 18 2026 generator, src\_build\TootegaAIAD.slnx)' {
-    Push-Location $Src
-    try { Invoke-Native $CMake @('--preset', 'vs2026') } finally { Pop-Location }
+Step '3/9 TootegaAIAD.slnx loads in Visual Studio (devenv, on a copy so the IDE state in .vs stays out)' {
+    $devenv = Join-Path $Vs 'Common7\IDE\devenv.com'
+    $probe = Join-Path $Repo 'TootegaAIAD.loadcheck.slnx'
+    Copy-Item $Solution $probe -Force
+    try { $out = & $devenv $probe /Build 'Release|x64' /Project aiad_core 2>&1 }
+    finally
+    {
+        Remove-Item $probe -Force -ErrorAction SilentlyContinue
+        Remove-Item (Join-Path $Repo '.vs\TootegaAIAD.loadcheck.slnx') -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    if ($LASTEXITCODE -ne 0 -or ($out -match 'not loaded correctly'))
+    {
+        $out | Select-Object -Last 8 | ForEach-Object { Write-Host "    $_" }
+        throw 'TootegaAIAD.slnx does not load in Visual Studio'
+    }
+    Write-Host '    loads; aiad_core builds from the IDE'
 }
 
-$Tests = @('kernel_test', 'document_test', 'command_bus_test', 'agent_session_test', 'mcp_bridge_test', 'claude_cli_test')
-Step '4/9 Build aiad.exe, aiad-mcp.exe and the unit tests (Release)' {
-    Invoke-Native $CMake (@('--build', $Build, '--config', 'Release', '--target', 'aiad', 'aiad_model_tool') + $Tests + @('--', '/m', '/v:minimal', '/nologo'))
-    if (-not (Test-Path (Join-Path $Runtime 'aiad.exe'))) { throw "aiad.exe not found in $Runtime" }
-    if (-not (Test-Path (Join-Path $Runtime 'aiad-mcp.exe'))) { throw "aiad-mcp.exe not found in $Runtime" }
+$Tests = @('kernel_test', 'document_test', 'multibody_test', 'command_bus_test', 'agent_session_test', 'mcp_bridge_test', 'claude_cli_test')
+Step '4/9 Build the solution (MSBuild, Release x64): aiad.exe, aiad-mcp.exe, aiad-model.exe, tests' {
+    Invoke-Native $MSBuild @($Solution, '/p:Configuration=Release', '/p:Platform=x64', '/m', '/v:minimal', '/nologo')
+    foreach ($exe in 'aiad.exe', 'aiad-mcp.exe', 'aiad-model.exe')
+    {
+        if (-not (Test-Path (Join-Path $Runtime $exe))) { throw "$exe not found in $Runtime" }
+    }
 }
-
-Step '5/9 Unit tests (kernel, document, Command Bus, agent session, MCP <-> bridge, live Claude CLI handshake)' {
+Step '5/9 Unit tests (kernel, document, multibody, Command Bus, agent session, MCP <-> bridge, live Claude CLI handshake)' {
     foreach ($test in $Tests)
     {
-        $exe = Get-ChildItem $Build -Recurse -Filter "$test.exe" | Where-Object { $_.FullName -match '\\Release\\' } | Select-Object -First 1
-        if (-not $exe) { throw "$test.exe not built" }
-        & $exe.FullName | ForEach-Object { Write-Host "    $_" }
+        $exe = Join-Path $Runtime "$test.exe"
+        if (-not (Test-Path $exe)) { throw "$test.exe not built" }
+        & $exe | ForEach-Object { Write-Host "    $_" }
         if ($LASTEXITCODE -ne 0) { throw "$test failed (exit $LASTEXITCODE)" }
     }
 }
@@ -138,10 +149,9 @@ Step '6/9 Assemble Dist (exe, DLLs, runtime)' {
 
     # The drawings (documents) the app opens.
     Copy-Item (Join-Path $Repo 'models') (Join-Path $Dist 'models') -Recurse
-    $tool = Get-ChildItem $Build -Recurse -Filter 'aiad-model.exe' | Where-Object { $_.FullName -match '\\Release\\' } | Select-Object -First 1
+    $tool = Get-Item (Join-Path $Runtime 'aiad-model.exe') -ErrorAction SilentlyContinue
     if ($tool) { Copy-Item $tool.FullName $Dist }
     if (Test-Path $savedCache) { Copy-Item $savedCache $cache }
-    elseif (Test-Path (Join-Path $Src 'aiad_sim\_build\magneto_table.txt')) { Copy-Item (Join-Path $Src 'aiad_sim\_build\magneto_table.txt') $cache }
 }
 
 Step '7/9 Assemble Dist (USD plugins, MaterialX)' {
@@ -150,7 +160,7 @@ Step '7/9 Assemble Dist (USD plugins, MaterialX)' {
     Copy-Item (Join-Path $Deps 'usd-brep\1.0.0-v145-static\release\usd\omniSolid') (Join-Path $Dist 'usd') -Recurse
     $hdAurora = Join-Path $Dist 'usd\hdAurora\resources'
     New-Item -ItemType Directory $hdAurora -Force | Out-Null
-    Copy-Item (Join-Path $Deps 'forks\aurora-4AIAD\Libraries\HdAurora\resources\plugInfo.json') $hdAurora
+    Copy-Item (Join-Path $Deps 'forks\aurora-4AIAD\Libraries\HdAurora\resources-4AIAD\plugInfo.json') $hdAurora
     # Aurora looks for <exe dir>\MaterialX\libraries.
     $materialX = Join-Path $Externals 'MaterialX\libraries'
     if (-not (Test-Path $materialX)) { throw "MaterialX libraries not found in $materialX" }

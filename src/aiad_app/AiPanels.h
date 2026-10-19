@@ -68,6 +68,7 @@ struct ChatTab
     int id = 0;
     std::unique_ptr<ai::AgentSession> session;
     bool open = true, docked = false, focus = true, focused = false;
+    bool placeFloating = false;   // opens where the last conversation window floated
     std::string prompt;
     std::vector<std::pair<std::string, std::string>> attachments;  // mime, base64
     bool includeSelection = true;
@@ -107,6 +108,15 @@ public:
     ai::AgentSession* Session() { return m_tab ? m_tab->session.get() : nullptr; }
     size_t ChatCount() const { return m_tabs.size(); }
     const std::string& Workspace() const { return m_settings.workspace; }
+    // The open document changed: new conversations work in its folder (empty = the default folder).
+    // Open conversations keep the folder they started in.
+    void SetWorkspace(const std::string& folder);
+    // Where the last conversation window was (docked or floating): a new one opens there. Kept by the
+    // host between runs (aiadconfig.json).
+    Json ChatPlacement() const;
+    void SetChatPlacement(const Json& placement);
+    // Closes every conversation tab (as their close buttons do; UI test).
+    void CloseChats();
 
 private:
     ai::SessionOptions BuildOptions() const;
@@ -169,6 +179,13 @@ private:
     std::string m_confirmDelete;
 
     // Conversations: one dockable tab each (the Cockpit's session tabs); the hub shows the active one.
+    struct LastChat
+    {
+        bool known = false, floating = false;
+        ImGuiID dock = 0;
+        ImVec2 pos, size;   // screen rectangle of the window
+    } m_lastChat;
+    ImGuiID ChatDockTarget();
     std::vector<std::unique_ptr<ChatTab>> m_tabs;
     ChatTab* m_tab = nullptr;                  // the tab being drawn, else the active one
     ai::AgentSession* m_session = nullptr;     // m_tab's session, or m_idle

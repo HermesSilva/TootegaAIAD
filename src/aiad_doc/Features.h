@@ -21,6 +21,7 @@
 //   {"polygon": {"center":[u,v], "across_flats":f, "sides":n, "rotation":a}}
 //   {"rounded_rect": {"min":[u,v], "max":[u,v], "radius":r}}
 //   {"sprocket": {"root_radius":r, "tip_radius":t, "teeth":n}}
+//   {"gear": {"module":m, "teeth":z, "pressure_angle":20, "center":[u,v], "rotation":a}}   involute spur gear
 //   {"hull": {"circles":[{"center":[u,v], "radius":r, "from":a, "to":b}, ...]}}   convex hull (arcs + tangents)
 //   {"cam": {"base_radius":r, "lift":h, "open":a, "close":b}}   flat-follower cam, sin^2 lift law, crank angles of
 //                                                                the 720 cycle; follower on -u, cam turns +n at half speed
@@ -45,5 +46,37 @@ bool SketchOutline(const Json& sketch, const NameLookup& lookup, std::vector<std
 // Follower lift per cycle degree (720 values) of a cam outline: flat follower on -u, cam turning at
 // half crank speed (cycle angle c faces the follower at cam angle c / 2).
 std::vector<double> MeasureFlatFollowerLift(const std::vector<std::array<double, 2>>& outline, double baseRadius);
+
+// What the simulator measures on a part's features (part frame; the "rotate"/"translate" features after the
+// measured one are applied).
+//
+// A wheel: the first extruded gear, sprocket or circle (a pulley). Pitch radius: m z / 2 (gear), the mean of
+// root and tip (sprocket), the radius (circle; no teeth).
+struct Wheel
+{
+    int teeth = 0;
+    double pitchRadius = 0.0, rootRadius = 0.0, tipRadius = 0.0, module = 0.0;
+    kernel::Vec3 centre, axis;   // on the mid plane of the extrusion
+    double width = 0.0;
+};
+bool FindWheel(const Json& features, const NameLookup& lookup, Wheel& wheel, std::string& error);
+
+// The outline of the first extruded sketch (a cam lobe, a rocker): points on its mid plane, the extrusion
+// axis and the extent along it (from the mid plane, +/- width / 2).
+struct ExtrudedProfile
+{
+    std::vector<kernel::Vec3> points;
+    kernel::Vec3 centre, axis;   // sketch origin on the mid plane; the extrusion direction
+    double width = 0.0;
+};
+bool FindExtrudedProfile(const Json& features, const NameLookup& lookup, ExtrudedProfile& profile, std::string& error);
+
+// A coil spring: the first helix_pipe.
+struct Helix
+{
+    kernel::Vec3 base, axis;
+    double coilRadius = 0.0, height = 0.0, turns = 0.0, wireRadius = 0.0;
+};
+bool FindHelix(const Json& features, const NameLookup& lookup, Helix& helix, std::string& error);
 
 }  // namespace aiad::doc

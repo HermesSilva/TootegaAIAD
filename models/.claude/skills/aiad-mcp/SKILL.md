@@ -2,8 +2,8 @@
 name: aiad-mcp
 description: >
   How to operate the Tootega AIAD CAD/CAE app through its `aiad` MCP tools (mcp__aiad__*): read and
-  change the open model (parameters and formulas, parts as feature histories, materials, bodies),
-  check the result (viewport snapshot, derived physics, engine simulation) and undo. Use whenever the
+  change the open model (parameters and formulas, parts as feature histories, materials, bodies, joints,
+  machine elements), check the result (the simulator's critique, viewport snapshot, simulation) and undo. Use whenever the
   user asks to inspect, modify, fix, create or simulate anything in the model, mentions a part,
   dimension, material, section, view, rpm/power, or says "in the app", "in the drawing", "no desenho",
   "no modelo", "no motor".
@@ -17,18 +17,20 @@ Command Bus — the same commands the user's panels run, with validation, **undo
 where your actions appear as `ai`. Never write geometry yourself in files or code: describe it as
 features.
 
-Units: **metres** and **degrees** everywhere (a bore of 80 mm is `0.08`). Crank angles of the engine
-are in the 720-degree cycle, 0 = firing TDC.
+Units: **metres** and **degrees** everywhere (a bore of 80 mm is `0.08`); joint motors and coordinates in
+radians, rad/s, metres.
 
 ## Workflow
 
 1. **Read before you change.** `aiad_parameters_get` (driving dimensions and formulas),
    `aiad_parts_list` (parts, bodies, materials, masses, errors), `aiad_part_get` (one part's full feature
-   history), `aiad_engine_get_derived` (what the simulation uses).
+   history), `aiad_joints_list` / `aiad_elements_list` (the machine), `aiad_mechanism_check` (what the
+   simulator measures on the drawing and what it criticises).
 2. **Change with the smallest tool that does it**: a value → `aiad_parameters_set`; one field of one
    feature → `aiad_feature_update`; a part's whole history/material/role → `aiad_part_update`; a new
    part → `aiad_part_create`.
-3. **Verify.** `aiad_viewport_snapshot` (look at it), `aiad_engine_get_derived`, and for performance
+3. **Verify.** `aiad_viewport_snapshot` (look at it), **`aiad_mechanism_check`** (the simulator's critique
+   of the drawing: every problem with its fix, and everything it measured), and for behaviour
    `aiad_sim_run` + poll `aiad_sim_job_status` until `state` is `done` (each poll is cheap; wait a
    second or two between polls).
 4. **Report** what changed, with numbers. Every change can be undone (`aiad_undo`, or Ctrl+Z by the
@@ -50,10 +52,13 @@ part and the feature. Read the error, fix the input, try again; do not retry bli
 | `aiad_part_update` | `{"part", ...any of name/body/material/role/sectioned/features}` |
 | `aiad_feature_update` | `{"part","index" (from 1),"set":{field: value}}` |
 | `aiad_part_delete` | Remove a part (undoable) |
-| `aiad_materials_list` / `aiad_material_define` | Material table: density (drives the masses), colour, metallic, roughness, emission |
-| `aiad_body_define` | Rigid body and its rest origin (formulas allowed) |
-| `aiad_engine_get_derived` | Displacement, chamber volume, crank inertia, rod/piston masses, measured valve lift, magneto timing |
-| `aiad_sim_run` / `aiad_sim_job_status` | Measured run of the coupled simulation (Chrono + 0D Otto cycle + magneto): rpm, indicated power, torque, peak pressure, "runs on its own" |
+| `aiad_materials_list` / `aiad_material_define` | Material table: density (drives the masses), `shear_modulus` (springs), `remanence` (magnets), `relative_permeability` (cores), colour, metallic, roughness, emission |
+| `aiad_body_define` | Rigid body and its rest origin (formulas allowed); `fixed: true` = part of the ground |
+| `aiad_joint_define` / `aiad_joint_delete` / `aiad_joints_list` | Joints between bodies (`revolute`, `prismatic`, `cylindrical`, `spherical`, `planar`, `fixed`; `body1` omitted = ground; `point`, `axis` as formulas; optional `motor` `{"mode": "speed"\|"torque", "value": ..., "free_speed"?, "duration"?}` in rad/s, m/s, N m or N; optional `limits` `[lower, upper]` = stops, e.g. a valve seat `[null, 0]`) |
+| `aiad_element_define` / `aiad_element_delete` / `aiad_elements_list` | What else the machine is made of, tied to joints and drawn parts: `gear`, `belt`, `rack`, `contact` (cam / rocker pad on a flat face), `spring`, `load`, `chamber` (gas), `magneto` (see below) |
+| `aiad_mechanism_check` | The simulator's critique of ANY drawing: ground, bodies not connected, joints outside their parts, gears that do not mesh, belts that miss their wheels, cams that never reach (or never release) their followers, springs that do not fit, valves without seat/spring/drive, chambers and magnetos that do not match the drawing — each with its fix; plus everything it measured (ratios, lift, stiffness, bore, chamber volume, spark angle) |
+| `aiad_mechanism_run` | `{"seconds": s}` (up to 5): runs the machine and returns every joint (position, range, mean speed), chambers, magnetos, how far each body moved |
+| `aiad_sim_run` / `aiad_sim_job_status` | Measured run in the background (up to 30 s): joint speeds, chambers (displacement, compression ratio, peak pressure, combustions, indicated power), magnetos, and `runs_on_its_own` (does it keep going after its timed motors stop) |
 | `aiad_sim_start` / `aiad_sim_stop` / `aiad_sim_status` | Live animation in the viewport |
 | `aiad_viewport_snapshot` | PNG of the viewport as the user sees it |
 | `aiad_view_set` | `{"view": "iso|front|back|right|left|top", "fit": true, "section": true|false}` |
@@ -107,26 +112,94 @@ Example — a flanged ring about the cylinder axis with four bolt holes:
   {"op": "pattern_polar", "count": 4, "axis_point": [0, 0, 0], "axis": [1, 0, 0], "step_angle": 90}]}
 ```
 
+## Machines: any machine, from the drawing
+
+The simulator is generic: it knows no machine. A machine is, all in the document:
+
+- **bodies** — rigid groups of parts; mass, centre of mass and inertia come from their parts and materials;
+- **joints** — how bodies move (with motors and stops);
+- **elements** — what else it is made of, tied to joints and to drawn parts. Everything physical is
+  measured on the parts: teeth and pitch radii, cam profiles, coil wire and turns, bore, chamber volume,
+  valve sizes, magnet and core geometry.
+
+Build one like this:
+
+1. Make the base part of the ground: `aiad_body_define {"body": "Frame", "origin": [0,0,0], "fixed": true}`.
+2. Put each moving part in a body of its own (`aiad_part_create` with `body`), one body per rigid group.
+   Draw it **assembled** (where it is at rest); a body's origin is where its parts' frame sits.
+3. Join the bodies where they meet. A shaft in a bearing:
+   `aiad_joint_define {"name": "Crank bearing", "type": "revolute", "body0": "Crankshaft", "body1": "Frame",
+   "point": [0, 0, 0], "axis": [0, 0, 1]}`. A pin in a hole puts the point on the pin's axis. A ball end is
+   `spherical`; a slide is `prismatic`, with `limits` for its stops.
+4. Add the elements (`aiad_element_define {"name", "type", "definition": {...}}`):
+   - `gear` `{joint0, joint1, part0, part1, internal?}`: two drawn gears (sketch tool `gear`, or `sprocket`)
+     on parallel shafts held by the same body. Ratio from the teeth, direction from the mesh; an idler
+     needs its own body and joint.
+   - `belt` `{joint0, joint1, part0, part1, belt}`: a drawn belt or chain around two drawn wheels (same
+     direction).
+   - `rack` `{joint0 (pinion), joint1 (prismatic rack), part0, part1?}`.
+   - `contact` `{part, body, point, normal, radius}`: the profile of `part` pushes the flat face of `body`.
+     The profile is an extruded sketch: a cam lobe (tool `cam`), a rocker pad (a `hull`). The face is given
+     by its centre `point` and its `normal` (pointing toward the profile) as drawn, and its `radius`.
+     Unilateral: the follower can lift off.
+   - `spring` `{part, body0, point0, body1, point1, free_length}`: a drawn coil (`helix_pipe`), in a body of
+     its own, between two bodies. Its material needs `shear_modulus`. The view stretches it.
+   - `load` `{joint, constant?, linear?, quadratic?}`: resisting torque or force (friction, brake, propeller).
+   - `chamber` `{piston, cylinder, head, intake: [{joint, part}], exhaust: [...], ignition?, crank?}`:
+     the gas between a piston (its prismatic joint), the bore (the part whose inside it is) and the head.
+     The valves need a seat (a joint stop at the drawn closed position), something that opens them (a
+     contact) and a spring.
+   - `magneto` `{rotor, magnet, shoes, core, coil?, points_open}`: magnet and pole shoes on the rotor's body,
+     the U core (two legs and a yoke) on the stator. The magnet's material needs `remanence`. The spark
+     fires the chamber that names it in `ignition`.
+5. Drive the input: a joint `motor` (`speed`, or `torque` with `free_speed` and `duration` for a starter).
+6. Run `aiad_mechanism_check`, apply its fixes, and check again until it finds nothing. Then run it:
+   `aiad_mechanism_run {"seconds": 1}`, or `aiad_sim_run` for a measured run.
+
+**When the simulator refuses a drawing, the drawing is what to fix**, never the application. Its findings
+say what and how. If something truly cannot be expressed with these tools, tell the user. Do not ask to
+change the app's code.
+
 ## This model: the single-cylinder engine
 
-- Mechanism frame: crank axis **Z**, cylinder axis **+X** (the model is turned upright for viewing).
-  Bodies: `Frame` (fixed), `Crankshaft` (turns about Z), `Rod` (crank pin at its origin, small end on
-  +X), `Piston` (origin at the wrist pin), `Camshaft` (origin at the cam centre, half crank speed),
-  `IntakeValve`/`ExhaustValve` (origin on the valve seat at the deck), `IntakeSpring`/`ExhaustSpring`
-  (origin on the head; scaled by the lift). A part's coordinates are in its body's frame.
-- Driving parameters: `bore`, `stroke`, `rod_length`, `compression_ratio`, valve diameters,
-  `intake_open/close/lift`, `exhaust_open/close/lift`, `cam_base_radius`, flywheel sizes, `spark_advance`,
-  magneto geometry (`magneto_*`), study inputs (`load_coefficient`, `starter_*`). Many others are formulas
-  of these (`s` = bore/0.080 scales transverse sizes, `deck_x`, `head_top_x`, `cam_centre_x`, ...).
-  Changing a formula's inputs changes every part that uses it — that is intended.
-- **The simulation reads the drawing**: masses and inertias come from the parts and their materials per
-  body; valve lift is **measured on the parts with role `intake_lobe` / `exhaust_lobe`**; geometry from
-  the parameters. Keep those roles (and `spark`, `magnet`, `flywheel`) on the right parts, or the study
-  reports what is missing.
-- The section view cuts the parts with `"sectioned": true` at y = 0 and shows the back half; parts that
-  must stay visible behind the cut (ports, pipes) should run on +y.
-- Typical checks after a mechanical change: `aiad_engine_get_derived`, then `aiad_sim_run` with
-  `{"seconds": 2.5}` (the starter runs for `starter_duration`; "runs on its own" needs more than that).
+- Mechanism frame: crank axis **Z**, cylinder axis **+X** (the model is turned upright for viewing). It is
+  drawn assembled at the **firing TDC**: crank pin on +X, piston at the top.
+- Bodies:
+  - `Frame` (fixed);
+  - `Crankshaft` (with flywheel and magnet);
+  - `Rod` (origin on the crank pin);
+  - `Piston` (origin at the wrist pin);
+  - `Camshaft`;
+  - `IntakeValve`/`ExhaustValve` (origin on the seat; in the OHC engine they include the bucket tappets);
+  - `IntakeSpring`/`ExhaustSpring` (spring bodies).
+  The pushrod engine adds `IdlerGear`, tappets, pushrods and rockers. A part's coordinates are in its
+  body's frame.
+- Joints:
+  - main bearing (with the starter: a timed torque motor with a DC curve);
+  - crank pin and wrist pin;
+  - piston bore;
+  - camshaft bearing;
+  - valve guides (stop `[null, 0]` = the seat).
+- Elements:
+  - the timing drive (OHC: a `belt`; pushrod: two `gear`s through the idler);
+  - cam `contact`s (pushrod: also the rocker pads on the valve tips);
+  - valve `spring`s;
+  - crank friction and propeller `load`;
+  - the `Magneto`;
+  - the `Cylinder` chamber.
+- Driving parameters:
+  - `bore`, `stroke`, `rod_length`, `compression_ratio` and the valve diameters;
+  - `intake_open/close/lift` and `exhaust_open/close/lift`: they shape the drawn lobes, and the simulation
+    reads the lobes;
+  - `cam_base_radius`, `valve_lash`, `spring_preload`;
+  - the flywheel sizes, `spark_advance` (where the magnet sits on the rotor) and `points_open_deg`;
+  - the magneto geometry (`magneto_*`), `load_coefficient` and `starter_*`.
+  Many others are formulas of these (`s` = bore/0.080 scales transverse sizes, `deck_x`, `head_top_x`,
+  `cam_centre_x`, ...). Changing a formula's inputs changes every part that uses it — that is intended.
+- The section view cuts the parts with `"sectioned": true` at y = 0 and shows the back half. Parts that must
+  stay visible behind the cut (ports, pipes) should run on +y.
+- Typical checks after a mechanical change: `aiad_mechanism_check`, then `aiad_sim_run` with
+  `{"seconds": 2.5}`. The starter runs for `starter_duration`; "runs on its own" needs more than that.
 
 ## Pitfalls
 

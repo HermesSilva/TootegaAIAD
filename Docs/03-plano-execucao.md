@@ -47,6 +47,19 @@ substituído pelo M1.6 abaixo, nesta ordem:
 Fases F3/F4 (IA operando via MCP) entram depois do M1.6, para que a IA possa desenhar o motor pelos
 mesmos comandos.
 
+**Correção de rumo (dono, 2026-10-19): o simulador é genérico.** "O desenho tem de permitir qualquer
+máquina, peça ou desenho, e o simulador deve rodar qualquer uma, não é só para um motor X ou Y." O
+`EngineSimulation` (biela-manivela e comando OHC fixos no C++) era provisório; o mecanismo passou a ser
+descrito no documento (arquitetura §9.1) e o Chrono é montado a partir dele. Plano aprovado (G-A a G-D
+concluídos em 2026-10-19, registro abaixo):
+
+| Passo | Entrega | Aceite |
+|-------|---------|--------|
+| **G-A** | Juntas `UsdPhysics` no documento (revolução, prismática, fixa, cilíndrica, esférica, plana), corpo fixo, motor em junta; comandos no bus; solver multicorpos genérico (`aiad_sim`); crítica de mobilidade (Grübler–Kutzbach, corpos soltos, junta fora das peças) com correções; animação 6 GDL de qualquer corpo; "rodar mecanismo" na UI e no MCP | pêndulo e biela-manivela genéricos = solução analítica; um documento qualquer com juntas anima; a crítica aponta corpo solto e mecanismo travado |
+| **G-B** | Engrenagens, correias/correntes, cremalheira (dos dentes/diâmetros desenhados), came–seguidor (dos perfis desenhados), molas desenhadas | trem manivela→intermediária→comando e tucho→vareta→balancim→válvula rodam e são criticados |
+| **G-C** | Elementos de domínio: câmara de combustão 0D (êmbolo e cilindro desenhados), magneto ligado à geometria; `EngineSimulation` removido | o motor original roda pelo caminho genérico com os mesmos resultados |
+| **G-D** | Motores de exemplo (OHC e varetas) como documentos com juntas; a IA monta mecanismos pelo MCP | os dois motores rodam; a IA conserta o motor de varetas guiada pela crítica |
+
 ---
 
 ## 1. Visão das fases
@@ -494,3 +507,81 @@ Correção pedida pelo dono: todo objeto do viewport vem de desenho, nunca de c�
   motor (corpos, referenciais, papéis que a simulação lê) e armadilhas. Fica na pasta do modelo, que é a
   pasta de trabalho do agente: o Claude Code o carrega como skill de projeto (conferido com
   `get_context_usage`, sem gastar tokens). O prompt de sistema do app aponta para ele.
+
+### 2026-10-19 — G-A: simulador genérico de mecanismos (primeira entrega)
+
+- **Documento:** corpo fixo (`aiad:fixed`) e **juntas `UsdPhysics`** (`/Root/Joints/*`: revolução, prismática,
+  cilíndrica, esférica, plana, fixa) com ponto e eixo em fórmulas e motor opcional (velocidade ou torque); os
+  atributos `physics:*` acompanham os parâmetros. Comandos `aiad_joint_define/delete`, `aiad_joints_list`,
+  `aiad_body_define fixed` (com undo; testados no `document_test`).
+- **Solver:** `aiad_sim/mechanism/Multibody` (Chrono) montado só de corpos + juntas + motores; mobilidade de
+  Grübler–Kutzbach (plana quando o mecanismo é plano). `multibody_test`: pêndulo físico 1,6387 s (analítico
+  1,6379 s) e biela-manivela com erro do pistão 2e-6 m.
+- **Estudo e crítica:** `MechanismStudy` (massa, CG e tensor de inércia por corpo das peças × materiais; chão,
+  corpos soltos, junta fora das peças que une, graus de liberdade, nada acionando), cada achado com a
+  correção; `aiad_mechanism_check` e `aiad_mechanism_run` para a IA; painel "Run mechanism"; animação 6 GDL
+  (`orient` na camada de sessão); `aiad.exe --snapshot <png> <documento>` para qualquer documento.
+- **Aceite (ui-test):** um mecanismo feito só por comandos — junta fora das peças criticada e recusada; corrigida,
+  o braço acionado a 2 rad/s gira 1 rad em 0,5 s. O motor de exemplo segue pelo caminho provisório até G-C.
+
+### 2026-10-19 — G-B, G-C, G-D: a máquina inteira vem do desenho
+
+- **G-B, solver:** o `Multibody` ganhou:
+  - acoplamentos entre coordenadas de juntas (eixos 1D do Chrono: `ChShaftBodyRotation/Translation`,
+    `ChShaftsGear`, `ChShaftsPlanetary` para juntas entre corpos móveis);
+  - contato unilateral perfil–face (penalidade, amortecimento automático);
+  - molas, batentes de junta, cargas resistentes e motor de torque com curva de motor CC e duração;
+  - passo estável calculado da rigidez.
+
+  O `multibody_test` confere com a forma fechada:
+  - trem de 3 engrenagens: −11,25 e 5 rad exatos;
+  - cremalheira: 25 mm/rad;
+  - período massa-mola: 0,6283 s;
+  - levante de um came excêntrico com seguidor plano: erro de 5 µm;
+  - batente: 10,001 mm.
+- **G-B, documento:** **elementos** em `/Root/Elements` (`gear`, `belt`, `rack`, `contact`, `spring`, `load`,
+  `chamber`, `magneto`).
+  - Cada elemento é validado na definição: campos, nomes de juntas, peças e corpos, fórmulas.
+  - Comandos: `aiad_element_define/delete`, `aiad_elements_list`.
+  - Batentes (`limits`) e curva de motor (`free_speed`, `duration`) nas juntas.
+  - Materiais com `shear_modulus`, `remanence` e `relative_permeability`.
+  - Ferramenta de esboço `gear` (engrenagem evolvente).
+- **Crítica (`MechanismStudy`):** tudo é medido nas peças e criticado com a correção:
+  - engrenagens: eixo, centro, plano comum, passo, interferência, engrenamento;
+  - correia que não abraça as rodas;
+  - came que nunca alcança o seguidor ou nunca o solta, face ao lado do perfil, folga;
+  - mola: comprimento desenhado × pontas, material sem G, pré-carga, espiras encostando;
+  - câmara: diâmetro interno do cilindro, coroa × cabeçote, volume com o corte exato da coroa, válvula sem sede,
+    sem mola ou sem acionamento;
+  - magneto: geometria do ímã, sapatas e núcleo, entreferro, alinhamento axial, remanência, ângulo da faísca.
+- **G-C:** câmara 0D (`EngineCylinder` com volume da câmara desenhada) e magneto ligados às juntas no
+  `sim::machine::Machine`.
+  - Saíram `EngineSimulation`, `EngineStudy`, `engine_run_test` e os comandos `aiad_engine_check` e
+    `aiad_engine_get_derived`.
+  - Sessão, comandos (`aiad_sim_*`, `aiad_mechanism_*`), painéis (Study, Simulation, Plots por canal, p-V) e
+    `--snapshot` são genéricos; novo `aiad.exe --simulate <doc> <s>`.
+- **G-D:** `Engine_SingleCylinder.aiad.json` e o novo `Engine_SingleCylinder_Pushrod.aiad.json` geram os
+  documentos.
+  - Comuns aos dois: chão, posição de repouso montada no PMS de queima, juntas e elementos.
+  - OHC: correia, cames sobre os tuchos de copo.
+  - Varetas: virabrequim → intermediária → comando por engrenagens; came → tucho → vareta (juntas esféricas) →
+    balancim → válvula.
+
+  Resultados de `aiad.exe --simulate`, 3 s, partida desligada em 1 s:
+
+  | | OHC | Varetas |
+  |---|---|---|
+  | Rotação após a partida | 2993 rpm | 2939 rpm |
+  | Potência indicada | 8,64 kW | 8,39 kW |
+  | Pressão de pico | 77 bar | 78 bar |
+  | Cilindrada medida | 301,6 cm³ | 301,6 cm³ |
+  | Taxa de compressão (câmara desenhada) | 10,72 | 10,72 |
+  | Comando | 1497 rpm | 1470 rpm |
+  | Levante da válvula | 7,86 mm | 7,42 mm |
+  | Intermediária | — | −3307 rpm |
+  | Secundário do magneto | 27 kV | 27 kV |
+  | Tempo de cálculo | 18 s | 64 s |
+
+  A crítica achou um defeito real no primeiro script do motor de varetas: o mancal da engrenagem
+  intermediária estava fora da peça.
+

@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{1AFC059C-D0BF-3791-A05A-CA5D5FDDADFE}</ProjectGuid>
+    <RootNamespace>aiad_sim_mechanism</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(AiadRoot)src\Aiad.props" />
+  </ImportGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(AiadRoot)src\aiad_sim;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>PXR_STATIC;CH_STATIC;_CRT_SECURE_NO_DEPRECATE;_SCL_SECURE_NO_DEPRECATE;NOMINMAX;CH_IGNORE_DEPRECATED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>Level4</WarningLevel>
+      <DisableSpecificWarnings>4100;4127;4201;4244;4250;4251;4275;4324;4505;5038;26451;26495;26812</DisableSpecificWarnings>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <AdditionalOptions>/external:I &quot;$(AiadRoot)deps/chrono/10.0.0-static/include&quot; /external:I &quot;$(AiadRoot)deps/chrono/10.0.0-static/include/chrono/collision/bullet&quot; /external:I &quot;$(AiadRoot)deps/chrono/10.0.0-static/include/chrono/collision/gimpact&quot; /external:I &quot;$(AiadRoot)deps/chrono/10.0.0-static/include/chrono_thirdparty/HACD&quot; /external:I &quot;$(AiadRoot)deps/chrono/10.0.0-static/include/chrono_thirdparty/HACDv2&quot; /external:I &quot;$(AiadRoot)deps/chrono/10.0.0-static/include/chrono&quot; /external:I &quot;$(AiadRoot)deps/_src/eigen&quot; /Zc:__cplusplus /bigobj %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="machine\Machine.cpp" />
+    <ClCompile Include="mechanism\Multibody.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="common\EigenConfig.h" />
+    <ClInclude Include="machine\Machine.h" />
+    <ClInclude Include="mechanism\Multibody.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="aiad_sim_engine.vcxproj">
+      <Project>{D1EE013E-E4AA-3812-A9D5-F329CCE8538D}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="aiad_sim_magneto.vcxproj">
+      <Project>{0B425023-F399-330A-879F-CE76CA978F55}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

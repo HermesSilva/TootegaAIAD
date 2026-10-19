@@ -35,8 +35,11 @@
    hdUsdBrep, omniSolid, aiad schema) are linked **into the executable** with `/WHOLEARCHIVE`.
 5. **English only** in code, comments, commit messages and the **software UI**. No i18n layer.
    (Planning documents under `Docs/` are currently in Portuguese.)
-6. **Toolchain:** Visual Studio 18 (2026) Community, **MSVC toolset v145**, C++20, CMake (the one
-   bundled with VS 18, 4.3+) + Ninja, CUDA 13.x. Every third-party library is built with v145.
+6. **Toolchain:** Visual Studio 18 (2026) Community, **MSVC toolset v145**, C++20, CUDA 13.x. The application
+   builds with **native Visual Studio projects**: one versioned `.vcxproj` per project next to its code, the
+   solution `TootegaAIAD.slnx` at the repository root (owner, 2026-10-19: a checkout must build from Visual
+   Studio as is; no CMake for the app). Third-party libraries keep their own build systems (CMake + Ninja,
+   VS 18's CMake 4.3+) through the `deps` scripts; every one is built with v145.
 7. **OpenUSD is the source of truth.** The document *is* a `UsdStage` (geometry, materials,
    simulation studies). No parallel internal model.
 8. **One path to mutate the model: the Command Bus.** UI, AI and scripts run the same commands,
@@ -80,7 +83,19 @@
   parts; every physical input of a simulation (masses, inertias, centres of mass, valve lift, chamber
   volume, magneto geometry...) is derived from those parts (`src/aiad_model`). No hand-entered
   physics that the drawing does not show; no drawing detail that the simulation contradicts.
-- Layers only point downward; no cycles (enforced in CMake). See `Docs/diagrams/dependencias.svg`.
+- **The simulator is generic** (owner, 2026-10-19): "o desenho tem de permitir qualquer máquina... o simulador
+  deve rodar qualquer uma" — e.g. draw a turbine and it works, no code change, like CATIA. Mechanisms (bodies,
+  UsdPhysics joints, couplings, cam pairs, springs, motors), domain elements and studies (flow, structure, EM) are
+  document entities; solvers are built from them. Never add machine-specific simulation code
+  (plan G-A..G-D done 2026-10-19: joints, elements, `aiad_sim/machine/Machine`, `Docs/02-arquitetura.md` §9.1).
+- **The simulator criticises the drawing** (owner, 2026-10-19): finding and pointing out failures is its job.
+  The study (`src/aiad_app/MechanismStudy.cpp`) measures every input on the drawn parts and checks that they
+  fit (joints on their parts, gears that mesh, cams that reach and release their followers, springs on their
+  seats, valves with seat, spring and drive, chambers and magnetos that match the drawing) and refuses to run
+  otherwise, listing every problem with a concrete fix. The critique reaches the agent (`aiad_mechanism_check`,
+  and the refusal of `aiad_sim_run`/`aiad_sim_start`) and the CLI (`aiad.exe --check <doc>`).
+  A drawing that would not work must never "run".
+- Layers only point downward; no cycles (project references in the `.vcxproj`). See `Docs/diagrams/dependencias.svg`.
 - Facades over third parties: only `aiad_kernel` includes USD BRep; only `aiad_render`/`aiad_gpu`/
   `aiad_ui` include D3D12; only `aiad_sim`/`aiad_gpu` include CUDA; only `aiad_sim` includes MFEM/Netgen;
   only `aiad_ui` includes ImGui.
@@ -165,9 +180,17 @@ GitLab). In every fork:
 ### Build and verification loop (application)
 
 - Fresh clone: `git clone --recurse-submodules`, then `pwsh -File deps\fetch-prebuilt.ps1` (release assets listed in
-  `deps/prebuilt.json`; maintainer publishes with `deps\pack-prebuilt.ps1 -Publish`). VS solution: `cmake --preset vs2026`
-  in `src/` → `src/_build/TootegaAIAD.slnx` (folders `Tests`, `ThirdParty/{Aurora,libCEED,Palace}`).
-- `pwsh -File build-dist.ps1` (repo root): timed steps, stops at the first error, builds `aiad.exe`,
+  `deps/prebuilt.json`; maintainer publishes with `deps\pack-prebuilt.ps1 -Publish`). Then open `TootegaAIAD.slnx`
+  (folders `Tests`, `ThirdParty/{Aurora,libCEED,Palace}`; startup `aiad`; Release and Debug, both with the release CRT
+  `/MD` because the prebuilt dependencies are release builds). Shared settings: `Directory.Build.props` (paths:
+  `AiadRoot`, `AiadDeps`, `AiadCuda`, `AiadPython`) and `src/Aiad.props`; outputs in `_build/<Config>/{bin,lib,obj}`.
+  Aurora (`Aurora4AIAD.props`, `Aurora4AIAD.Runtime.targets`) and libCEED have their `.vcxproj` in their forks; Palace is
+  `deps/vs/palace.vcxproj` (NMake, runs the superbuild script). Adding a source file = adding it to its `.vcxproj`.
+- **Static OpenUSD in a VS project:** keep `/Zc:inline` off (`RemoveUnreferencedCodeData=false`) and incremental
+  linking off: either drops or pads the `.pxrctor` entries that run the static registrations (plugins then fail
+  with "missing TfType registration").
+- `pwsh -File build-dist.ps1` (repo root): timed steps, stops at the first error, checks that `TootegaAIAD.slnx` loads
+  in the IDE (`devenv`), builds the solution with MSBuild (`aiad.exe`,
   `aiad-mcp.exe` and the unit tests (`command_bus_test`, `agent_session_test`, `mcp_bridge_test`,
   `claude_cli_test` — live CLI handshake, no tokens), runs them, assembles `Dist/` (D18 check via
   `dumpbin`), then `aiad.exe --snapshot` (engine runs, 60 animated frames at an unaligned width with

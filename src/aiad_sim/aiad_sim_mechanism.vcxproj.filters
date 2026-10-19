@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="common">
+      <UniqueIdentifier>{afcb65b4-557a-a4c5-55b1-023f68db1b2c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="machine">
+      <UniqueIdentifier>{363c443a-4a0c-cb7b-9815-0d125cf338e5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="mechanism">
+      <UniqueIdentifier>{5d3f8a52-7c4e-4b1a-9e2f-0a6b7c8d9e10}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="mechanism\Multibody.cpp">
+      <Filter>mechanism</Filter>
+    </ClCompile>
+    <ClInclude Include="mechanism\Multibody.h">
+      <Filter>mechanism</Filter>
+    </ClInclude>
+    <ClCompile Include="machine\Machine.cpp">
+      <Filter>machine</Filter>
+    </ClCompile>
+    <ClInclude Include="common\EigenConfig.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="machine\Machine.h">
+      <Filter>machine</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

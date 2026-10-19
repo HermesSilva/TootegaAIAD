@@ -296,6 +296,50 @@ configurado como remote adicional.
 - **Resultados de volta ao modelo:** escalares-resumo vão como atributos do `AiadStudy`
   (persistidos); campos completos ficam nos arquivos do caso e são carregados na GPU sob demanda.
 
+### 9.1 Simulação genérica de mecanismos a partir do desenho (diretriz 2026-10-19)
+
+> "O desenho tem de permitir qualquer máquina, peça ou desenho, e o simulador deve rodar qualquer uma,
+> não é só para um motor X ou Y, tem de aceitar tudo." — dono do produto, 2026-10-19.
+
+Nenhuma máquina é codificada no simulador. O mecanismo inteiro é parte do documento, editado pelos
+mesmos comandos (usuário, IA via MCP, scripts), e o solver (Project Chrono) é montado a partir dele:
+
+| Elemento | No documento | Origem dos números |
+|----------|--------------|--------------------|
+| Corpo rígido | `aiad:body` + `UsdPhysicsRigidBodyAPI`; `fixed` para o chão | massa, CG e tensor de inércia das peças × densidade |
+| Junta | prim `UsdPhysics*Joint` (revolução, prismática, fixa, cilíndrica, esférica, plana) sob `Joints`, ponto e eixo como fórmulas | desenho / parâmetros |
+| Acionamento | motor numa junta (velocidade ou torque) | parâmetros |
+| Acoplamento | engrenagem, correia/corrente, cremalheira | dentes / diâmetros desenhados |
+| Par superior | came–seguidor, contato entre perfis | perfis desenhados |
+| Elemento de força | mola (rigidez do fio, diâmetro, espiras e material desenhados), amortecedor, carga | desenho |
+| Elemento de domínio | câmara de combustão (ciclo 0D) entre êmbolo e cilindro desenhados; magneto (MFEM na geometria desenhada) | desenho |
+
+O **estudo** critica o mecanismo antes de rodar: mobilidade (Grübler–Kutzbach), corpos soltos,
+juntas cujo ponto não está nas peças desenhadas, acoplamentos que não engrenam, seguidores fora de
+contato, molas que não cabem nos seus assentos, válvulas sem sede, mola ou acionamento, câmaras e magnetos que
+não batem com o desenho; cada achado traz a correção (`aiad_mechanism_check`). O viewport anima todos os corpos
+com transformação completa (6 GDL); o corpo de uma mola é esticado entre as suas pontas.
+
+Implementação (2026-10-19): os acoplamentos, pares superiores, molas, cargas e elementos de domínio são
+**elementos** do documento (`/Root/Elements/*`, `aiad:type` + definição JSON com nomes de juntas, peças e corpos);
+batentes e curva de motor ficam na junta (`aiad:limits`, `physics:lower/upperLimit`). O estudo
+(`aiad_app/MechanismStudy`) mede tudo nas peças — dentes e raio primitivo (`Features::FindWheel`), perfil
+extrudado (`FindExtrudedProfile`), hélice (`FindHelix`), diâmetro interno do cilindro e volume da câmara (malha e
+corte exato), geometria do ímã e do núcleo — e monta a `sim::machine::Description`. O `Machine` (`aiad_sim`)
+junta o `Multibody` (acoplamentos como eixos 1D do Chrono, contato perfil–face, molas, batentes e cargas como
+forças por passo) às câmaras (`EngineCylinder`) e aos magnetos (`MagnetoIgnition`).
+
+O critério é o do CATIA/SIMULIA: "desenhar uma turbina e ela tem de funcionar, sem alterar código" (dono,
+2026-10-19). Por isso os **estudos** também são entidades do documento — domínio de fluido, condições de
+contorno, cargas, materiais — resolvidos pelos backends da tabela acima (HONEE, MFEM, Palace) e acoplados ao
+mecanismo pelos mesmos corpos (o torque do escoamento age no eixo do rotor; a rotação do rotor é condição de
+contorno do escoamento). Nenhum tipo de máquina tem código próprio.
+
+Fases (concluídas em 2026-10-19): **A** juntas, corpo fixo, motores, solver genérico e crítica de mobilidade,
+animação 6 GDL; **B** acoplamentos e pares superiores; **C** elementos de domínio (combustão, magneto) e
+remoção do `EngineSimulation` específico; **D** os motores de exemplo (OHC e varetas) como documentos com
+juntas e elementos.
+
 ---
 
 ## 10. Render (`aiad_render`) e UI

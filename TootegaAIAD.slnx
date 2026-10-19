@@ -1,0 +1,50 @@
+﻿<Solution>
+  <Configurations>
+    <BuildType Name="Debug"/>
+    <BuildType Name="Release"/>
+    <Platform Name="x64"/>
+  </Configurations>
+  <Folder Name="/Tests/">
+    <Project Path="src/aiad_ai/tests/agent_session_test.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="eaea8bdc-a6a9-3a3a-964f-baddeb389b28"/>
+    <Project Path="src/aiad_ai/tests/claude_cli_test.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="3be8e8c7-d67d-3725-b842-510173341fc5"/>
+    <Project Path="src/aiad_cmd/tests/command_bus_test.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="c27fd66f-854e-3023-be4a-8cbad72dc40c"/>
+    <Project Path="src/aiad_doc/tests/document_test.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="ee618421-0a10-38b0-a490-d168f9a4218f"/>
+    <Project Path="src/aiad_sim/tests/engine_cylinder_test.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="74f3530a-650e-3ca4-9c1f-c64e5d6201da"/>
+    <Project Path="src/aiad_kernel/tests/kernel_test.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="3f5f4180-1796-3930-9bfb-6c22f3e779b4"/>
+    <Project Path="src/aiad_sim/tests/magneto_test.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="6b4f805a-925e-3324-8a09-d9b7a07b6570"/>
+    <Project Path="src/aiad_sim/tests/multibody_test.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="9b2e5c4a-61d7-4f3b-8a0c-2e7d5b1f6a93"/>
+    <Project Path="src/aiad_mcp/tests/mcp_bridge_test.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="f502790c-33bf-3290-b360-975bc4616306"/>
+  </Folder>
+  <Folder Name="/ThirdParty/"/>
+  <Folder Name="/ThirdParty/Aurora/">
+    <Project Path="deps/forks/aurora-4AIAD/Libraries/Foundation/Foundation.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="22885efd-c0bb-369a-acc3-6cdb5096ff48"/>
+    <Project Path="deps/forks/aurora-4AIAD/Libraries/Aurora/Aurora.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="c30f33fa-c7ce-3854-a2d2-75ffe4a504b6"/>
+    <Project Path="deps/forks/aurora-4AIAD/Libraries/HdAurora/HdAurora.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="2aa7e63d-4ab9-30ea-a4a2-828c0b33558c"/>
+  </Folder>
+  <Folder Name="/ThirdParty/libCEED/">
+    <Project Path="deps/forks/libceed-4AIAD/libceed.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="fe93fab5-de41-357e-ae27-5836abb33194">
+      <Build Solution="Debug|*" Project="false"/>
+      <Build Solution="Release|*" Project="false"/>
+    </Project>
+  </Folder>
+  <Folder Name="/ThirdParty/Palace/">
+    <Project Path="deps/vs/palace.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="6e1c7a52-3b0f-4d47-9c3e-5f2a8b4d1c70">
+      <Build Solution="Debug|*" Project="false"/>
+      <Build Solution="Release|*" Project="false"/>
+    </Project>
+  </Folder>
+  <Project Path="src/aiad_core/aiad_core.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="7be7363f-8be7-3ddd-89de-7a4ca7cb8fe4"/>
+  <Project Path="src/aiad_cmd/aiad_cmd.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="f69ee046-4b24-3427-997a-0d1e5d565877"/>
+  <Project Path="src/aiad_bridge/aiad_bridge.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="dc244f62-c30b-3289-9a55-14ac6f68901c"/>
+  <Project Path="src/aiad_ai/aiad_ai.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="5cb0f21b-84b9-3ca0-a880-771a2effdd72"/>
+  <Project Path="src/aiad_kernel/aiad_kernel.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="3cf6c516-f187-31b6-a7c5-a740c106cecc"/>
+  <Project Path="src/aiad_doc/aiad_doc.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="c3c7b1cc-d8c8-3c8e-af47-ed2cb0873a6b"/>
+  <Project Path="src/aiad_doc/tools/aiad_model_tool.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="73278994-5d0b-3816-b130-c592d46e00a6"/>
+  <Project Path="src/aiad_sim/aiad_sim_engine.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="d1ee013e-e4aa-3812-a9d5-f329cce8538d"/>
+  <Project Path="src/aiad_sim/aiad_sim_magneto.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="0b425023-f399-330a-879f-ce76ca978f55"/>
+  <Project Path="src/aiad_sim/aiad_sim_mechanism.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="1afc059c-d0bf-3791-a05a-ca5d5fddadfe"/>
+  <Project Path="src/aiad_render/aiad_render.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="740b95db-d5fc-3c27-b4b7-cbdef3da0345"/>
+  <Project Path="src/aiad_mcp/aiad_mcp.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="0c224198-30c5-3703-b3a5-3f77281ea5bf"/>
+  <Project Path="src/aiad_app/aiad_imgui.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="47565cc5-f8ce-3669-9096-66ef499bfc72"/>
+  <Project Path="src/aiad_app/aiad.vcxproj" Type="8bc9ceb8-8b4a-11d0-8d11-00a0c91bc942" Id="5aa187c4-1c1b-3efe-84d0-7f34ba650429" DefaultStartup="true"/>
+</Solution>

@@ -1,6 +1,8 @@
 #include "DocumentScene.h"
 
 #include <pxr/base/gf/matrix4d.h>
+#include <pxr/base/gf/quatf.h>
+#include <pxr/base/gf/rotation.h>
 #include <pxr/usd/sdf/layer.h>
 #include <pxr/usd/usd/editContext.h>
 #include <pxr/usd/usdGeom/mesh.h>
@@ -103,10 +105,8 @@ void DocumentScene::Refresh()
         WriteDisplay(part);
         m_parts.push_back(std::move(part));
     }
-    // Body motion ops (after the document's rest placement).
-    m_rotate.clear();
-    m_translate.clear();
-    m_scale.clear();
+    // Body motion op (after the document's rest placement).
+    m_motion.clear();
     for (const std::string& body : m_document.Bodies())
     {
         UsdGeomXform xform(stage->GetPrimAtPath(m_document.BodyPath(body)));
@@ -117,23 +117,13 @@ void DocumentScene::Refresh()
         for (const UsdGeomXformOp& op : xform.GetOrderedXformOps(&reset))
             if (op.GetOpName() == TfToken("xformOp:translate:rest"))
                 ops.push_back(op);
-        UsdGeomXformOp translate = xform.AddTranslateOp(UsdGeomXformOp::PrecisionDouble, TfToken("motion"));
-        UsdGeomXformOp rotate = xform.AddRotateZOp(UsdGeomXformOp::PrecisionFloat, TfToken("motion"));
-        UsdGeomXformOp scale = xform.AddScaleOp(UsdGeomXformOp::PrecisionFloat, TfToken("motion"));
-        if (!translate)
-            translate = UsdGeomXformOp(xform.GetPrim().GetAttribute(TfToken("xformOp:translate:motion")));
-        if (!rotate)
-            rotate = UsdGeomXformOp(xform.GetPrim().GetAttribute(TfToken("xformOp:rotateZ:motion")));
-        if (!scale)
-            scale = UsdGeomXformOp(xform.GetPrim().GetAttribute(TfToken("xformOp:scale:motion")));
-        ops.insert(ops.end(), {translate, rotate, scale});
+        UsdGeomXformOp motion(xform.GetPrim().GetAttribute(TfToken("xformOp:transform:motion")));
+        if (!motion)
+            motion = xform.AddTransformOp(UsdGeomXformOp::PrecisionDouble, TfToken("motion"));
+        ops.push_back(motion);
         xform.SetXformOpOrder(ops);
-        m_translate[body] = translate.GetAttr();
-        m_rotate[body] = rotate.GetAttr();
-        m_scale[body] = scale.GetAttr();
-        m_translate[body].Set(GfVec3d(0.0));
-        m_rotate[body].Set(0.0f);
-        m_scale[body].Set(GfVec3f(1.0f));
+        m_motion[body] = motion.GetAttr();
+        m_motion[body].Set(GfMatrix4d(1.0));
     }
     SetSectionView(m_section);
     const int highlight = m_highlight;
@@ -204,14 +194,8 @@ void DocumentScene::SetMotion(const std::vector<BodyMotion>& motion)
     const UsdStageRefPtr& stage = m_document.Stage();
     const UsdEditContext session(stage, stage->GetSessionLayer());
     for (const BodyMotion& m : motion)
-    {
-        if (auto it = m_rotate.find(m.body); it != m_rotate.end())
-            it->second.Set(float(std::fmod(m.rotateZDeg, 360.0)));
-        if (auto it = m_translate.find(m.body); it != m_translate.end())
-            it->second.Set(m.translate);
-        if (auto it = m_scale.find(m.body); it != m_scale.end())
-            it->second.Set(GfVec3f(float(m.scaleX), 1.0f, 1.0f));
-    }
+        if (auto it = m_motion.find(m.body); it != m_motion.end())
+            it->second.Set(m.transform);
 }
 
 void DocumentScene::SetSparkVisible(bool visible)

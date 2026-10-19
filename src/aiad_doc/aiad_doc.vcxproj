@@ -1,0 +1,66 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{C3C7B1CC-D8C8-3C8E-AF47-ED2CB0873A6B}</ProjectGuid>
+    <RootNamespace>aiad_doc</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(AiadRoot)src\Aiad.props" />
+  </ImportGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(AiadRoot)src\aiad_doc;$(AiadRoot)src\aiad_kernel;$(AiadRoot)src\aiad_cmd;$(AiadRoot)src\aiad_core;$(AiadRoot)deps\_src\nlohmann_json\single_include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>PXR_STATIC;PXR_STATIC=1;NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
+      <AdditionalOptions>/external:I &quot;$(AiadRoot)deps/static/release/include&quot; /external:I &quot;$(AiadRoot)deps/_externals/aurora/MaterialX/include&quot; /bigobj /utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="Expression.cpp" />
+    <ClCompile Include="Features.cpp" />
+    <ClCompile Include="Document.cpp" />
+    <ClCompile Include="DocCommands.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DocCommands.h" />
+    <ClInclude Include="Document.h" />
+    <ClInclude Include="Expression.h" />
+    <ClInclude Include="Features.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\aiad_cmd\aiad_cmd.vcxproj">
+      <Project>{F69EE046-4B24-3427-997A-0D1E5D565877}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\aiad_core\aiad_core.vcxproj">
+      <Project>{7BE7363F-8BE7-3DDD-89DE-7A4CA7CB8FE4}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\aiad_kernel\aiad_kernel.vcxproj">
+      <Project>{3CF6C516-F187-31B6-A7C5-A740C106CECC}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

@@ -7,11 +7,13 @@
 #include "Document.h"
 #include "Kernel.h"
 
+#include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/range3d.h>
 #include <pxr/base/gf/vec3d.h>
 #include <pxr/usd/usd/attribute.h>
 
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -33,13 +35,12 @@ struct PickResult
     double distance = 0.0;
 };
 
-// Pose of the moving bodies, in the mechanism frame, relative to their rest placement.
+// Motion of a body from its rest placement, in the mechanism frame: p = rest origin + transform(p_body)
+// (rigid for rigid bodies; a drawn spring is also stretched).
 struct BodyMotion
 {
     std::string body;
-    double rotateZDeg = 0.0;                 // about the body's own Z through its rest origin
-    pxr::GfVec3d translate{0.0, 0.0, 0.0};   // after the rotation
-    double scaleX = 1.0;                     // springs
+    pxr::GfMatrix4d transform{1.0};
 };
 
 class DocumentScene
@@ -68,7 +69,7 @@ private:
 
     doc::Document& m_document;
     std::vector<ScenePart> m_parts;
-    std::map<std::string, pxr::UsdAttribute> m_rotate, m_translate, m_scale;
+    std::map<std::string, pxr::UsdAttribute> m_motion;
     pxr::UsdAttribute m_sparkScale;
     bool m_section = true;
     int m_highlight = -1;

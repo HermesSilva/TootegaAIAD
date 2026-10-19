@@ -77,6 +77,11 @@ int main()
     CHECK(foundHistory && foundSet);
     CHECK(bus.Audit().size() == 11);  // every Execute, failed ones included (direct Undo/Redo are not commands)
 
+    // Another document opened: the old document's undo steps must not run against the new one.
+    bus.ClearHistory();
+    CHECK(!bus.CanUndo() && !bus.CanRedo() && bus.History().empty() && !bus.Undo() && bore == 90.0);
+    CHECK(bus.Audit().size() == 11);
+
     std::printf(g_failures ? "command_bus_test: %d failure(s)\n" : "command_bus_test: ok\n", g_failures);
     return g_failures ? 1 : 0;
 }

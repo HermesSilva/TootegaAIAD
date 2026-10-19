@@ -106,7 +106,7 @@ original fica intacto em `README.upstream.md`.
 | Fork | Alterações | Verificado |
 |------|------------|------------|
 | aurora-4AIAD | build `AIAD_INTEGRATION` (estático, sem OpenGL), API do USD 25.11, correções de crash em `HdAuroraMesh` e `PTRenderBuffer` | compilado com o app; `--snapshot`/`--ui-test` |
-| libceed-4AIAD | build CMake com `cl` (C17), VLAs trocados por `CEED_VLA`, backends CPU `ref/blocked/opt/avx` | `ceed.lib` pelo `build_libceed.bat` e pelo projeto `ceed` da solução |
+| libceed-4AIAD | build CMake com `cl` (C17), VLAs trocados por `CEED_VLA`, backends CPU `ref/blocked/opt/avx` | `ceed.lib` pelo `build_libceed.bat` e `libceed.lib` pelo `libceed.vcxproj` da solução da solução |
 | palace-4AIAD | superbuild com MSVC v145 + MS-MPI + flang (ARPACK), correções de Windows (ver README do fork) | exemplo `spheres` reproduz a referência de regressão do upstream |
 | petsc-4AIAD, honee-4AIAD | nenhuma (fora do caminho do marco) | — |
 
@@ -119,7 +119,7 @@ original fica intacto em `README.upstream.md`.
 | OpenUSD | 25.11 (`363a7c8d`), estático, sem Python/GL/Vulkan, MaterialX ligado | `deps/static/release` | `… usd` |
 | MaterialX | 1.39.5 (fork Autodesk, com gerador Slang), estático | `deps/_externals/aurora/MaterialX` | externals do Aurora |
 | USD BRep | 1.0.0, estático (`SM_STATIC_LINK`) | `deps/usd-brep/1.0.0-v145-static/release` | `deps/_src/build_usdbrep_static.bat` + `deps/patches/usd-brep-static-v145.patch` + `usd-brep-static-postgen.py` |
-| Aurora / HdAurora | fork `aurora-4AIAD` (`AIAD_INTEGRATION`) | compilado pelo projeto consumidor (`add_subdirectory`) | — |
+| Aurora / HdAurora | fork `aurora-4AIAD` (`AIAD_INTEGRATION`) | compilado na solução do AIAD pelos `.vcxproj` do fork (`Libraries/*/*.vcxproj`) | — |
 | MFEM | 4.10 + CUDA 13.3, fp64 e fp32 | `deps/mfem/4.10-cuda13.3-v145-{double,single}` | `deps/_src/build_mfem_cuda.bat` + `install_mfem.bat` + `deps/patches/mfem-4.10-msvc-cuda.patch` |
 | Netgen | 6.2.2604 (`ngcore` + `nglib`, sem GUI/Python), consumidores definem `NETGEN_STATIC` | `deps/netgen/6.2.2604-static` | `deps/_src/build_netgen_static.bat` + `deps/patches/netgen-6.2.2604-static.patch` |
 | OCCT | 7.8.1, estático, gerado pelo superbuild do Netgen | `deps/_build/netgen-static/dependencies/occ` (`inc`, `win64/vc14/lib`) | idem |
@@ -133,7 +133,7 @@ Regras práticas do link estático:
 - linkar com `/WHOLEARCHIVE` **só** os alvos `pxr`, as libs do USD BRep e o `hdAurora`
   (são as que têm objetos de registro); nunca as libs do sistema;
 - consumidores do USD estático compilam com `PXR_STATIC=1`; do USD BRep com `SM_STATIC_LINK`;
-  do Aurora com `AURORA_STATIC` (vem do alvo CMake);
+  do Aurora com `AURORA_STATIC` (nos `.vcxproj`);
 - consumidores dos headers do USD BRep: **C++17** (não são C++20-clean), `SM_STATIC_LINK`,
   `SM_GRAPHICS_CALLBACKS=1`, `UNICODE`, `_UNICODE`;
 - Netgen: `NETGEN_STATIC` + `OCCGEOMETRY`; trocar o `zlib.lib` exportado pelo alvo `nglib` por

@@ -38,6 +38,12 @@ const ImVec4 kRed(0.95f, 0.36f, 0.32f, 1.0f);
 const ImVec4 kBlue(0.30f, 0.62f, 1.0f, 1.0f);
 const ImVec4 kAmber(0.98f, 0.75f, 0.25f, 1.0f);
 
+// The agent's folder while no document is open (or the open one was never saved).
+std::string DefaultWorkspace()
+{
+    return Narrow((HomeDir() / "Documents" / "Tootega AIAD").wstring());
+}
+
 double Now()
 {
     return duration<double>(steady_clock::now().time_since_epoch()).count();
@@ -283,15 +289,16 @@ bool StoreApiKey(const std::string& key)
 
 std::string DomainPrompt()
 {
-    return "You are operating Tootega AIAD, a CAD/CAE application (Windows, DirectX 12, CUDA). The open model is a single-cylinder "
-           "four-stroke engine with a flywheel magneto; its design parameters generate every drawn part, and every simulated quantity "
-           "(masses, inertias, valve lift, chamber volume, magneto) is derived from the drawing.\n"
+    return "You are operating Tootega AIAD, a CAD/CAE application (Windows, DirectX 12, CUDA). The open document is a drawing of a "
+           "machine: parameters and formulas generate every drawn part; bodies, joints and elements (gears, belts, cams, springs, loads, "
+           "gas chambers, magnetos) make it a machine, and the generic simulator measures every physical input on the drawn parts.\n"
            "You change the model ONLY through the `aiad` MCP tools (mcp__aiad__*), which run the app's Command Bus: the same commands, "
-           "undo and audit trail as the user. Read before you change (aiad_engine_get_design, aiad_engine_get_derived, aiad_parts_list); "
-           "after a change, verify it (aiad_viewport_snapshot, aiad_sim_run + aiad_sim_job_status). Simulations are background jobs: poll "
-           "their status. Lengths are in millimetres and angles in crank degrees of the 720-degree cycle (0 = firing TDC) unless a tool "
-           "says otherwise. Every change you make is visible to the user and can be undone with aiad_undo or Ctrl+Z. The aiad-mcp skill "
-           "describes the tools, the feature format (planes, sketches, formulas) and this model: load it before changing the model.";
+           "undo and audit trail as the user. Read before you change (aiad_parameters_get, aiad_parts_list, aiad_joints_list, "
+           "aiad_elements_list, aiad_mechanism_check); after a change, verify it (aiad_mechanism_check, aiad_viewport_snapshot, "
+           "aiad_sim_run + aiad_sim_job_status). Simulations are background jobs: poll their status. Lengths are in metres and angles in "
+           "degrees unless a tool says otherwise. When the simulator refuses a drawing, fix the drawing as its findings say; never ask to "
+           "change the application's code. Every change you make is visible to the user and can be undone with aiad_undo or Ctrl+Z. The "
+           "aiad-mcp skill describes the tools, the feature format (planes, sketches, formulas) and this model: load it before changing the model.";
 }
 
 }  // namespace
@@ -335,7 +342,7 @@ void AiSettings::Save() const
 AiPanels::AiPanels(AiHost host, UiFonts fonts) : m_host(std::move(host)), m_fonts(fonts), m_settings(AiSettings::Load())
 {
     // The agent works in the folder of the open model (its saved contexts are per folder too).
-    m_settings.workspace = m_host.workspace.empty() ? Narrow((HomeDir() / "Documents" / "Tootega AIAD").wstring()) : m_host.workspace;
+    m_settings.workspace = m_host.workspace.empty() ? DefaultWorkspace() : m_host.workspace;
     std::error_code created;
     std::filesystem::create_directories(Widen(m_settings.workspace), created);
     if (const std::string key = StoredApiKey(); !key.empty())
@@ -367,6 +374,22 @@ AiPanels::AiPanels(AiHost host, UiFonts fonts) : m_host(std::move(host)), m_font
     m_transcripts = ai::ListTranscripts(Widen(m_settings.workspace));
     m_idle = std::make_unique<ai::AgentSession>(BuildOptions());
     m_session = m_idle.get();
+}
+
+void AiPanels::SetWorkspace(const std::string& folder)
+{
+    const std::string workspace = folder.empty() ? DefaultWorkspace() : folder;
+    if (workspace == m_settings.workspace)
+        return;
+    m_settings.workspace = workspace;
+    std::error_code created;
+    std::filesystem::create_directories(Widen(workspace), created);
+    m_transcripts = ai::ListTranscripts(Widen(workspace));
+    // The idle session (no tab active) carries the options of the next conversation.
+    const bool idle = m_session == m_idle.get();
+    m_idle = std::make_unique<ai::AgentSession>(BuildOptions());
+    if (idle)
+        m_session = m_idle.get();
 }
 
 AiPanels::~AiPanels()
@@ -1787,27 +1810,92 @@ void AiPanels::DrawRequests()
     ImGui::EndPopup();
 }
 
-void AiPanels::PrepareDocking()
+Json AiPanels::ChatPlacement() const
 {
-    // A new conversation docks beside the other conversations, or the first one splits the viewport
-    // area (chat between the 3D view and the hub). Done before any window of the frame is submitted.
-    ImGuiID target = 0;
+    if (!m_lastChat.known)
+        return Json();
+    return {{"floating", m_lastChat.floating},
+            {"dock", m_lastChat.dock},
+            {"rect", {m_lastChat.pos.x, m_lastChat.pos.y, m_lastChat.size.x, m_lastChat.size.y}}};
+}
+
+void AiPanels::SetChatPlacement(const Json& p)
+{
+    if (!p.is_object() || !p.contains("rect") || !p["rect"].is_array() || p["rect"].size() != 4)
+        return;
+    for (const Json& v : p["rect"])
+        if (!v.is_number())
+            return;
+    m_lastChat.known = true;
+    m_lastChat.floating = p.contains("floating") && p["floating"].is_boolean() && p["floating"].get<bool>();
+    m_lastChat.dock = p.contains("dock") && p["dock"].is_number_unsigned() ? p["dock"].get<ImGuiID>() : 0;
+    m_lastChat.pos = ImVec2(p["rect"][0].get<float>(), p["rect"][1].get<float>());
+    m_lastChat.size = ImVec2(p["rect"][2].get<float>(), p["rect"][3].get<float>());
+}
+
+// Where a new conversation docks: beside the open conversations; else where the last one was (its dock
+// node, or the same area split again from the panel now there, same side and share); else the first
+// time, the viewport area split (chat between the 3D view and the hub).
+ImGuiID AiPanels::ChatDockTarget()
+{
     for (auto& tab : m_tabs)
         if (tab->docked)
             if (ImGuiWindow* w = ImGui::FindWindowByID(ImHashStr(("###chat" + std::to_string(tab->id)).c_str())); w && w->DockId)
-                target = w->DockId;
+                return w->DockId;
+    if (m_lastChat.known && !m_lastChat.floating)
+    {
+        if (ImGuiDockNode* node = ImGui::DockBuilderGetNode(m_lastChat.dock); node && node->IsLeafNode())
+            return m_lastChat.dock;
+        // The node went away with its last window: the leaf now covering that area is split again.
+        const ImRect last(m_lastChat.pos.x, m_lastChat.pos.y, m_lastChat.pos.x + m_lastChat.size.x, m_lastChat.pos.y + m_lastChat.size.y);
+        for (ImGuiWindow* w : ImGui::GetCurrentContext()->Windows)
+        {
+            ImGuiDockNode* node = w->DockNode;
+            if (!node || !node->IsLeafNode() || w->Hidden || std::string_view(w->Name).find("###chat") != std::string_view::npos)
+                continue;
+            const ImRect area(node->Pos.x, node->Pos.y, node->Pos.x + node->Size.x, node->Pos.y + node->Size.y);
+            if (!area.Contains(last.GetCenter()))
+                continue;
+            const float tol = 8.0f;
+            const bool fullHeight = std::abs(last.Min.y - area.Min.y) < tol && std::abs(last.Max.y - area.Max.y) < tol;
+            const bool fullWidth = std::abs(last.Min.x - area.Min.x) < tol && std::abs(last.Max.x - area.Max.x) < tol;
+            ImGuiID rest = 0;
+            if (fullHeight && last.GetWidth() < area.GetWidth() - tol)
+                return ImGui::DockBuilderSplitNode(node->ID, std::abs(last.Min.x - area.Min.x) < tol ? ImGuiDir_Left : ImGuiDir_Right,
+                                                   last.GetWidth() / area.GetWidth(), nullptr, &rest);
+            if (fullWidth && last.GetHeight() < area.GetHeight() - tol)
+                return ImGui::DockBuilderSplitNode(node->ID, std::abs(last.Min.y - area.Min.y) < tol ? ImGuiDir_Up : ImGuiDir_Down,
+                                                   last.GetHeight() / area.GetHeight(), nullptr, &rest);
+            return node->ID;   // it had the whole area: a tab there
+        }
+    }
+    if (m_lastChat.known && m_lastChat.floating)
+        return 0;
+    if (ImGuiWindow* viewport = ImGui::FindWindowByName("Viewport"); viewport && viewport->DockId)
+    {
+        ImGuiID rest = 0;
+        return ImGui::DockBuilderSplitNode(viewport->DockId, ImGuiDir_Right, 0.42f, nullptr, &rest);
+    }
+    return 0;
+}
+
+void AiPanels::CloseChats()
+{
+    for (auto& tab : m_tabs)
+        tab->open = false;
+}
+
+void AiPanels::PrepareDocking()
+{
+    // Done before any window of the frame is submitted.
     for (auto& tab : m_tabs)
     {
         if (tab->docked)
             continue;
-        if (!target)
-            if (ImGuiWindow* viewport = ImGui::FindWindowByName("Viewport"); viewport && viewport->DockId)
-            {
-                ImGuiID rest = 0;
-                target = ImGui::DockBuilderSplitNode(viewport->DockId, ImGuiDir_Right, 0.42f, nullptr, &rest);
-            }
-        if (target)
+        if (const ImGuiID target = ChatDockTarget())
             ImGui::DockBuilderDockWindow(("###chat" + std::to_string(tab->id)).c_str(), target);
+        else
+            tab->placeFloating = m_lastChat.known && m_lastChat.floating;
         tab->docked = true;
     }
 }
@@ -1855,8 +1943,19 @@ void AiPanels::DrawChat(ChatTab& tab)
         ImGui::SetNextWindowFocus();
         tab.focus = false;
     }
+    if (tab.placeFloating)
+    {
+        ImGui::SetNextWindowPos(m_lastChat.pos);
+        ImGui::SetNextWindowSize(m_lastChat.size);
+        tab.placeFloating = false;
+    }
     const bool visible = ImGui::Begin(tab.WindowName(title).c_str(), &tab.open);
     tab.focused = visible && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+    // Where this conversation window is now: the next new one opens there.
+    if (ImGuiWindow* w = ImGui::GetCurrentWindow(); w->DockNode)
+        m_lastChat = {true, false, w->DockId, w->DockNode->Pos, w->DockNode->Size};
+    else if (visible && w->Size.x > 0 && w->Size.y > 0)
+        m_lastChat = {true, true, 0, w->Pos, w->Size};
     if (!visible)
     {
         ImGui::End();

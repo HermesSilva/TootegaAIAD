@@ -6,6 +6,10 @@
 //   /<Root>/<Body>         Xform   aiad:body = "<Body>" (a rigid body; the simulation poses it)
 //   /<Root>/<Body>/<Part>  Xform   aiad:name, aiad:material, aiad:role, aiad:sectioned (cut by the section view), aiad:features (JSON), aiad:error
 //        Shape             BrepArray, the exact geometry of the part (written by regeneration)
+//   /<Root>/Joints/<J>     UsdPhysics*Joint between two bodies; aiad:name, aiad:type, aiad:point, aiad:axis
+//                          (formulas, the definition), aiad:motor, aiad:limits; the physics attributes follow them
+//   /<Root>/Elements/<E>   Scope   aiad:name, aiad:type, aiad:definition (JSON): what else the machine is made of
+//                          (gears, belts, cams, springs, loads, chambers, magnetos), tied to joints and parts
 #pragma once
 
 #include "Expression.h"
@@ -40,6 +44,42 @@ struct Material
     double density = 1000.0;         // [kg/m^3]
     std::array<double, 3> colour{0.7, 0.7, 0.7};
     double metallic = 0.0, roughness = 0.5, emission = 0.0;
+    // Physics beyond the mass (0 = not given): springs need the shear modulus, magnets the remanence,
+    // magnetic circuits the relative permeability.
+    double shearModulus = 0.0;           // [Pa]
+    double remanence = 0.0;              // [T]
+    double relativePermeability = 0.0;
+};
+
+// A joint of the mechanism: how two bodies may move relative to each other. The simulation is built from
+// the joints of the document (no machine is known to the code).
+struct JointInfo
+{
+    std::string name;
+    std::string type;                // revolute | prismatic | cylindrical | spherical | planar | fixed
+    std::string body0, body1;        // body1 empty = the ground (the world)
+    Json point = Json::array({0, 0, 0});   // model frame [m]: numbers or formulas
+    Json axis = Json::array({0, 0, 1});    // rotation / sliding axis (or plane normal for planar)
+    Json motor;                      // null, or {"mode": "speed" | "torque", "value": number | formula}
+                                     //   speed: rad/s (rotation) or m/s (sliding); torque: N m or N;
+                                     //   torque only: "free_speed" (DC-motor curve), "duration" [s]
+    Json limits;                     // null, or [lower, upper]: stops of the coordinate (rad or m), each a
+                                     //   number, formula or null (no stop on that side)
+};
+
+// An element of the machine besides bodies and joints, tied to them and to the drawn parts:
+//   gear {joint0, joint1, part0, part1, internal}      the teeth of the drawn gears couple two joints
+//   belt {joint0, joint1, part0, part1, belt}          a belt or chain around two drawn wheels
+//   rack {joint0 (pinion), joint1 (slide), part0}      a drawn pinion drives a sliding rack
+//   contact {part, body, point, normal, radius}        a drawn profile (cam, rocker pad) pushes a flat face
+//   spring {part, body0, point0, body1, point1, free_length}   a drawn coil spring between two bodies
+//   load {joint, constant, linear, quadratic}          resisting torque / force (friction, brake, propeller)
+//   chamber {piston, cylinder, head, intake, exhaust, ignition}   a gas chamber closed by a piston (0D cycle)
+//   magneto {rotor, magnet, shoes, core, coil, points_open}       a flywheel magneto firing a chamber
+struct ElementInfo
+{
+    std::string name, type;
+    Json definition = Json::object();
 };
 
 struct PartInfo
@@ -86,7 +126,9 @@ public:
     std::vector<std::string> Bodies() const;
     // Rest placement of a body (formulas): its origin in the model frame. The simulation moves bodies
     // relative to it.
-    bool DefineBody(const std::string& body, const Json& origin, std::string& error);
+    // fixed: the body is part of the ground (it does not move); unset keeps the current value.
+    bool DefineBody(const std::string& body, const Json& origin, std::string& error, std::optional<bool> fixed = std::nullopt);
+    bool BodyFixed(const std::string& body) const;
     kernel::Vec3 BodyOrigin(const std::string& body) const;
     Json BodyOriginDefinition(const std::string& body) const;
     // Orientation of the whole model in the world (rotation about an axis through the origin).
@@ -104,6 +146,25 @@ public:
     // Exact state of a part for undo (definition + geometry); RestorePart(path, null) deletes.
     Json Snapshot(const pxr::SdfPath& path) const;
     bool Restore(const pxr::SdfPath& path, const Json& snapshot, std::string& error);
+
+    // ---- Joints ----
+    std::vector<JointInfo> Joints() const;
+    std::optional<JointInfo> FindJoint(const std::string& name) const;
+    // Creates or replaces a joint (checked: type, bodies, point and axis evaluate, motor).
+    bool DefineJoint(const JointInfo& joint, std::string& error);
+    bool DeleteJoint(const std::string& name, std::string& error);
+    // [x, y, z] of numbers or formulas, evaluated with the parameters.
+    bool EvaluateVector(const Json& vector, kernel::Vec3& out, std::string& error) const;
+    // A number or a formula.
+    bool EvaluateNumber(const Json& value, double& out, std::string& error) const;
+
+    // ---- Elements ----
+    std::vector<ElementInfo> Elements() const;
+    std::optional<ElementInfo> FindElement(const std::string& name) const;
+    // Creates or replaces an element (checked: type, fields, the joints, parts, bodies and elements it names,
+    // its formulas).
+    bool DefineElement(const ElementInfo& element, std::string& error);
+    bool DeleteElement(const std::string& name, std::string& error);
 
     // ---- Geometry ----
     const kernel::Solid* Shape(const pxr::SdfPath& part) const;
@@ -123,6 +184,9 @@ private:
     void WriteMaterialPrims();
     void WriteParameters(const std::vector<Parameter>& parameters);
     void Changed();
+    void WriteJointPhysics(pxr::UsdPrim& prim, const JointInfo& joint);
+    pxr::SdfPath JointPath(const std::string& name) const;
+    pxr::SdfPath ElementPath(const std::string& name) const;
     std::vector<pxr::SdfPath> Dependents(const std::set<std::string>& names) const;
 
     pxr::UsdStageRefPtr m_stage;
