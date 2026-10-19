@@ -11,7 +11,10 @@ cmake_path(NORMAL_PATH AIAD_DEPS)
 # DLL build of TBB that must not be picked (rule D18).
 set(TBB_DIR "${AIAD_DEPS}/static/release/lib/cmake/TBB" CACHE PATH "" FORCE)
 
-# OpenUSD 25.11, static.
+# OpenUSD 25.11, static, with the packages its config looks up: OpenSubdiv (same prefix) and the
+# static MaterialX 1.39.5 of the Aurora externals.
+set(OpenSubdiv_DIR "${AIAD_DEPS}/static/release/lib/cmake/OpenSubdiv" CACHE PATH "" FORCE)
+set(MaterialX_DIR "${AIAD_DEPS}/_externals/aurora/MaterialX/lib/cmake/MaterialX" CACHE PATH "" FORCE)
 find_package(pxr CONFIG REQUIRED PATHS "${AIAD_DEPS}/static/release" NO_DEFAULT_PATH)
 
 # MFEM 4.10 + CUDA (fp64). D18: static CUDA runtime; cuSPARSE/cuBLAS stay DLLs (allowed exception).

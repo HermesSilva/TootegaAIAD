@@ -33,7 +33,8 @@ O upstream fixa VS 2019 (v142). O patch altera só `repo.toml` e `premake5-publi
    (gera com a action `vs2022` do premake), e o filtro de versão impede que o vswhere escolha o
    **SQL Server Management Studio 21** ou o VS 2022 BuildTools desta máquina.
 2. `msbuild.winsdk_path` → junction `deps/_toolchain/winsdk/10.0.26100.0`, porque o Packman recusa
-   o `(` de `C:\Program Files (x86)\Windows Kits\...`.
+   o `(` de `C:\Program Files (x86)\Windows Kits\...`. O patch grava o caminho absoluto desta máquina
+   (`D:/Tootega/Source/TootegaAIAD/deps/...`): num clone em outra pasta, ajuste essa linha antes de aplicá-lo.
 3. `toolset "msc-v145"` no premake: sem isso a action `vs2022` grava `v143`, e o MSBuild do VS 18
    compila com o v143 do VS 2022 BuildTools (MSVC 14.44).
 
