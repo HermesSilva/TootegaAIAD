@@ -1,0 +1,241 @@
+diff --git a/premake5-public.lua b/premake5-public.lua
+index 54643aa..046f309 100644
+--- a/premake5-public.lua
++++ b/premake5-public.lua
+@@ -165,4 +165,6 @@ function setup_msvc_toolchain()
+     end
+     -- SDK and toolset follow the host install and msbuild.vs_version, rather than pinned here.
+     systemversion "latest"
++    -- TEMP Tootega AIAD: force the MSVC v145 toolset (VS 18); premake's vs2022 action defaults to v143.
++    toolset "msc-v145"
+ end
+diff --git a/premake5.lua b/premake5.lua
+index 41549d3..576629b 100644
+--- a/premake5.lua
++++ b/premake5.lua
+@@ -42,6 +42,8 @@ if smlib_no_debug_gfx_check then
+ end
+ 
+ workspace "usd-brep"
++    -- 4AIAD: everything is linked statically into the host application.
++    defines { "SM_STATIC_LINK", "PXR_STATIC=1" }  -- PXR_STATIC: consume the static OpenUSD build
+     location (workspace_dir)
+     targetdir (smlib_target_dir)
+     configurations { "debug", "release" }
+diff --git a/repo.toml b/repo.toml
+index f3eb399..ee5f9cd 100644
+--- a/repo.toml
++++ b/repo.toml
+@@ -61,7 +61,9 @@ msbuild.sln_file = "usd-brep.sln"
+ # Use the host-installed Visual Studio / Windows SDK instead of the packman msvc and
+ # winsdk packages. If discovery fails, set msbuild.vs_path / msbuild.winsdk_path here.
+ msbuild.link_host_toolchain = true
+-msbuild.vs_version = "vs2019"  # "vs2019" | "vs2022" | "" (vswhere); pinned to match Kit (MSVC 14.2x)
++msbuild.vs_version = "vs18"  # TEMP Tootega AIAD: VS 18 / MSVC v145 (repo_build maps vs18 -> premake vs2022 + toolset v145); original: "vs2019"
++msbuild.msbuild_version = "18"  # TEMP Tootega AIAD: excludes SSMS 21 and VS 2022 BuildTools from vswhere discovery
++msbuild.winsdk_path = "D:/Tootega/Source/TootegaAIAD/deps/_toolchain/winsdk/10.0.26100.0"  # TEMP Tootega AIAD: junction to the SDK bin dir; packman rejects "(" in "Program Files (x86)"
+ 
+ # ABI=1 in premake since 107.0:
+ premake.linux_x86_64_cxx_abi = true
+diff --git a/source/BREP_SM_USD/inc/SmuConfig.h b/source/BREP_SM_USD/inc/SmuConfig.h
+index 146764a..265d872 100644
+--- a/source/BREP_SM_USD/inc/SmuConfig.h
++++ b/source/BREP_SM_USD/inc/SmuConfig.h
+@@ -17,6 +17,11 @@
+     #define SMU_EXPORT __declspec( dllimport )
+     #define SMU_THREAD_LOCAL __declspec(thread)  
+   #endif // no SMU_ENABLE_EXPORTS
++#if defined(SM_STATIC_LINK)
++/* 4AIAD: USD BRep linked statically into the host: no dllexport/dllimport. */
++#  undef SMU_EXPORT
++#  define SMU_EXPORT
++#endif /* SM_STATIC_LINK */
+ #else // no _WIN32
+   #define SMU_EXPORT
+     #define SMU_THREAD_LOCAL thread_local
+diff --git a/source/BREP_SM_USD/premake5.lua b/source/BREP_SM_USD/premake5.lua
+index 26afa9e..40ce4cc 100644
+--- a/source/BREP_SM_USD/premake5.lua
++++ b/source/BREP_SM_USD/premake5.lua
+@@ -2,7 +2,7 @@
+ -- SPDX-License-Identifier: Apache-2.0
+ 
+ project "BREP_SM_USD"
+-    kind "SharedLib"
++    kind "StaticLib" -- 4AIAD: static build
+     location (workspace_dir.."/%{prj.name}")
+     use_usd()
+     use_usd_tbb()
+diff --git a/source/BREP_USD_DATA/inc/UsdBrepConfig.h b/source/BREP_USD_DATA/inc/UsdBrepConfig.h
+index 4cc9c31..b1c483c 100644
+--- a/source/BREP_USD_DATA/inc/UsdBrepConfig.h
++++ b/source/BREP_USD_DATA/inc/UsdBrepConfig.h
+@@ -22,5 +22,10 @@
+ #        define USDBREP_EXPORT
+ #    endif
+ #endif // no _WIN32
++#if defined(SM_STATIC_LINK)
++/* 4AIAD: USD BRep linked statically into the host: no dllexport/dllimport. */
++#  undef USDBREP_EXPORT
++#  define USDBREP_EXPORT
++#endif /* SM_STATIC_LINK */
+ 
+ #endif // no _USD_BREP_CONFIG_H_
+diff --git a/source/BREP_USD_DATA/premake5.lua b/source/BREP_USD_DATA/premake5.lua
+index a45119d..3bb910a 100644
+--- a/source/BREP_USD_DATA/premake5.lua
++++ b/source/BREP_USD_DATA/premake5.lua
+@@ -2,7 +2,7 @@
+ -- SPDX-License-Identifier: Apache-2.0
+ 
+ project "BREP_USD_DATA"
+-    kind "SharedLib"
++    kind "StaticLib" -- 4AIAD: static build
+     location (workspace_dir.."/%{prj.name}")
+ 
+     use_usd()
+diff --git a/source/HYDRA_USD_BREP/premake5.lua b/source/HYDRA_USD_BREP/premake5.lua
+index 2d54e55..f501699 100644
+--- a/source/HYDRA_USD_BREP/premake5.lua
++++ b/source/HYDRA_USD_BREP/premake5.lua
+@@ -19,7 +19,7 @@ output:write(manifest)
+ output:close()
+ 
+ project "HYDRA_USD_BREP"
+-    kind "SharedLib"
++    kind "StaticLib" -- 4AIAD: static build
+     location (workspace_dir.."/%{prj.name}")
+     use_usd()
+     use_usd_tbb()
+diff --git a/source/SMLib/inc/SmTypes.h b/source/SMLib/inc/SmTypes.h
+index 9b79c2e..700a7c6 100644
+--- a/source/SMLib/inc/SmTypes.h
++++ b/source/SMLib/inc/SmTypes.h
+@@ -58,6 +58,13 @@ typedef int SmBitArray;
+ #define SmBoolean int
+ #define SmBitArray int
+ #endif
++#if defined(SM_STATIC_LINK)
++/* 4AIAD: USD BRep linked statically into the host: no dllexport/dllimport. */
++#  undef SM_EXPORT
++#  define SM_EXPORT
++#  undef SM_EXPORT_TEMPLATE
++#  define SM_EXPORT_TEMPLATE
++#endif /* SM_STATIC_LINK */
+ 
+ #if !defined(SM_EXPORT)
+ #define SM_EXPORT
+diff --git a/source/SMLib/inc/nurbs.h b/source/SMLib/inc/nurbs.h
+index 661af72..2379eb3 100644
+--- a/source/SMLib/inc/nurbs.h
++++ b/source/SMLib/inc/nurbs.h
+@@ -22,6 +22,11 @@
+ #else
+  #define GW_EXPORT
+ #endif
++#if defined(SM_STATIC_LINK)
++/* 4AIAD: USD BRep linked statically into the host: no dllexport/dllimport. */
++#  undef GW_EXPORT
++#  define GW_EXPORT
++#endif /* SM_STATIC_LINK */
+ 
+ #ifdef _UNICODE
+  #include <tchar.h>
+diff --git a/source/SMLib/premake5.lua b/source/SMLib/premake5.lua
+index 13c73e5..453c702 100644
+--- a/source/SMLib/premake5.lua
++++ b/source/SMLib/premake5.lua
+@@ -2,7 +2,7 @@
+ -- SPDX-License-Identifier: Apache-2.0
+ 
+ project "SMLib"
+-    kind "SharedLib"
++    kind "StaticLib" -- 4AIAD: static build
+     location (workspace_dir.."/%{prj.name}")
+     use_usd_tbb()
+     
+diff --git a/source/SM_API/inc/SmApiTypes.h b/source/SM_API/inc/SmApiTypes.h
+index d0c7e18..6325dad 100644
+--- a/source/SM_API/inc/SmApiTypes.h
++++ b/source/SM_API/inc/SmApiTypes.h
+@@ -35,6 +35,11 @@ GENERAL NOTES:
+ #else
+ #  define SMAPI_EXPORT
+ #endif
++#if defined(SM_STATIC_LINK)
++/* 4AIAD: USD BRep linked statically into the host: no dllexport/dllimport. */
++#  undef SMAPI_EXPORT
++#  define SMAPI_EXPORT
++#endif /* SM_STATIC_LINK */
+ 
+ 
+ typedef unsigned long ULONG;
+diff --git a/source/SM_API/premake5.lua b/source/SM_API/premake5.lua
+index df62f66..a38bcab 100644
+--- a/source/SM_API/premake5.lua
++++ b/source/SM_API/premake5.lua
+@@ -2,7 +2,7 @@
+ -- SPDX-License-Identifier: Apache-2.0
+ 
+ project "SM_API"
+-    kind "SharedLib"
++    kind "StaticLib" -- 4AIAD: static build
+     location (workspace_dir.."/%{prj.name}")
+ 
+     links {
+diff --git a/source/SM_API_USD/inc/SmApiUsdConfig.h b/source/SM_API_USD/inc/SmApiUsdConfig.h
+index 74759d8..9b46d97 100644
+--- a/source/SM_API_USD/inc/SmApiUsdConfig.h
++++ b/source/SM_API_USD/inc/SmApiUsdConfig.h
+@@ -24,5 +24,10 @@
+ #else
+ #    define SM_API_USD_EXPORT
+ #endif
++#if defined(SM_STATIC_LINK)
++/* 4AIAD: USD BRep linked statically into the host: no dllexport/dllimport. */
++#  undef SM_API_USD_EXPORT
++#  define SM_API_USD_EXPORT
++#endif /* SM_STATIC_LINK */
+ 
+ #endif // _SM_API_USD_CONFIG_H_
+diff --git a/source/SM_API_USD/premake5.lua b/source/SM_API_USD/premake5.lua
+index 1602695..51df8ed 100644
+--- a/source/SM_API_USD/premake5.lua
++++ b/source/SM_API_USD/premake5.lua
+@@ -2,7 +2,7 @@
+ -- SPDX-License-Identifier: Apache-2.0
+ 
+ project "SM_API_USD"
+-    kind "SharedLib"
++    kind "StaticLib" -- 4AIAD: static build
+     location (workspace_dir.."/%{prj.name}")
+     use_usd()
+     use_usd_tbb()
+diff --git a/source/USD_BREP_UTILS/inc/UsdBrepUtilsConfig.h b/source/USD_BREP_UTILS/inc/UsdBrepUtilsConfig.h
+index 28f333c..eef3423 100644
+--- a/source/USD_BREP_UTILS/inc/UsdBrepUtilsConfig.h
++++ b/source/USD_BREP_UTILS/inc/UsdBrepUtilsConfig.h
+@@ -22,5 +22,10 @@
+ #        define USD_BREP_EXPORT
+ #    endif
+ #endif
++#if defined(SM_STATIC_LINK)
++/* 4AIAD: USD BRep linked statically into the host: no dllexport/dllimport. */
++#  undef USD_BREP_EXPORT
++#  define USD_BREP_EXPORT
++#endif /* SM_STATIC_LINK */
+ 
+ #endif // _USD_BREP_UTILS_CONFIG_H_
+diff --git a/source/USD_BREP_UTILS/premake5.lua b/source/USD_BREP_UTILS/premake5.lua
+index 5fb9b2b..325f60d 100644
+--- a/source/USD_BREP_UTILS/premake5.lua
++++ b/source/USD_BREP_UTILS/premake5.lua
+@@ -6,7 +6,7 @@
+ -- topology queries, packing and stage utilities.
+ 
+ project "USD_BREP_UTILS"
+-    kind "SharedLib"
++    kind "StaticLib" -- 4AIAD: static build
+     location (workspace_dir.."/%{prj.name}")
+ 
+     use_usd()

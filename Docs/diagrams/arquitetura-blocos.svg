@@ -1,0 +1,307 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1250" width="1600" height="1250" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>Tootega AIAD — Arquitetura em blocos</title>
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#37474F"/>
+    </marker>
+    <marker id="at" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#00796B"/>
+    </marker>
+    <marker id="ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6A1B9A"/>
+    </marker>
+    <marker id="ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3949AB"/>
+    </marker>
+    <style>
+      .h  { font-size: 24px; font-weight: 700; fill: #263238; }
+      .sh { font-size: 13px; fill: #546E7A; }
+      .t  { font-size: 15px; font-weight: 700; fill: #263238; }
+      .s  { font-size: 12.5px; fill: #37474F; }
+      .c  { font-size: 12.5px; font-weight: 600; fill: #263238; }
+      .cs { font-size: 11px; fill: #546E7A; }
+      .l  { font-size: 11.5px; fill: #37474F; paint-order: stroke; stroke: #FFFFFF; stroke-width: 4px; }
+      .lt { font-size: 11.5px; fill: #00695C; paint-order: stroke; stroke: #FFFFFF; stroke-width: 4px; font-weight: 600; }
+      .lp { font-size: 11.5px; fill: #6A1B9A; paint-order: stroke; stroke: #FFFFFF; stroke-width: 4px; font-weight: 600; }
+      .li { font-size: 11.5px; fill: #283593; paint-order: stroke; stroke: #FFFFFF; stroke-width: 4px; font-weight: 600; }
+      .tag { font-size: 11px; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1600" height="1250" fill="#FAFBFC"/>
+
+  <!-- Title -->
+  <text x="20" y="38" class="h">Tootega AIAD — Arquitetura em blocos</text>
+  <text x="1580" y="38" class="sh" text-anchor="end">Windows · C++20 · DirectX 12 · CUDA · OpenUSD/Hydra · USD BRep (SMLib) · MaterialX · MFEM / Palace / CEED · IA (Claude Code CLI) + MCP</text>
+
+  <!-- ===================== External row ===================== -->
+  <rect x="20" y="60" width="500" height="140" rx="10" fill="#EDE7F6" stroke="#5E35B1" stroke-width="1.5"/>
+  <text x="36" y="84" class="t">Provedores de IA (trocáveis, processo externo)</text>
+  <rect x="36" y="98" width="190" height="52" rx="7" fill="#FFFFFF" stroke="#5E35B1" stroke-width="2.2"/>
+  <text x="131" y="120" class="c" text-anchor="middle">Claude Code CLI</text>
+  <text x="131" y="138" class="cs" text-anchor="middle">inicial · stream-json</text>
+  <rect x="236" y="98" width="160" height="52" rx="7" fill="#FFFFFF" stroke="#9575CD" stroke-dasharray="4 3"/>
+  <text x="316" y="120" class="c" text-anchor="middle">Tootega Engine</text>
+  <text x="316" y="138" class="cs" text-anchor="middle">agent.exe · modelo local</text>
+  <rect x="406" y="98" width="100" height="52" rx="7" fill="#FFFFFF" stroke="#9575CD" stroke-dasharray="4 3"/>
+  <text x="456" y="120" class="c" text-anchor="middle">API direta</text>
+  <text x="456" y="138" class="cs" text-anchor="middle">futuro</text>
+  <text x="36" y="180" class="s">Contrato único: NDJSON em stdin/stdout + control_request/response</text>
+
+  <rect x="580" y="60" width="460" height="140" rx="10" fill="#ECEFF1" stroke="#455A64" stroke-width="1.5"/>
+  <text x="596" y="84" class="t">Usuário (designer / engenheiro)</text>
+  <text x="596" y="110" class="s">• modela direto: mouse, teclado, gizmos, painéis</text>
+  <text x="596" y="130" class="s">• conversa com a IA no painel de chat</text>
+  <text x="596" y="150" class="s">• define estudos de simulação e lê resultados</text>
+  <text x="596" y="170" class="s">• aprova permissões; desfaz qualquer ação com Ctrl+Z</text>
+
+  <rect x="1110" y="60" width="470" height="140" rx="10" fill="#E0F2F1" stroke="#00796B" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="1126" y="84" class="t">Clientes MCP externos (opcional)</text>
+  <text x="1126" y="110" class="s">• Claude Desktop · Cursor · Claude Code no terminal</text>
+  <text x="1126" y="130" class="s">• qualquer cliente MCP via stdio</text>
+  <text x="1126" y="150" class="s">• acham a janela viva pelo discovery file</text>
+  <text x="1126" y="170" class="s">• mesma superfície de ferramentas do chat embutido</text>
+
+  <!-- ===================== App container ===================== -->
+  <rect x="20" y="240" width="1050" height="840" rx="14" fill="#FFFFFF" stroke="#263238" stroke-width="2.2"/>
+  <text x="60" y="266" class="t">aiad.exe — processo da aplicação (somente Windows x64 · C++20 · DirectX 12 · CUDA)</text>
+
+  <!-- UI row -->
+  <rect x="60" y="280" width="970" height="110" rx="9" fill="#E3F2FD" stroke="#1565C0" stroke-width="1.5"/>
+  <text x="74" y="302" class="t">UI — Dear ImGui (docking) · backends Win32 + DirectX 12</text>
+  <text x="1016" y="302" class="tag" fill="#1565C0" text-anchor="end">aiad_ui</text>
+  <g>
+    <rect x="68" y="314" width="96" height="64" rx="6" fill="#FFFFFF" stroke="#1565C0"/>
+    <text x="116" y="340" class="c" text-anchor="middle">Viewport 3D</text>
+    <text x="116" y="358" class="cs" text-anchor="middle">Hydra · D3D12</text>
+    <rect x="168" y="314" width="96" height="64" rx="6" fill="#FFFFFF" stroke="#1565C0"/>
+    <text x="216" y="340" class="c" text-anchor="middle">Outliner</text>
+    <text x="216" y="358" class="cs" text-anchor="middle">árvore do stage</text>
+    <rect x="268" y="314" width="96" height="64" rx="6" fill="#FFFFFF" stroke="#1565C0"/>
+    <text x="316" y="340" class="c" text-anchor="middle">Features</text>
+    <text x="316" y="358" class="cs" text-anchor="middle">histórico param.</text>
+    <rect x="368" y="314" width="96" height="64" rx="6" fill="#FFFFFF" stroke="#1565C0"/>
+    <text x="416" y="340" class="c" text-anchor="middle">Propriedades</text>
+    <text x="416" y="358" class="cs" text-anchor="middle">property grid</text>
+    <rect x="468" y="314" width="96" height="64" rx="6" fill="#FFFFFF" stroke="#1565C0"/>
+    <text x="516" y="340" class="c" text-anchor="middle">Materiais</text>
+    <text x="516" y="358" class="cs" text-anchor="middle">MaterialX</text>
+    <rect x="568" y="314" width="96" height="64" rx="6" fill="#E8EAF6" stroke="#3949AB"/>
+    <text x="616" y="340" class="c" text-anchor="middle">Simulação</text>
+    <text x="616" y="358" class="cs" text-anchor="middle">estudos · jobs</text>
+    <rect x="668" y="314" width="96" height="64" rx="6" fill="#FFFFFF" stroke="#1565C0"/>
+    <text x="716" y="340" class="c" text-anchor="middle">Issues</text>
+    <text x="716" y="358" class="cs" text-anchor="middle">validação · log</text>
+    <rect x="768" y="314" width="124" height="64" rx="6" fill="#F3E5F5" stroke="#8E24AA"/>
+    <text x="830" y="340" class="c" text-anchor="middle">Chat IA</text>
+    <text x="830" y="358" class="cs" text-anchor="middle">timeline · permissões</text>
+    <rect x="896" y="314" width="124" height="64" rx="6" fill="#F3E5F5" stroke="#8E24AA"/>
+    <text x="958" y="340" class="c" text-anchor="middle">Uso / Contexto</text>
+    <text x="958" y="358" class="cs" text-anchor="middle">tokens · cache · $</text>
+  </g>
+
+  <!-- AI engine -->
+  <rect x="60" y="420" width="460" height="160" rx="9" fill="#F3E5F5" stroke="#8E24AA" stroke-width="1.5"/>
+  <text x="74" y="442" class="t">Motor de IA</text>
+  <text x="506" y="442" class="tag" fill="#8E24AA" text-anchor="end">aiad_ai · modelo: Cockpit</text>
+  <text x="74" y="464" class="s">• IAgentProvider — interface única; provedor trocável</text>
+  <text x="74" y="482" class="s">• ClaudeCliProvider: spawn de claude -p (stream-json in/out)</text>
+  <text x="74" y="500" class="s">• EventParser tolerante: evento desconhecido é ignorado</text>
+  <text x="74" y="518" class="s">• PermissionBroker: can_use_tool → modal Permitir/Negar</text>
+  <text x="74" y="536" class="s">• SessionStore (--resume) · UsageAggregator (contexto/cache/$)</text>
+  <text x="74" y="554" class="s">• EngineCaps: o que cada provedor oferece (conta, MCP, custo)</text>
+  <text x="74" y="572" class="cs">não conhece geometria: só fala com a IA e com a UI</text>
+
+  <!-- Agent bridge -->
+  <rect x="570" y="420" width="460" height="160" rx="9" fill="#E0F2F1" stroke="#00796B" stroke-width="1.5"/>
+  <text x="584" y="442" class="t">Agent Bridge</text>
+  <text x="1016" y="442" class="tag" fill="#00796B" text-anchor="end">aiad_bridge · modelo: DASE</text>
+  <text x="584" y="464" class="s">• HTTP JSON em 127.0.0.1, porta efêmera — aiad-bridge/1</text>
+  <text x="584" y="482" class="s">• POST /bridge {method, args} → {ok, result | error}</text>
+  <text x="584" y="500" class="s">• GET /bridge → catálogo de ferramentas + JSON Schema</text>
+  <text x="584" y="518" class="s">• discovery: %APPDATA%\Tootega\AIAD\bridge-endpoint.&lt;pid&gt;.json</text>
+  <text x="584" y="536" class="s">• Origin allowlist (anti DNS-rebind) + token por instância</text>
+  <text x="584" y="554" class="s">• despacha para a thread principal (fila + future c/ timeout)</text>
+  <text x="584" y="572" class="cs">sem MCP aqui: o protocolo MCP mora no aiad-mcp.exe</text>
+
+  <!-- Command bus -->
+  <rect x="60" y="610" width="970" height="90" rx="9" fill="#FFF3E0" stroke="#EF6C00" stroke-width="1.8"/>
+  <text x="74" y="632" class="t">Command Bus — caminho ÚNICO de leitura e mutação</text>
+  <text x="1016" y="632" class="tag" fill="#EF6C00" text-anchor="end">aiad_cmd</text>
+  <text x="74" y="656" class="s">• UI, IA (via Bridge) e scripts executam os mesmos comandos registrados: nome, JSON Schema, flags readOnly / destructive / idempotent / async</text>
+  <text x="74" y="676" class="s">• transação USD (SdfChangeBlock) · undo/redo · validação pós-comando · trilha de auditoria (origem: usuário × IA, sessão, turno)</text>
+  <text x="74" y="694" class="cs">o catálogo deste registro gera o tools/list do MCP — uma fonte só; comandos longos (simulação) viram jobs com id, progresso e cancelamento</text>
+
+  <!-- Render -->
+  <rect x="60" y="730" width="295" height="150" rx="9" fill="#FCE4EC" stroke="#C2185B" stroke-width="1.5"/>
+  <text x="74" y="752" class="t">Render</text>
+  <text x="341" y="752" class="tag" fill="#C2185B" text-anchor="end">aiad_render</text>
+  <text x="74" y="774" class="s">• HdAiad = fork do Aurora (D3D12)</text>
+  <text x="74" y="792" class="s">• modos: raster CAD · path tracing DXR</text>
+  <text x="74" y="810" class="s">• BrepArray → malha via hdUsdBrep</text>
+  <text x="74" y="828" class="s">• MaterialX · ID buffer · snapshot PNG</text>
+  <text x="74" y="846" class="s">• campos FEA/CFD direto da GPU (CUDA)</text>
+  <text x="74" y="868" class="cs">fork: arestas, seleção, denoiser, OpenPBR</text>
+
+  <!-- Document -->
+  <rect x="385" y="730" width="320" height="150" rx="9" fill="#E8F5E9" stroke="#2E7D32" stroke-width="1.5"/>
+  <text x="399" y="752" class="t">Documento</text>
+  <text x="691" y="752" class="tag" fill="#2E7D32" text-anchor="end">aiad_doc · aiad_schema</text>
+  <text x="399" y="774" class="s">• UsdStage = fonte da verdade (.usda/.usdc)</text>
+  <text x="399" y="792" class="s">• intenção: aiad:Feature · resultado: BrepArray</text>
+  <text x="399" y="810" class="s">• materiais: UsdShade + MaterialX + físicas</text>
+  <text x="399" y="828" class="s">• estudos: aiad:Study (física, BCs, malha)</text>
+  <text x="399" y="846" class="s">• sessão: malhas de exibição (não salvas)</text>
+  <text x="399" y="868" class="cs">regen do histórico · seleção · validação</text>
+
+  <!-- Simulation -->
+  <rect x="735" y="730" width="295" height="150" rx="9" fill="#E8EAF6" stroke="#3949AB" stroke-width="1.5"/>
+  <text x="749" y="752" class="t">Simulação</text>
+  <text x="1016" y="752" class="tag" fill="#3949AB" text-anchor="end">aiad_sim</text>
+  <text x="749" y="774" class="s">• ISolverBackend: um contrato, N solvers</text>
+  <text x="749" y="792" class="s">• Netgen: tetra c/ tags = IDs de face</text>
+  <text x="749" y="810" class="s">• MFEM + CUDA: estrutural, térmico, modal</text>
+  <text x="749" y="828" class="s">• FP64 ou FP32 automático (GPU limitada)</text>
+  <text x="749" y="846" class="s">• EM e fluidos: forks Windows (ao lado)</text>
+  <text x="749" y="868" class="cs">jobs canceláveis; resultados → stage</text>
+
+  <!-- Kernel -->
+  <rect x="60" y="910" width="970" height="82" rx="9" fill="#EFEBE9" stroke="#5D4037" stroke-width="1.8"/>
+  <text x="74" y="932" class="t">Kernel geométrico — fachada sobre USD BRep (NVIDIA · Apache-2.0)</text>
+  <text x="1016" y="932" class="tag" fill="#5D4037" text-anchor="end">aiad_kernel</text>
+  <text x="74" y="955" class="s">• SMLib (sólidos B-rep) · NLib (NURBS) · SM_API / SM_API_USD · schema omniSolid (BrepArray) · OCCT import/export (STEP/IGES)</text>
+  <text x="74" y="975" class="s">• booleanas · fillet/chamfer · shell · sweep · massa · healing · tesselação · domínio de fluido/ar (caixa − peça) — chamadas isoladas (SEH + timeout)</text>
+
+  <!-- Core -->
+  <rect x="60" y="1006" width="600" height="58" rx="9" fill="#F5F5F5" stroke="#757575" stroke-width="1.5"/>
+  <text x="74" y="1028" class="t">Core</text>
+  <text x="646" y="1028" class="tag" fill="#616161" text-anchor="end">aiad_core</text>
+  <text x="74" y="1050" class="s">spdlog · strings da UI (en) · settings · fila da main thread · jobs · processos · JSON</text>
+  <rect x="680" y="1006" width="350" height="58" rx="9" fill="#E0F7FA" stroke="#00838F" stroke-width="1.5"/>
+  <text x="694" y="1028" class="t">GPU</text>
+  <text x="1016" y="1028" class="tag" fill="#00838F" text-anchor="end">aiad_gpu</text>
+  <text x="694" y="1050" class="s">D3D12 + CUDA no mesmo adaptador · interop</text>
+
+  <!-- ===================== Right column ===================== -->
+  <rect x="1110" y="420" width="470" height="160" rx="10" fill="#E0F2F1" stroke="#00796B" stroke-width="2"/>
+  <text x="1126" y="444" class="t">aiad-mcp.exe — servidor MCP (stdio)</text>
+  <text x="1126" y="468" class="s">• proxy fino e sem geometria: MCP ⇄ aiad-bridge/1</text>
+  <text x="1126" y="488" class="s">• tools/list vem do catálogo do Command Bus</text>
+  <text x="1126" y="508" class="s">• lançado pelo app: AIAD_BRIDGE_URL já fixado</text>
+  <text x="1126" y="528" class="s">• lançado por terceiros: descobre a janela viva</text>
+  <text x="1126" y="548" class="s">• re-descobre e tenta 1× em falha de transporte</text>
+  <text x="1126" y="568" class="cs">stdout = protocolo; log só em stderr</text>
+
+  <rect x="1110" y="610" width="470" height="90" rx="10" fill="#FFFFFF" stroke="#B0BEC5"/>
+  <text x="1126" y="633" class="t">Regras da arquitetura</text>
+  <text x="1126" y="654" class="s">• camadas só apontam para baixo; fachadas sobre terceiros</text>
+  <text x="1126" y="672" class="s">• toda mutação do stage passa pelo Command Bus</text>
+  <text x="1126" y="690" class="s">• a IA é mais um operador: tudo visível e desfazível</text>
+
+  <rect x="1110" y="730" width="470" height="150" rx="10" fill="#E8EAF6" stroke="#3949AB" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="1126" y="753" class="t">Forks Windows (github.com/HermesSilva) — processo separado</text>
+  <text x="1126" y="776" class="s">• palace-4AIAD (Palace, AWS) — EM: eigen · driven · transiente</text>
+  <text x="1126" y="794" class="s">• honee-4AIAD (CEED: libCEED + PETSc) — fluido compressível</text>
+  <text x="1126" y="814" class="s">• MSVC v145 + CUDA + MS-MPI · cuDSS · clang-cl p/ C99</text>
+  <text x="1126" y="834" class="s">• libceed-4AIAD · petsc-4AIAD como dependências dos forks</text>
+  <text x="1126" y="854" class="s">• caso = malha + config gerados; saída VTK / CSV → stage</text>
+  <text x="1126" y="872" class="cs">sem WSL, sem Linux: um ambiente só — Windows + CUDA</text>
+
+  <rect x="1110" y="910" width="470" height="154" rx="10" fill="#FAFAFA" stroke="#9E9E9E" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="1126" y="934" class="t">Disco</text>
+  <text x="1126" y="958" class="s">• .usda / .usdc — features, BrepArray, estudos · .mtlx + texturas</text>
+  <text x="1126" y="978" class="s">• .step / .iges / .stl — import / export</text>
+  <text x="1126" y="998" class="s">• casos de simulação: .msh, config, .vtu/.pvd, .csv</text>
+  <text x="1126" y="1018" class="s">• settings · sessões de IA · auditoria · discovery file</text>
+  <text x="1126" y="1046" class="cs">nada sai da máquina além do que o provedor de IA envia</text>
+
+  <!-- ===================== Arrows ===================== -->
+  <!-- Providers <-> AI engine -->
+  <path d="M46,200 L46,405 L100,405 L100,418" fill="none" stroke="#6A1B9A" stroke-width="2" stroke-dasharray="7 4" marker-start="url(#ap)" marker-end="url(#ap)"/>
+  <text x="39" y="292" class="lp" text-anchor="middle" transform="rotate(-90 39 292)">stream-json</text>
+
+  <!-- Claude CLI -> aiad-mcp (lane) -->
+  <path d="M131,200 L131,222 L1200,222 L1200,418" fill="none" stroke="#00796B" stroke-width="2" stroke-dasharray="7 4" marker-end="url(#at)"/>
+  <text x="300" y="216" class="lt">o CLI lança aiad-mcp.exe via --mcp-config · MCP stdio</text>
+
+  <!-- External MCP clients -> aiad-mcp -->
+  <path d="M1440,200 L1440,418" fill="none" stroke="#00796B" stroke-width="2" stroke-dasharray="7 4" marker-end="url(#at)"/>
+  <text x="1450" y="320" class="lt">MCP stdio</text>
+
+  <!-- aiad-mcp -> Bridge -->
+  <path d="M1110,500 L1032,500" fill="none" stroke="#00796B" stroke-width="2" stroke-dasharray="7 4" marker-end="url(#at)"/>
+  <text x="1072" y="490" class="lt" text-anchor="middle">HTTP</text>
+  <text x="1072" y="518" class="lt" text-anchor="middle">bridge/1</text>
+
+  <!-- User -> UI -->
+  <path d="M900,200 L900,278" fill="none" stroke="#37474F" stroke-width="1.8" marker-end="url(#ar)"/>
+  <text x="908" y="256" class="l">mouse · teclado · prompt</text>
+
+  <!-- UI <-> AI engine -->
+  <path d="M290,390 L290,418" fill="none" stroke="#37474F" stroke-width="1.8" marker-start="url(#ar)" marker-end="url(#ar)"/>
+  <text x="298" y="409" class="l">prompt · eventos · decisões</text>
+
+  <!-- UI -> Command Bus -->
+  <path d="M545,390 L545,608" fill="none" stroke="#37474F" stroke-width="1.8" marker-end="url(#ar)"/>
+  <text x="540" y="500" class="l" text-anchor="middle" transform="rotate(-90 540 500)">comandos do usuário</text>
+
+  <!-- Bridge -> Command Bus -->
+  <path d="M800,580 L800,608" fill="none" stroke="#37474F" stroke-width="1.8" marker-end="url(#ar)"/>
+  <text x="808" y="599" class="l">comandos da IA</text>
+
+  <!-- Command Bus -> row 4 -->
+  <path d="M207,700 L207,728" fill="none" stroke="#37474F" stroke-width="1.8" marker-end="url(#ar)"/>
+  <text x="215" y="719" class="l">consultas de view</text>
+  <path d="M545,700 L545,728" fill="none" stroke="#37474F" stroke-width="1.8" marker-end="url(#ar)"/>
+  <text x="553" y="719" class="l">transação</text>
+  <path d="M882,700 L882,728" fill="none" stroke="#37474F" stroke-width="1.8" marker-end="url(#ar)"/>
+  <text x="890" y="719" class="l">estudos · jobs</text>
+
+  <!-- Document -> Render (stage) ; Simulation <-> Document -->
+  <path d="M385,805 L357,805" fill="none" stroke="#37474F" stroke-width="1.8" marker-end="url(#ar)"/>
+  <path d="M735,805 L707,805" fill="none" stroke="#37474F" stroke-width="1.8" marker-start="url(#ar)" marker-end="url(#ar)"/>
+
+  <!-- Row 4 -> Kernel -->
+  <path d="M207,880 L207,908" fill="none" stroke="#37474F" stroke-width="1.8" marker-end="url(#ar)"/>
+  <text x="215" y="900" class="l">tesselar</text>
+  <path d="M545,880 L545,908" fill="none" stroke="#37474F" stroke-width="1.8" marker-end="url(#ar)"/>
+  <text x="553" y="900" class="l">regen: operações B-rep</text>
+  <path d="M882,880 L882,908" fill="none" stroke="#37474F" stroke-width="1.8" marker-end="url(#ar)"/>
+  <text x="890" y="900" class="l">tesselar · domínio de fluido</text>
+
+  <!-- Render -> UI viewport (left gutter) -->
+  <path d="M60,800 L30,800 L30,350 L66,350" fill="none" stroke="#37474F" stroke-width="1.8" marker-end="url(#ar)"/>
+  <text x="44" y="600" class="l" text-anchor="middle" transform="rotate(-90 44 600)">render target D3D12 → viewport</text>
+
+  <!-- Simulation -> external solvers -->
+  <path d="M1030,805 L1108,805" fill="none" stroke="#3949AB" stroke-width="2" stroke-dasharray="7 4" marker-end="url(#ai)"/>
+  <text x="1069" y="797" class="li" text-anchor="middle">exe</text>
+  <text x="1069" y="823" class="li" text-anchor="middle">CUDA</text>
+
+  <!-- Kernel <-> Disk -->
+  <path d="M1030,950 L1108,950" fill="none" stroke="#37474F" stroke-width="1.8" marker-start="url(#ar)" marker-end="url(#ar)"/>
+  <text x="1069" y="942" class="l" text-anchor="middle">I/O</text>
+
+  <!-- ===================== Legend ===================== -->
+  <line x1="20" y1="1108" x2="80" y2="1108" stroke="#37474F" stroke-width="1.8" marker-end="url(#ar)"/>
+  <text x="90" y="1112" class="s">chamada em processo (C++)</text>
+  <line x1="290" y1="1108" x2="350" y2="1108" stroke="#00796B" stroke-width="2" stroke-dasharray="7 4" marker-end="url(#at)"/>
+  <text x="360" y="1112" class="s">MCP / HTTP entre processos</text>
+  <line x1="560" y1="1108" x2="620" y2="1108" stroke="#6A1B9A" stroke-width="2" stroke-dasharray="7 4" marker-start="url(#ap)" marker-end="url(#ap)"/>
+  <text x="630" y="1112" class="s">processo do provedor de IA</text>
+  <line x1="830" y1="1108" x2="890" y2="1108" stroke="#3949AB" stroke-width="2" stroke-dasharray="7 4" marker-end="url(#ai)"/>
+  <text x="900" y="1112" class="s">processo de solver (nativo Windows)</text>
+
+  <rect x="20"   y="1128" width="16" height="13" fill="#F3E5F5" stroke="#8E24AA"/><text x="42"   y="1139" class="s">IA (Cockpit)</text>
+  <rect x="160"  y="1128" width="16" height="13" fill="#E0F2F1" stroke="#00796B"/><text x="182"  y="1139" class="s">MCP / Bridge (DASE)</text>
+  <rect x="340"  y="1128" width="16" height="13" fill="#FFF3E0" stroke="#EF6C00"/><text x="362"  y="1139" class="s">comandos</text>
+  <rect x="450"  y="1128" width="16" height="13" fill="#E8F5E9" stroke="#2E7D32"/><text x="472"  y="1139" class="s">modelo OpenUSD</text>
+  <rect x="600"  y="1128" width="16" height="13" fill="#FCE4EC" stroke="#C2185B"/><text x="622"  y="1139" class="s">Hydra · D3D12 · MaterialX</text>
+  <rect x="790"  y="1128" width="16" height="13" fill="#E8EAF6" stroke="#3949AB"/><text x="812"  y="1139" class="s">simulação (MFEM · Palace · CEED)</text>
+  <rect x="1030" y="1128" width="16" height="13" fill="#EFEBE9" stroke="#5D4037"/><text x="1052" y="1139" class="s">geometria (USD BRep)</text><rect x="1200" y="1128" width="16" height="13" fill="#E0F7FA" stroke="#00838F"/><text x="1222" y="1139" class="s">GPU (D3D12 + CUDA)</text>
+
+  <!-- Footer -->
+  <text x="20" y="1180" class="sh">Pedido à IA: chat → Motor de IA → provedor (Claude Code CLI) → aiad-mcp.exe → Agent Bridge → Command Bus → Documento / Simulação / Render → Kernel.</text>
+  <text x="20" y="1200" class="sh">O mesmo Command Bus atende o usuário: o que a IA faz, o usuário vê, valida e desfaz. Sequência em fluxo-ia.svg; dependências de build em dependencias.svg.</text>
+  <text x="1580" y="1236" class="cs" text-anchor="end">Tootega Pesquisa e Inovação · plano v0.4 · 2026-10-18</text>
+</svg>

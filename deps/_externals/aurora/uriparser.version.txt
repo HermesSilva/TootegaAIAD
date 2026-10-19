@@ -1,0 +1,1 @@
+00001:https://github.com/uriparser/uriparser/archive/refs/tags/uriparser-1.0.2.zip

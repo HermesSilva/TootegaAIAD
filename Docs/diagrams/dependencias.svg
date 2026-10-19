@@ -1,0 +1,216 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1130" width="1600" height="1130" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>Tootega AIAD — Dependências de build e runtime</title>
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#37474F"/>
+    </marker>
+    <marker id="at" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#00796B"/>
+    </marker>
+    <marker id="ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6A1B9A"/>
+    </marker>
+    <marker id="ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3949AB"/>
+    </marker>
+    <style>
+      .h  { font-size: 24px; font-weight: 700; fill: #263238; }
+      .sh { font-size: 13px; fill: #546E7A; }
+      .n  { font-size: 14.5px; font-weight: 700; fill: #263238; font-family: Consolas, "Cascadia Mono", monospace; }
+      .e  { font-size: 11px; fill: #546E7A; }
+      .t  { font-size: 15px; font-weight: 700; fill: #263238; }
+      .tt { font-size: 13px; font-weight: 700; fill: #263238; }
+      .s  { font-size: 12px; fill: #37474F; }
+      .cs { font-size: 11px; fill: #546E7A; }
+      .l  { font-size: 11.5px; fill: #37474F; paint-order: stroke; stroke: #FFFFFF; stroke-width: 4px; }
+      .lt { font-size: 11.5px; fill: #00695C; paint-order: stroke; stroke: #FFFFFF; stroke-width: 4px; font-weight: 600; }
+      .lp { font-size: 11.5px; fill: #6A1B9A; paint-order: stroke; stroke: #FFFFFF; stroke-width: 4px; font-weight: 600; }
+      .li { font-size: 11.5px; fill: #283593; paint-order: stroke; stroke: #FFFFFF; stroke-width: 4px; font-weight: 600; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1600" height="1130" fill="#FAFBFC"/>
+  <text x="20" y="38" class="h">Tootega AIAD — Dependências (alvos CMake e terceiros)</text>
+  <text x="1580" y="38" class="sh" text-anchor="end">somente Windows x64 · DirectX 12 · CUDA — seta cheia = link · tracejada = runtime · arestas transitivas omitidas</text>
+
+  <!-- ===================== Executables ===================== -->
+  <rect x="40" y="70" width="200" height="62" rx="8" fill="#E0F2F1" stroke="#00796B" stroke-width="2"/>
+  <text x="140" y="95" class="n" text-anchor="middle">aiad-mcp.exe</text>
+  <text x="140" y="115" class="e" text-anchor="middle">MCP stdio · json · httplib (cliente)</text>
+
+  <rect x="420" y="70" width="200" height="62" rx="8" fill="#ECEFF1" stroke="#263238" stroke-width="2.2"/>
+  <text x="520" y="95" class="n" text-anchor="middle">aiad.exe</text>
+  <text x="520" y="115" class="e" text-anchor="middle">wWinMain · janela Win32 · loop</text>
+
+  <rect x="780" y="70" width="200" height="62" rx="8" fill="#F5F5F5" stroke="#757575" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <text x="880" y="95" class="n" text-anchor="middle">aiad_tests</text>
+  <text x="880" y="115" class="e" text-anchor="middle">GoogleTest · linka todas as libs</text>
+
+  <!-- ===================== Presentation ===================== -->
+  <rect x="420" y="200" width="200" height="62" rx="8" fill="#E3F2FD" stroke="#1565C0" stroke-width="1.8"/>
+  <text x="520" y="225" class="n" text-anchor="middle">aiad_ui</text>
+  <text x="520" y="245" class="e" text-anchor="middle">ImGui (Win32 + DX12) · ImGuizmo</text>
+
+  <!-- ===================== Services ===================== -->
+  <rect x="240" y="330" width="180" height="62" rx="8" fill="#F3E5F5" stroke="#8E24AA" stroke-width="1.8"/>
+  <text x="330" y="355" class="n" text-anchor="middle">aiad_ai</text>
+  <text x="330" y="375" class="e" text-anchor="middle">Win32 process/pipes · json</text>
+
+  <rect x="450" y="330" width="180" height="62" rx="8" fill="#E8EAF6" stroke="#3949AB" stroke-width="1.8"/>
+  <text x="540" y="355" class="n" text-anchor="middle">aiad_sim</text>
+  <text x="540" y="375" class="e" text-anchor="middle">MFEM fp64/fp32 · CUDA · Netgen</text>
+
+  <rect x="660" y="330" width="180" height="62" rx="8" fill="#FCE4EC" stroke="#C2185B" stroke-width="1.8"/>
+  <text x="750" y="355" class="n" text-anchor="middle">aiad_render</text>
+  <text x="750" y="375" class="e" text-anchor="middle">Aurora (fork) · hdUsdBrep · D3D12</text>
+
+  <rect x="870" y="330" width="180" height="62" rx="8" fill="#E0F2F1" stroke="#00796B" stroke-width="1.8"/>
+  <text x="960" y="355" class="n" text-anchor="middle">aiad_bridge</text>
+  <text x="960" y="375" class="e" text-anchor="middle">cpp-httplib (servidor)</text>
+
+  <!-- ===================== Commands ===================== -->
+  <rect x="560" y="460" width="200" height="62" rx="8" fill="#FFF3E0" stroke="#EF6C00" stroke-width="1.8"/>
+  <text x="660" y="485" class="n" text-anchor="middle">aiad_cmd</text>
+  <text x="660" y="505" class="e" text-anchor="middle">Sdf (change block) · JSON Schema</text>
+
+  <!-- ===================== Model ===================== -->
+  <rect x="560" y="590" width="200" height="62" rx="8" fill="#E8F5E9" stroke="#2E7D32" stroke-width="1.8"/>
+  <text x="660" y="615" class="n" text-anchor="middle">aiad_doc</text>
+  <text x="660" y="635" class="e" text-anchor="middle">Usd · UsdGeom · UsdShade · usdMtlx</text>
+
+  <rect x="820" y="590" width="200" height="62" rx="8" fill="#E8F5E9" stroke="#2E7D32" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <text x="920" y="615" class="n" text-anchor="middle">aiad_schema</text>
+  <text x="920" y="635" class="e" text-anchor="middle">Feature · Study · Physics (plugin)</text>
+
+  <!-- ===================== Geometry ===================== -->
+  <rect x="560" y="720" width="200" height="62" rx="8" fill="#EFEBE9" stroke="#5D4037" stroke-width="1.8"/>
+  <text x="660" y="745" class="n" text-anchor="middle">aiad_kernel</text>
+  <text x="660" y="765" class="e" text-anchor="middle">USD BRep v145 (SMLib · SM_API)</text>
+
+  <!-- ===================== Base bars ===================== -->
+  <rect x="40" y="850" width="700" height="56" rx="8" fill="#F5F5F5" stroke="#757575" stroke-width="1.8"/>
+  <text x="390" y="874" class="n" text-anchor="middle">aiad_core</text>
+  <text x="390" y="894" class="e" text-anchor="middle">spdlog · json · strings (en) · settings · fila da main thread · jobs · processos · IDs — todas as libs</text>
+
+  <rect x="760" y="850" width="300" height="56" rx="8" fill="#E0F7FA" stroke="#00838F" stroke-width="1.8"/>
+  <text x="910" y="874" class="n" text-anchor="middle">aiad_gpu</text>
+  <text x="910" y="894" class="e" text-anchor="middle">D3D12 + CUDA (mesmo LUID) · usado por render e sim</text>
+
+  <!-- ===================== Runtime boxes ===================== -->
+  <rect x="40" y="460" width="180" height="62" rx="8" fill="#EDE7F6" stroke="#5E35B1" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="130" y="485" class="tt" text-anchor="middle">Claude Code CLI</text>
+  <text x="130" y="505" class="e" text-anchor="middle">processo · não linkado</text>
+
+  <rect x="340" y="590" width="212" height="62" rx="8" fill="#E8EAF6" stroke="#3949AB" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="446" y="615" class="tt" text-anchor="middle">palace-4AIAD · honee-4AIAD</text>
+  <text x="446" y="635" class="e" text-anchor="middle">forks HermesSilva · .exe · CUDA</text>
+
+  <!-- ===================== Build edges ===================== -->
+  <g fill="none" stroke="#37474F" stroke-width="1.7" marker-end="url(#ar)">
+    <path d="M520,132 L520,198"/>                      <!-- aiad.exe -> ui -->
+    <path d="M460,262 L345,328"/>                      <!-- ui -> ai -->
+    <path d="M520,262 L535,328"/>                      <!-- ui -> sim -->
+    <path d="M590,262 L735,328"/>                      <!-- ui -> render -->
+    <path d="M620,231 L960,231 L960,328"/>             <!-- ui -> bridge -->
+    <path d="M590,392 L630,458"/>                      <!-- sim -> cmd -->
+    <path d="M720,392 L690,458"/>                      <!-- render -> cmd -->
+    <path d="M930,392 L762,478"/>                      <!-- bridge -> cmd -->
+    <path d="M660,522 L660,588"/>                      <!-- cmd -> doc -->
+    <path d="M760,621 L818,621"/>                      <!-- doc -> schema -->
+    <path d="M660,652 L660,718"/>                      <!-- doc -> kernel -->
+    <path d="M660,782 L660,848"/>                      <!-- kernel -> core -->
+    <path d="M330,392 L330,848"/>                      <!-- ai -> core -->
+    <path d="M40,101 L25,101 L25,878 L38,878"/>        <!-- mcp -> core -->
+  </g>
+  <text x="968" y="290" class="l">status do bridge</text>
+  <text x="668" y="560" class="l">transação · undo</text>
+  <text x="338" y="760" class="l">eventos, sessões</text>
+  <text x="33" y="480" class="l" text-anchor="middle" transform="rotate(-90 33 480)">só core: não conhece geometria</text>
+
+  <!-- ===================== Runtime edges ===================== -->
+  <path d="M265,392 L190,458" fill="none" stroke="#6A1B9A" stroke-width="2" stroke-dasharray="7 4" marker-end="url(#ap)"/>
+  <text x="150" y="425" class="lp">spawn · stream-json</text>
+  <path d="M130,458 L130,134" fill="none" stroke="#00796B" stroke-width="2" stroke-dasharray="7 4" marker-end="url(#at)"/>
+  <text x="138" y="300" class="lt">spawn (--mcp-config)</text>
+  <path d="M200,132 L200,160 L1070,160 L1070,361 L1052,361" fill="none" stroke="#00796B" stroke-width="2" stroke-dasharray="7 4" marker-end="url(#at)"/>
+  <text x="660" y="154" class="lt">HTTP aiad-bridge/1 (runtime, loopback)</text>
+  <path d="M510,392 L470,588" fill="none" stroke="#3949AB" stroke-width="2" stroke-dasharray="7 4" marker-end="url(#ai)"/>
+  <text x="497" y="500" class="li" text-anchor="end">caso: malha + config</text>
+
+  <!-- ===================== Rules (bottom-left) ===================== -->
+  <rect x="40" y="930" width="1020" height="118" rx="8" fill="#FFFFFF" stroke="#B0BEC5"/>
+  <text x="56" y="952" class="tt">Regras de dependência (violação = erro de CMake)</text>
+  <text x="56" y="974"  class="s">1. Sem ciclos; cada camada só aponta para baixo.</text>
+  <text x="56" y="994"  class="s">2. aiad_ai não conhece geometria: chega nela só via MCP → Bridge → cmd.</text>
+  <text x="56" y="1014" class="s">3. aiad-mcp.exe só depende de aiad_core (proxy fino).</text>
+  <text x="56" y="1034" class="s">4. Só aiad_kernel inclui headers do USD BRep (fachada).</text>
+  <text x="560" y="974"  class="s">5. Só render / gpu / ui incluem D3D12; só sim / gpu incluem CUDA.</text>
+  <text x="560" y="994"  class="s">6. Só aiad_sim inclui MFEM / Netgen; forks de solver só como .exe.</text>
+  <text x="560" y="1014" class="s">7. Toda mutação do stage passa por aiad_cmd.</text>
+  <text x="560" y="1034" class="s">8. Open source; LGPL (Netgen) por link dinâmico (DLL).</text>
+
+  <!-- ===================== Third-party column ===================== -->
+  <text x="1110" y="80" class="t">Terceiros (licença)</text>
+
+  <rect x="1110" y="92" width="470" height="78" rx="8" fill="#E8F5E9" stroke="#2E7D32"/>
+  <text x="1124" y="113" class="tt">OpenUSD 25.x — TOST License (Apache-2.0 modificada)</text>
+  <text x="1124" y="133" class="s">Tf · Sdf · Usd · UsdGeom · UsdShade · UsdImaging · Hd · hdMtlx</text>
+  <text x="1124" y="153" class="cs">sem Storm / HgiGL; mesma build/ABI do USD BRep — risco R1</text>
+
+  <rect x="1110" y="178" width="470" height="62" rx="8" fill="#FCE4EC" stroke="#C2185B"/>
+  <text x="1124" y="199" class="tt">MaterialX 1.39.x (ASWF) — Apache-2.0</text>
+  <text x="1124" y="219" class="s">usdMtlx · hdMtlx · gerador Slang → DXIL (alvo D3D12: R15)</text>
+
+  <rect x="1110" y="248" width="470" height="78" rx="8" fill="#FCE4EC" stroke="#C2185B"/>
+  <text x="1124" y="269" class="tt">Autodesk Aurora (fork) — Apache-2.0 · DirectX 12 / DXR</text>
+  <text x="1124" y="289" class="s">HdAurora → HdAiad: + raster CAD, arestas, ID buffer, denoiser</text>
+  <text x="1124" y="309" class="cs">DXC · Slang (Apache-2.0 + LLVM) · Agility SDK · ImGui backend DX12</text>
+
+  <rect x="1110" y="334" width="470" height="78" rx="8" fill="#E0F7FA" stroke="#00838F"/>
+  <text x="1124" y="355" class="tt">CUDA Toolkit — EULA NVIDIA (runtime redistribuível)</text>
+  <text x="1124" y="375" class="s">MFEM_USE_CUDA · libCEED (backends cuda) · hypre GPU · interop D3D12</text>
+  <text x="1124" y="395" class="cs">matriz CUDA × MSVC (v143/v145) a validar — risco R16</text>
+
+  <rect x="1110" y="420" width="470" height="78" rx="8" fill="#EFEBE9" stroke="#5D4037"/>
+  <text x="1124" y="441" class="tt">USD BRep (NVIDIA) — Apache-2.0 · compilado com v145</text>
+  <text x="1124" y="461" class="s">SMLib · SM_API · SM_API_USD · omniSolid · hdUsdBrep (Hydra)</text>
+  <text x="1124" y="481" class="cs">OCCT_BREP_EXPORT escreve .brep em texto (não linka OCCT)</text>
+
+  <rect x="1110" y="506" width="470" height="78" rx="8" fill="#E8EAF6" stroke="#3949AB"/>
+  <text x="1124" y="527" class="tt">MFEM 4.9+ (LLNL) — BSD-3 · libCEED — BSD-2</text>
+  <text x="1124" y="547" class="s">duas builds: fp64 (+ libCEED, hypre, SUNDIALS) e fp32 (núcleo)</text>
+  <text x="1124" y="567" class="cs">precisão de compilação (real_t); fp32 automático em GeForce</text>
+
+  <rect x="1110" y="592" width="470" height="62" rx="8" fill="#E8EAF6" stroke="#3949AB"/>
+  <text x="1124" y="613" class="tt">Netgen / nglib — LGPL-2.1 (DLL)</text>
+  <text x="1124" y="633" class="s">.brep (OCC) ou STL → tetra até 2ª ordem; MFEM lê o formato Netgen</text>
+
+  <rect x="1110" y="662" width="470" height="62" rx="8" fill="#E3F2FD" stroke="#1565C0"/>
+  <text x="1124" y="683" class="tt">Dear ImGui (docking) — MIT</text>
+  <text x="1124" y="703" class="s">imgui_impl_win32 + dx12 · ImGuizmo · ImPlot · imgui_md (MIT)</text>
+
+  <rect x="1110" y="732" width="470" height="62" rx="8" fill="#F5F5F5" stroke="#757575"/>
+  <text x="1124" y="753" class="tt">nlohmann/json · cpp-httplib · spdlog — MIT</text>
+  <text x="1124" y="773" class="s">GoogleTest (BSD-3) só em aiad_tests · vcpkg (manifest)</text>
+
+  <rect x="1110" y="802" width="470" height="62" rx="8" fill="#EDE7F6" stroke="#5E35B1" stroke-dasharray="6 4"/>
+  <text x="1124" y="823" class="tt">Runtime externo (não linkado)</text>
+  <text x="1124" y="843" class="s">Claude Code CLI · palace-4AIAD / honee-4AIAD como .exe</text>
+
+  <rect x="1110" y="872" width="470" height="76" rx="8" fill="#FFFFFF" stroke="#B0BEC5"/>
+  <text x="1124" y="893" class="tt">Toolchain (um ambiente só)</text>
+  <text x="1124" y="913" class="s">Windows 10/11 x64 · MSVC v143/v145 · C++20 · CMake + Ninja · nvcc</text>
+  <text x="1124" y="933" class="s">USD BRep: repo / premake / Packman, patch vs18 → v145</text>
+
+  <!-- Footer -->
+  <line x1="40" y1="1076" x2="100" y2="1076" stroke="#37474F" stroke-width="1.8" marker-end="url(#ar)"/>
+  <text x="110" y="1080" class="s">depende de (target_link_libraries)</text>
+  <line x1="340" y1="1076" x2="400" y2="1076" stroke="#00796B" stroke-width="2" stroke-dasharray="7 4" marker-end="url(#at)"/>
+  <text x="410" y="1080" class="s">MCP / HTTP</text>
+  <line x1="510" y1="1076" x2="570" y2="1076" stroke="#6A1B9A" stroke-width="2" stroke-dasharray="7 4" marker-end="url(#ap)"/>
+  <text x="580" y="1080" class="s">provedor de IA</text>
+  <line x1="700" y1="1076" x2="760" y2="1076" stroke="#3949AB" stroke-width="2" stroke-dasharray="7 4" marker-end="url(#ai)"/>
+  <text x="770" y="1080" class="s">solver em processo separado</text>
+  <text x="40" y="1106" class="sh">Na 2ª linha de cada caixa: as dependências externas daquele alvo. Arquitetura em arquitetura-blocos.svg; sequência de um pedido à IA em fluxo-ia.svg.</text>
+  <text x="1580" y="1120" class="cs" text-anchor="end">Tootega Pesquisa e Inovação · plano v0.4 · 2026-10-18</text>
+</svg>

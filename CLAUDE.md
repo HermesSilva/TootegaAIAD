@@ -1,0 +1,194 @@
+# CLAUDE.md — Tootega AIAD project directives
+
+> Read by Claude Code (and any agent) working in this repository. These directives were decided
+> by the project owner; do not change them without asking. Detailed rationale lives in
+> `Docs/01-levantamento.md`, `Docs/02-arquitetura.md` and `Docs/03-plano-execucao.md` (plan v0.4).
+
+---
+
+## 1. Product
+
+| Field | Value |
+|-------|-------|
+| Name | **Tootega AIAD** — Artificial Intelligence-Aided Design |
+| What | 3D CAD/CAE tool where the user **and an AI** operate the same exact (B-rep NURBS) model |
+| Maintainer | Tootega Pesquisa e Inovação · GitHub: **HermesSilva** |
+| License | **Open source.** Follow whatever the dependencies require; current recommendation: **Apache-2.0** |
+| **Target milestone** | **A four-stroke internal combustion engine, designed in the tool and running in its simulator** (set by the owner on 2026-10-18). Work is prioritized by what this milestone needs. |
+
+## 2. Hard rules (non-negotiable)
+
+1. **Windows only** — x64, Windows 10/11. No Linux, no macOS, **no WSL**, no multi-platform code paths.
+2. **Graphics = DirectX 12.** No OpenGL, no Vulkan in the product.
+3. **Compute = CUDA** (NVIDIA). GPU and D3D12 share the same adapter (matched by LUID).
+4. **Static linking for everything we build or vendor.** One self-contained `aiad.exe` (plus
+   solver executables). The only allowed dynamic dependencies are:
+   - OS components (D3D12, DXGI, Win32);
+   - the NVIDIA driver (`nvcuda.dll`);
+   - the runtime shader compiler (`dxcompiler.dll` / `dxil.dll`), because shaders are generated at run time;
+   - MS-MPI runtime, only inside solver executables;
+   - cuSPARSE / cuBLAS (`cusparse64_*.dll`, `cublas*64_*.dll`), used by MFEM — NVIDIA ships no
+     static versions of them on Windows (the CUDA runtime itself is linked static: `cudart_static`);
+   - the MSVC C/C++ runtime (`/MD`, VC++ Redistributable) — deliberate, to avoid CRT mismatches
+     with the DLLs above.
+   Consequence: OpenUSD is built **static from source** (no Python), and USD plugins (HdAurora,
+   hdUsdBrep, omniSolid, aiad schema) are linked **into the executable** with `/WHOLEARCHIVE`.
+5. **English only** in code, comments, commit messages and the **software UI**. No i18n layer.
+   (Planning documents under `Docs/` are currently in Portuguese.)
+6. **Toolchain:** Visual Studio 18 (2026) Community, **MSVC toolset v145**, C++20, CMake (the one
+   bundled with VS 18, 4.3+) + Ninja, CUDA 13.x. Every third-party library is built with v145.
+7. **OpenUSD is the source of truth.** The document *is* a `UsdStage` (geometry, materials,
+   simulation studies). No parallel internal model.
+8. **One path to mutate the model: the Command Bus.** UI, AI and scripts run the same commands,
+   with the same undo, validation and audit trail.
+9. **The AI is just another operator.** Everything it does is visible, permission-gated and undoable.
+10. **Do not reimplement the agent.** The agent loop lives in the provider (initially Claude Code
+    CLI, `stream-json`). The app renders events and implements the client side of permissions,
+    questions and plans (lessons from the Cockpit project).
+
+## 3. Stack (decided)
+
+| Area | Choice |
+|------|--------|
+| Geometry kernel | NVIDIA **USD BRep** (SMLib), `omniSolid` schema (`BrepArray`), `hdUsdBrep` Hydra plugin |
+| Scene / file | **OpenUSD 25.11** (commit `363a7c8d`), static |
+| Viewport | **Hydra** + **fork of Autodesk Aurora** (`aurora-4AIAD`): path tracing (DXR) + raster CAD mode to be added (edges, ID buffer, selection, CUDA result fields) |
+| Materials | **MaterialX 1.39.5** (Autodesk fork tag used by Aurora, with Slang generator) — **one MaterialX** for USD and Aurora; OpenPBR + Standard Surface |
+| UI | **Dear ImGui** (docking), backends Win32 + DX12; ImGuizmo, ImPlot |
+| Meshing | **Netgen** 6.2.2604 (LGPL-2.1, static, **C++ API**, not the nglib C wrapper) from the `.brep` text written by `OCCT_BREP_EXPORT`, healed with OCCT `ShapeFix_Shape` |
+| FEA | **MFEM** + CUDA, structural / thermal / modal, in process |
+| Multibody | **Project Chrono** (BSD-3), static, MSVC v145 — mechanism dynamics for the engine milestone; joints/masses live in the stage as **`UsdPhysics`** |
+| Engine cycle | Own 0D thermodynamic model in `aiad_sim` (Otto cycle: valves, Wiebe combustion, heat loss) |
+| Ignition | Magneto: **2D magnetostatics with MFEM** (permanent magnet) → Φ(θ) table → lumped primary/secondary circuit → spark |
+| Electromagnetics | **Palace** via fork `palace-4AIAD` (Windows conversion), separate executable — CPU build compiles and runs (2026-10-19); not on the engine milestone path |
+| Compressible flow | **HONEE** (CEED) via fork `honee-4AIAD`, on `libceed-4AIAD` + `petsc-4AIAD` |
+| Precision | FP64 when the GPU has full FP64; **FP32 automatically** on GPUs limited in FP64 (GeForce). MFEM precision is compile-time → two backend builds |
+| AI | Own engine with swappable provider (`IAgentProvider` + `EngineCaps`); initial provider **Claude Code CLI** |
+| MCP | Standalone `aiad-mcp.exe` (stdio, C++) ↔ loopback agent bridge `aiad-bridge/1` in the app (lessons from DASE50); tool catalog generated from the Command Bus registry |
+
+## 4. Architecture rules
+
+- **Everything shown in the view comes from a drawing, never from code** (owner, 2026-10-19). Every
+  object in the viewport is a part of the document (`UsdStage`, B-rep with its feature history) created
+  and edited through Command Bus commands (by the user, the AI or a command script). Application code
+  holds only generic CAD operations (sketch, extrude, revolve, boolean, fillet, pattern...), never the
+  geometry of a specific object: no hard-coded dimensions, no procedural part generators. A model
+  (e.g. the engine) is a saved document (`models/*.usda`), not a C++ function. The procedural
+  `aiad_model::BuildEngine` violates this and is being replaced (plan §6, 2026-10-19).
+
+- **What is simulated is what is drawn, and the other way round.** The design parameters generate the
+  parts; every physical input of a simulation (masses, inertias, centres of mass, valve lift, chamber
+  volume, magneto geometry...) is derived from those parts (`src/aiad_model`). No hand-entered
+  physics that the drawing does not show; no drawing detail that the simulation contradicts.
+- Layers only point downward; no cycles (enforced in CMake). See `Docs/diagrams/dependencias.svg`.
+- Facades over third parties: only `aiad_kernel` includes USD BRep; only `aiad_render`/`aiad_gpu`/
+  `aiad_ui` include D3D12; only `aiad_sim`/`aiad_gpu` include CUDA; only `aiad_sim` includes MFEM/Netgen;
+  only `aiad_ui` includes ImGui.
+- `aiad_ai` knows nothing about geometry: it reaches the model only through MCP → Bridge → Command Bus.
+- All `UsdStage` mutation happens on the **main thread**; other threads post to the main-thread queue.
+- Long operations (simulation) are **async commands** (job id, progress, cancel).
+- Stream parsing is version-tolerant: unknown events are ignored, never fatal.
+
+## 5. Forks (GitHub HermesSilva, suffix `-4AIAD`)
+
+`aurora-4AIAD`, `palace-4AIAD`, `libceed-4AIAD`, `petsc-4AIAD`, `honee-4AIAD` (HONEE imported from
+GitLab). In every fork:
+- `main` mirrors upstream and is **never modified**; changes go to `main-4AIAD` (default branch);
+- `README.md` explains what changes and why (English); the original is kept as `README.upstream.md`;
+- keep the diff small and isolated, mark changes with `4AIAD:` comments, rebase onto upstream periodically.
+
+## 6. Dependencies and builds (`deps/`)
+
+- Third-party sources in `deps/_src/`, build trees in `deps/_build/`, installs in `deps/static/<config>/`,
+  forks in `deps/forks/`, local patches in `deps/patches/`. See `deps/README.md`.
+- Pin versions; record the commit/tag of everything built. Upgrades are separate, deliberate changes.
+- Never leave a temporary change in an upstream clone: build, store the result, keep the change as a
+  patch file, restore the clone.
+
+### Known build-environment quirks (this machine)
+
+- The agent's shell sets `NoDefaultCurrentDirectoryInExePath=1`; `cmd` then cannot run sibling `.bat`
+  files by bare name. Build `.bat` scripts must `set NoDefaultCurrentDirectoryInExePath=` first.
+- `vswhere` also lists **SQL Server Management Studio 21**; always pin VS 18 explicitly.
+- VS 2022 BuildTools (v143) is also installed; check that builds really use **v145 / MSVC 14.51**.
+- Packman (USD BRep build) rejects `(` in paths → Windows SDK via junction in `deps/_toolchain/winsdk/`.
+- Build scripts need the `vcvars64.bat` environment of VS 18; NASM portable is in `deps/_toolchain/`.
+- CMake 4.x: set `CMAKE_POLICY_VERSION_MINIMUM=3.5` for older third-party projects.
+
+### Consumer rules learned in the spikes
+
+- **SMLib / USD BRep headers:** compile the including translation units as **C++17** (the headers
+  are not C++20-clean: ambiguous rewritten `operator==`), with `SM_STATIC_LINK`,
+  `SM_GRAPHICS_CALLBACKS=1`, `UNICODE`, `_UNICODE`. Keep them behind `aiad_kernel` so the rest of
+  the code stays C++20.
+- **Netgen:** define `NETGEN_STATIC` (and `OCCGEOMETRY`); link `zlibstatic.lib`, not `zlib.lib`
+  (a foreign `zlib.dll` on `PATH` gets picked up otherwise). Use the C++ API (`OCCGeometry`,
+  `Mesh`, `GenerateMesh`): `Ng_DeleteMesh` corrupts the heap. Netgen does not report a failed
+  face and then crashes in the volume mesher → mesh to `MESHCONST_OPTSURFACE`, check the surface
+  is watertight, then mesh the volume (retry with another `maxh` on failure).
+- **`.brep` from `OCCT_BREP_EXPORT`:** has no p-curves and writes inner shells (cavities) with the
+  outer orientation → run `ShapeFix_Shape` before meshing, otherwise cavities get filled.
+- **MFEM + CUDA:** replace `CUDA::cudart` by `CUDA::cudart_static`; cuSPARSE/cuBLAS stay DLLs
+  (allowed exception, rule 4).
+- **Eigen / Chrono:** Chrono exports `/arch:AVX2` and extends Eigen through
+  `EIGEN_MATRIXBASE_PLUGIN`/`EIGEN_SPARSEMATRIX_PLUGIN`. **Never include Eigen directly**: use
+  `src/aiad_sim/common/EigenConfig.h`, and compile with `/arch:AVX2` (project baseline). Otherwise the
+  linker merges different versions of the Eigen templates (ODR) and the program crashes.
+- **Project Chrono 10:** build with `CMAKE_DISABLE_FIND_PACKAGE_Thrust=ON` (the multicore collision
+  does not compile with the CUDA 13 CCCL 3 Thrust) and without OpenMP (`vcomp140.dll`, rule 4).
+- **libCEED:** built with `cl` only; C99 VLAs replaced by `CEED_VLA` (`_alloca` on MSVC).
+- **Palace superbuild** (`deps/_src/build_palace.bat cpu`): MS-MPI x64 runtime is `deps/_toolchain/msmpi-10.1.3/Bin64`
+  (`Bin` is x86); flang must use the `/MD` Fortran runtime; MFEM must open meshes in binary mode.
+- **Aurora fork (`aurora-4AIAD`) fixes to keep:** type-checked primvar reads in `HdAuroraMesh`;
+  `addInstances` comparison (hidden meshes on moving bodies crashed); `PTRenderBuffer::data()` must not
+  return the padded GPU row pitch (host copy is tight). Readers use width x pixel size, never `GetStride()`.
+- **Documents and the kernel:** models live in `models/*.usda` (built by `models/*.aiad.json` command
+  scripts with `aiad-model build`); geometry only through `src/aiad_kernel` (the one SMLib user, C++17).
+  Static OpenUSD reads `PXR_PLUGINPATH_NAME` at process start: tests call `PlugRegistry::RegisterPlugins`;
+  `OMNISOLID_PLUGIN_PATH` must be set with `_putenv_s` (CRT copy). SMLib's tessellation carries no
+  normals (the kernel computes them, crease angle); SMLib booleans are unreliable when cutting solids of
+  revolution, so the section view is display-only (`kernel::SectionMesh`). Inactive prims expose no
+  attributes: read before deactivating.
+- **Never toggle visibility on animated content** with HdAurora: each toggle removes/re-creates the
+  instance (~110 ms stall). Switch by transform (e.g. scale) instead.
+- **Dear ImGui pinned to v1.92.9-docking** (ImPlot v1.0 draws no items with 1.93); keep
+  `AntiAliasedLinesUseTex = false`; no ImPlot inside `ImGui::BeginTable` (use `BeginSubplots`).
+
+- **AI layer = Cockpit parity** (owner, 2026-10-18): the chat/hub must have almost every feature of the
+  Cockpit (`D:\Tootega\Source\Cockpit\Cockpit`, README feature grid); map in `Docs/02-arquitetura.md` §10.3.
+  Every model mutation is a Command Bus command (`src/aiad_cmd`); engine commands in
+  `src/aiad_app/EngineCommands.cpp`; the agent reaches them only via `aiad-mcp.exe` → bridge.
+- **stream-json control answers:** `allow` needs `updatedInput` (the full input); AskUserQuestion answers go
+  in `updatedInput.answers` keyed by question text; "always" sends the request's `permission_suggestions`
+  as `updatedPermissions`; `--append-system-prompt` is not additive (one file with everything).
+
+### Build and verification loop (application)
+
+- Fresh clone: `git clone --recurse-submodules`, then `pwsh -File deps\fetch-prebuilt.ps1` (release assets listed in
+  `deps/prebuilt.json`; maintainer publishes with `deps\pack-prebuilt.ps1 -Publish`). VS solution: `cmake --preset vs2026`
+  in `src/` → `src/_build/TootegaAIAD.slnx` (folders `Tests`, `ThirdParty/{Aurora,libCEED,Palace}`).
+- `pwsh -File build-dist.ps1` (repo root): timed steps, stops at the first error, builds `aiad.exe`,
+  `aiad-mcp.exe` and the unit tests (`command_bus_test`, `agent_session_test`, `mcp_bridge_test`,
+  `claude_cli_test` — live CLI handshake, no tokens), runs them, assembles `Dist/` (D18 check via
+  `dumpbin`), then `aiad.exe --snapshot` (engine runs, 60 animated frames at an unaligned width with
+  hide/show/highlight/section toggles, frame-phase timings, `Dist/snapshot*.png`) and
+  `aiad.exe --ui-test` (real window: MCP → bridge → Command Bus checks, simulation job, chat fixture,
+  window capture `Dist/ui_test.png`). `-SkipSnapshot` skips the two app tests.
+- Crashes write `Dist/aiad_crash.dmp`; read with `cdb -z <dmp> -y Dist` (Release builds carry a PDB).
+- Never wait blindly on long builds: background run + check the log, with a time limit.
+
+## 7. Engineering principles (from DASE50)
+
+- Every line must pay rent; prefer deletion to decoration.
+- Tests answer "what failure would this catch?"; no coverage theater, no tests of impossible worlds.
+- Fail fast with precise, actionable errors. Make state explicit.
+- Measure before optimizing. Security is an invariant: loopback-only bridge with token, never log
+  credentials, never bypass permission prompts.
+- Report results honestly: if a build or test fails, say so with the output.
+
+## 8. Workflow for agents
+
+- Follow the execution plan (`Docs/03-plano-execucao.md`): spikes S1–S7, then phases F1–F10.
+  Record each spike's outcome in §6 of that document.
+- Shell: PowerShell 7 is the default; Git Bash only for POSIX needs; no WSL.
+- Ask before outward-facing actions (creating repositories, pushing to new remotes, publishing).

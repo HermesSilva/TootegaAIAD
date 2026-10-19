@@ -1,0 +1,49 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index f6c09a9..ce9c103 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -47,6 +47,11 @@ set(NG_COMPILE_FLAGS "" CACHE STRING "Additional compile flags")
+ set(NGLIB_LIBRARY_TYPE SHARED CACHE STRING "nglib library type")
+ set(NGCORE_LIBRARY_TYPE SHARED CACHE STRING "ngcore library type")
+ set(NGGUI_LIBRARY_TYPE SHARED CACHE STRING "nggui library type")
++# 4AIAD: static libraries need NETGEN_STATIC in Netgen itself and in every consumer.
++if(WIN32 AND NGLIB_LIBRARY_TYPE STREQUAL "STATIC" AND NGCORE_LIBRARY_TYPE STREQUAL "STATIC")
++  add_compile_definitions(NETGEN_STATIC)
++  set(NETGEN_STATIC_DEFINITION NETGEN_STATIC)
++endif()
+ 
+ set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake_modules")
+ 
+diff --git a/libsrc/core/ngcore_api.hpp b/libsrc/core/ngcore_api.hpp
+index 5794277..c2a7520 100644
+--- a/libsrc/core/ngcore_api.hpp
++++ b/libsrc/core/ngcore_api.hpp
+@@ -36,7 +36,11 @@
+ #endif // WIN32
+ 
+ 
+-#ifdef WIN32
++#if defined(WIN32) && defined(NETGEN_STATIC)
++        // 4AIAD: static ngcore/nglib - no dllexport/dllimport (NGCORE_API, DLL_HEADER, NGGUI_API).
++        #define NGCORE_API_EXPORT
++        #define NGCORE_API_IMPORT
++#elif defined(WIN32)
+         #define NGCORE_API_EXPORT __declspec(dllexport)
+         #define NGCORE_API_IMPORT __declspec(dllimport)
+ #else
+diff --git a/nglib/nglib.h b/nglib/nglib.h
+index 0e7c59e..170d820 100644
+--- a/nglib/nglib.h
++++ b/nglib/nglib.h
+@@ -25,7 +25,10 @@
+ 
+ // Philippose - 14.02.2009
+ // Modifications for creating a DLL in Windows
+-#ifdef WIN32
++#if defined(WIN32) && defined(NETGEN_STATIC)
++   // 4AIAD: static nglib.
++   #define NGLIB_API
++#elif defined(WIN32)
+    #ifdef nglib_EXPORTS
+       #define NGLIB_API   __declspec(dllexport)
+    #else

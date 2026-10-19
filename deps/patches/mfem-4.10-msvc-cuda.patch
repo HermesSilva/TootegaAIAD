@@ -1,0 +1,71 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4162042..1a77fa4 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -742,7 +742,12 @@ if (MINGW)
+   target_link_libraries(mfem PRIVATE ws2_32)
+ endif()
+ if (MSVC)
+-  target_compile_options(mfem PUBLIC "/wd4819")
++  # 4AIAD: with CUDA the option must not reach nvcc as a bare argument (nvcc then sees two
++  # input files); forward it to the host compiler instead.
++  target_compile_options(mfem PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:/wd4819>"
++                                     "$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4819>")
++  # 4AIAD: M_PI and friends are only defined by MSVC's <cmath> with _USE_MATH_DEFINES.
++  target_compile_definitions(mfem PUBLIC _USE_MATH_DEFINES)
+ endif()
+ message(STATUS "TPL_INCLUDE_DIRS = ${TPL_INCLUDE_DIRS}")
+ target_include_directories(mfem
+diff --git a/general/error.hpp b/general/error.hpp
+index 4e79f2d..14ec7d9 100644
+--- a/general/error.hpp
++++ b/general/error.hpp
+@@ -166,7 +166,7 @@ __device__ void abort_msg(T & msg)
+ #define MFEM_ABORT_KERNEL(...) \
+    {                           \
+       printf(__VA_ARGS__);     \
+-      asm("trap;");            \
++      __trap(); /* 4AIAD: CUDA intrinsic; GNU asm is rejected with an MSVC host */ \
+    }
+ #elif defined(__HIP_DEVICE_COMPILE__)
+ #define MFEM_ABORT_KERNEL(...) \
+diff --git a/general/reducers.hpp b/general/reducers.hpp
+index a980a7b..f0611d4 100644
+--- a/general/reducers.hpp
++++ b/general/reducers.hpp
+@@ -18,6 +18,9 @@
+ #include <cmath>
+ #include <limits>
+ #include <type_traits>
++#if defined(_MSC_VER)
++#include <intrin.h> // 4AIAD: _BitScanReverse
++#endif
+ 
+ namespace mfem
+ {
+@@ -469,7 +472,10 @@ template<class B, class R> struct reduction_kernel
+ #if defined(__GNUC__) || defined(__clang__)
+       return N ? (sizeof(unsigned) * 8 - __builtin_clz(N)) : 0;
+ #elif defined(_MSC_VER)
+-      return sizeof(unsigned) * 8 - __lzclz(N);
++      // 4AIAD: "__lzclz" is not an MSVC intrinsic; _BitScanReverse gives the same result
++      // (index of the highest set bit + 1, or 0 for N == 0) on every x64 CPU.
++      unsigned long highest = 0;
++      return _BitScanReverse(&highest, N) ? static_cast<int>(highest) + 1 : 0;
+ #else
+       int res = 0;
+       while (N)
+diff --git a/linalg/kernels.hpp b/linalg/kernels.hpp
+index 2083d00..38a0f44 100644
+--- a/linalg/kernels.hpp
++++ b/linalg/kernels.hpp
+@@ -563,7 +563,8 @@ void Swap(T &a, T &b)
+    b = tmp;
+ }
+ 
+-const real_t Epsilon = std::numeric_limits<real_t>::epsilon();
++// 4AIAD: constexpr so nvcc (MSVC host) accepts it in device code.
++constexpr real_t Epsilon = std::numeric_limits<real_t>::epsilon();
+ 
+ /// Utility function used in CalcSingularvalue<3>.
+ MFEM_HOST_DEVICE static inline

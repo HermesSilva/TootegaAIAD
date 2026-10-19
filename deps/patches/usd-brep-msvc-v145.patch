@@ -1,0 +1,26 @@
+diff --git a/premake5-public.lua b/premake5-public.lua
+index 54643aa..046f309 100644
+--- a/premake5-public.lua
++++ b/premake5-public.lua
+@@ -165,4 +165,6 @@ function setup_msvc_toolchain()
+     end
+     -- SDK and toolset follow the host install and msbuild.vs_version, rather than pinned here.
+     systemversion "latest"
++    -- TEMP Tootega AIAD: force the MSVC v145 toolset (VS 18); premake's vs2022 action defaults to v143.
++    toolset "msc-v145"
+ end
+diff --git a/repo.toml b/repo.toml
+index f3eb399..ee5f9cd 100644
+--- a/repo.toml
++++ b/repo.toml
+@@ -61,7 +61,9 @@ msbuild.sln_file = "usd-brep.sln"
+ # Use the host-installed Visual Studio / Windows SDK instead of the packman msvc and
+ # winsdk packages. If discovery fails, set msbuild.vs_path / msbuild.winsdk_path here.
+ msbuild.link_host_toolchain = true
+-msbuild.vs_version = "vs2019"  # "vs2019" | "vs2022" | "" (vswhere); pinned to match Kit (MSVC 14.2x)
++msbuild.vs_version = "vs18"  # TEMP Tootega AIAD: VS 18 / MSVC v145 (repo_build maps vs18 -> premake vs2022 + toolset v145); original: "vs2019"
++msbuild.msbuild_version = "18"  # TEMP Tootega AIAD: excludes SSMS 21 and VS 2022 BuildTools from vswhere discovery
++msbuild.winsdk_path = "D:/Tootega/Source/TootegaAIAD/deps/_toolchain/winsdk/10.0.26100.0"  # TEMP Tootega AIAD: junction to the SDK bin dir; packman rejects "(" in "Program Files (x86)"
+ 
+ # ABI=1 in premake since 107.0:
+ premake.linux_x86_64_cxx_abi = true

@@ -1,0 +1,42 @@
+{
+  "release": "deps-2026.10.19",
+  "repo": "HermesSilva/TootegaAIAD",
+  "origin": "D:/Tootega/Source/TootegaAIAD/deps",
+  "packages": [
+    {
+      "name": "openusd-static",
+      "path": "static/release",
+      "file": "aiad-deps-openusd-static.7z",
+      "size": 173994630,
+      "sha256": "24a4fe40469b530d71e5e0e76abe69f2c844de4bf966d68fdf54553b0b823d06"
+    },
+    {
+      "name": "usd-brep",
+      "path": "usd-brep/1.0.0-v145-static",
+      "file": "aiad-deps-usd-brep.7z",
+      "size": 27886431,
+      "sha256": "f10b75ebe5f468da67bdb38aca8c9e497b9caf3f507897159270cb089d4b3540"
+    },
+    {
+      "name": "mfem-cuda-double",
+      "path": "mfem/4.10-cuda13.3-v145-double",
+      "file": "aiad-deps-mfem-cuda-double.7z",
+      "size": 34110146,
+      "sha256": "63d46a47b0574586244fa3ce3e351548b57d5c8d4f9175cd0069038e32ee5a97"
+    },
+    {
+      "name": "chrono-static",
+      "path": "chrono/10.0.0-static",
+      "file": "aiad-deps-chrono-static.7z",
+      "size": 27477116,
+      "sha256": "5cac6af4d9f6c32fc8d25a85ca7d281c6bff27574148d04b5ffa3e6b97f906a0"
+    },
+    {
+      "name": "aurora-externals",
+      "path": "_externals/aurora",
+      "file": "aiad-deps-aurora-externals.7z",
+      "size": 229774077,
+      "sha256": "577c2e2397b32c2ccbe9eae345e889041096c1ed64c587f681b023bd5fd3199a"
+    }
+  ]
+}

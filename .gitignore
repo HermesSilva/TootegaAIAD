@@ -1,0 +1,39 @@
+# Build outputs
+/Dist/
+/src/_build/
+/src/**/_build/
+/spikes/**/_build/
+/spikes/**/_work/
+*.log
+
+# Agent conversations and editor state
+/.cockpit/
+/.vscode/
+
+# Dependencies: only the scripts, patches, manifest and the small pinned sources are versioned.
+# Prebuilt packages come from the GitHub release (deps/fetch-prebuilt.ps1); forks and the small
+# source libraries are git submodules (.gitmodules).
+/deps/*
+!/deps/README.md
+!/deps/prebuilt.json
+!/deps/fetch-prebuilt.ps1
+!/deps/pack-prebuilt.ps1
+!/deps/patches/
+!/deps/forks/
+/deps/forks/*
+!/deps/forks/aurora-4AIAD
+!/deps/forks/libceed-4AIAD
+!/deps/forks/palace-4AIAD
+!/deps/_src/
+/deps/_src/*
+!/deps/_src/*.bat
+!/deps/_src/imgui
+!/deps/_src/implot
+!/deps/_src/eigen
+!/deps/_src/nlohmann_json/
+!/deps/_externals/
+/deps/_externals/*
+!/deps/_externals/aurora/
+/deps/_externals/aurora/*
+!/deps/_externals/aurora/*.bat
+!/deps/_externals/aurora/*.version.txt

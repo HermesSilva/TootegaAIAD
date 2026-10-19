@@ -1,0 +1,1 @@
+00001:https://github.com/shader-slang/slang/releases/download/v2026.14.1/slang-2026.14.1-windows-x86_64.zip

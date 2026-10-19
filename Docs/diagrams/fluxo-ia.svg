@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1596 1868" width="1596" height="1868" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>Tootega AIAD — Sequência de um pedido à IA</title>
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#37474F"/></marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#78909C"/></marker>
+    <marker id="ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6A1B9A"/></marker>
+    <marker id="at" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#00796B"/></marker>
+    <marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C2185B"/></marker>
+    <style>
+      .h  { font-size: 24px; font-weight: 700; fill: #263238; }
+      .sh { font-size: 13px; fill: #546E7A; }
+      .hn { font-size: 13.5px; font-weight: 700; fill: #263238; }
+      .hs { font-size: 11px; fill: #546E7A; }
+      .pt { font-size: 12.5px; font-weight: 700; fill: #455A64; }
+      .ml { font-size: 12px; fill: #263238; paint-order: stroke; stroke: #FFFFFF; stroke-width: 4px; }
+      .cs { font-size: 11px; fill: #546E7A; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1596" height="1868" fill="#FAFBFC"/>
+  <text x="20" y="38" class="h">Tootega AIAD — Sequência de um pedido à IA</text>
+  <text x="1576" y="38" class="sh" text-anchor="end">exemplo: “flange Ø120 com 6 furos” · provedor inicial = Claude Code CLI</text>
+  <rect x="14" y="150" width="1568" height="222" rx="8" fill="#FFFFFF" stroke="#E0E6EA"/>
+  <text x="26" y="169" class="pt">1 · Pedido</text>
+  <rect x="14" y="410" width="1568" height="262" rx="8" fill="#F1F4F6" stroke="#E0E6EA"/>
+  <text x="26" y="429" class="pt">2 · Leitura de contexto</text>
+  <rect x="14" y="710" width="1568" height="262" rx="8" fill="#FFFFFF" stroke="#E0E6EA"/>
+  <text x="26" y="729" class="pt">3 · Permissão (humano no circuito)</text>
+  <rect x="14" y="1010" width="1568" height="310" rx="8" fill="#F1F4F6" stroke="#E0E6EA"/>
+  <text x="26" y="1029" class="pt">4 · Mutação</text>
+  <rect x="14" y="1358" width="1568" height="222" rx="8" fill="#FFFFFF" stroke="#E0E6EA"/>
+  <text x="26" y="1377" class="pt">5 · Verificação visual</text>
+  <rect x="14" y="1618" width="1568" height="142" rx="8" fill="#F1F4F6" stroke="#E0E6EA"/>
+  <text x="26" y="1637" class="pt">6 · Fechamento</text>
+  <line x1="110" y1="120" x2="110" y2="1808" stroke="#455A64" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.7"/>
+  <rect x="32" y="64" width="156" height="56" rx="8" fill="#ECEFF1" stroke="#455A64" stroke-width="1.6"/>
+  <text x="110" y="88" class="hn" text-anchor="middle">Usuário</text>
+  <text x="110" y="106" class="hs" text-anchor="middle">designer</text>
+  <line x1="282" y1="120" x2="282" y2="1808" stroke="#1565C0" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.7"/>
+  <rect x="204" y="64" width="156" height="56" rx="8" fill="#E3F2FD" stroke="#1565C0" stroke-width="1.6"/>
+  <text x="282" y="88" class="hn" text-anchor="middle">Painel Chat</text>
+  <text x="282" y="106" class="hs" text-anchor="middle">aiad_ui</text>
+  <line x1="454" y1="120" x2="454" y2="1808" stroke="#8E24AA" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.7"/>
+  <rect x="376" y="64" width="156" height="56" rx="8" fill="#F3E5F5" stroke="#8E24AA" stroke-width="1.6"/>
+  <text x="454" y="88" class="hn" text-anchor="middle">Motor de IA</text>
+  <text x="454" y="106" class="hs" text-anchor="middle">aiad_ai</text>
+  <line x1="626" y1="120" x2="626" y2="1808" stroke="#5E35B1" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.7"/>
+  <rect x="548" y="64" width="156" height="56" rx="8" fill="#EDE7F6" stroke="#5E35B1" stroke-width="1.6"/>
+  <text x="626" y="88" class="hn" text-anchor="middle">Claude Code CLI</text>
+  <text x="626" y="106" class="hs" text-anchor="middle">processo externo</text>
+  <line x1="798" y1="120" x2="798" y2="1808" stroke="#00796B" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.7"/>
+  <rect x="720" y="64" width="156" height="56" rx="8" fill="#E0F2F1" stroke="#00796B" stroke-width="1.6"/>
+  <text x="798" y="88" class="hn" text-anchor="middle">aiad-mcp.exe</text>
+  <text x="798" y="106" class="hs" text-anchor="middle">processo externo</text>
+  <line x1="970" y1="120" x2="970" y2="1808" stroke="#00796B" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.7"/>
+  <rect x="892" y="64" width="156" height="56" rx="8" fill="#E0F2F1" stroke="#00796B" stroke-width="1.6"/>
+  <text x="970" y="88" class="hn" text-anchor="middle">Agent Bridge</text>
+  <text x="970" y="106" class="hs" text-anchor="middle">aiad_bridge</text>
+  <line x1="1142" y1="120" x2="1142" y2="1808" stroke="#EF6C00" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.7"/>
+  <rect x="1064" y="64" width="156" height="56" rx="8" fill="#FFF3E0" stroke="#EF6C00" stroke-width="1.6"/>
+  <text x="1142" y="88" class="hn" text-anchor="middle">Command Bus</text>
+  <text x="1142" y="106" class="hs" text-anchor="middle">aiad_cmd</text>
+  <line x1="1314" y1="120" x2="1314" y2="1808" stroke="#2E7D32" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.7"/>
+  <rect x="1236" y="64" width="156" height="56" rx="8" fill="#E8F5E9" stroke="#2E7D32" stroke-width="1.6"/>
+  <text x="1314" y="88" class="hn" text-anchor="middle">Documento + Kernel</text>
+  <text x="1314" y="106" class="hs" text-anchor="middle">aiad_doc · SMLib</text>
+  <line x1="1486" y1="120" x2="1486" y2="1808" stroke="#C2185B" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.7"/>
+  <rect x="1408" y="64" width="156" height="56" rx="8" fill="#FCE4EC" stroke="#C2185B" stroke-width="1.6"/>
+  <text x="1486" y="88" class="hn" text-anchor="middle">Render</text>
+  <text x="1486" y="106" class="hs" text-anchor="middle">Hydra · D3D12</text>
+  <line x1="110" y1="194" x2="279" y2="194" stroke="#37474F" stroke-width="1.7" marker-end="url(#ar)"/>
+  <text x="196" y="188" class="ml" text-anchor="middle">“flange Ø120 com 6 furos M8 no círculo de 90”</text>
+  <line x1="282" y1="234" x2="451" y2="234" stroke="#37474F" stroke-width="1.7" marker-end="url(#ar)"/>
+  <text x="368" y="228" class="ml" text-anchor="middle">Send(prompt + contexto: seleção, unidades, doc ativo)</text>
+  <line x1="454" y1="274" x2="623" y2="274" stroke="#6A1B9A" stroke-width="1.7" marker-end="url(#ap)"/>
+  <text x="540" y="268" class="ml" text-anchor="middle">stdin: {type:"user", message} — stream-json</text>
+  <line x1="626" y1="314" x2="457" y2="314" stroke="#6A1B9A" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#ap)"/>
+  <text x="540" y="308" class="ml" text-anchor="middle">stdout: stream_event / assistant (texto, thinking, tool_use)</text>
+  <line x1="454" y1="354" x2="285" y2="354" stroke="#78909C" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#ag)"/>
+  <text x="368" y="348" class="ml" text-anchor="middle">timeline em streaming (token a token)</text>
+  <line x1="626" y1="454" x2="795" y2="454" stroke="#00796B" stroke-width="1.7" marker-end="url(#at)"/>
+  <text x="712" y="448" class="ml" text-anchor="middle">MCP tools/call aiad_get_scene</text>
+  <line x1="798" y1="494" x2="967" y2="494" stroke="#00796B" stroke-width="1.7" marker-end="url(#at)"/>
+  <text x="884" y="488" class="ml" text-anchor="middle">POST /bridge {method:"GetScene"}</text>
+  <line x1="970" y1="534" x2="1139" y2="534" stroke="#37474F" stroke-width="1.7" marker-end="url(#ar)"/>
+  <text x="1056" y="528" class="ml" text-anchor="middle">enfileira na main thread (future + timeout)</text>
+  <line x1="1142" y1="574" x2="1311" y2="574" stroke="#37474F" stroke-width="1.7" marker-end="url(#ar)"/>
+  <text x="1228" y="568" class="ml" text-anchor="middle">comando readOnly: lê o stage composto</text>
+  <line x1="1314" y1="614" x2="1145" y2="614" stroke="#78909C" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#ag)"/>
+  <text x="1228" y="608" class="ml" text-anchor="middle">árvore, features, unidades, issues</text>
+  <line x1="1142" y1="654" x2="629" y2="654" stroke="#78909C" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#ag)"/>
+  <text x="884" y="648" class="ml" text-anchor="middle">resultado (texto/JSON) volta pela mesma rota</text>
+  <line x1="626" y1="754" x2="457" y2="754" stroke="#6A1B9A" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#ap)"/>
+  <text x="540" y="748" class="ml" text-anchor="middle">control_request can_use_tool (aiad_feature_create)</text>
+  <line x1="454" y1="794" x2="285" y2="794" stroke="#37474F" stroke-width="1.7" marker-end="url(#ar)"/>
+  <text x="368" y="788" class="ml" text-anchor="middle">PermissionBroker → modal com nome + parâmetros</text>
+  <line x1="282" y1="834" x2="113" y2="834" stroke="#37474F" stroke-width="1.7" marker-end="url(#ar)"/>
+  <text x="196" y="828" class="ml" text-anchor="middle">Permitir · Negar · Sempre permitir</text>
+  <line x1="110" y1="874" x2="279" y2="874" stroke="#78909C" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#ag)"/>
+  <text x="196" y="868" class="ml" text-anchor="middle">Permitir</text>
+  <line x1="282" y1="914" x2="451" y2="914" stroke="#78909C" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#ag)"/>
+  <text x="368" y="908" class="ml" text-anchor="middle">decisão</text>
+  <line x1="454" y1="954" x2="623" y2="954" stroke="#6A1B9A" stroke-width="1.7" marker-end="url(#ap)"/>
+  <text x="540" y="948" class="ml" text-anchor="middle">stdin: control_response {behavior:"allow"}</text>
+  <line x1="626" y1="1054" x2="795" y2="1054" stroke="#00796B" stroke-width="1.7" marker-end="url(#at)"/>
+  <text x="712" y="1048" class="ml" text-anchor="middle">tools/call aiad_feature_create {revolve, hole_pattern…}</text>
+  <line x1="798" y1="1094" x2="967" y2="1094" stroke="#00796B" stroke-width="1.7" marker-end="url(#at)"/>
+  <text x="884" y="1088" class="ml" text-anchor="middle">POST /bridge {method, args}</text>
+  <line x1="970" y1="1134" x2="1139" y2="1134" stroke="#37474F" stroke-width="1.7" marker-end="url(#ar)"/>
+  <text x="1056" y="1128" class="ml" text-anchor="middle">Execute(cmd, args) na main thread</text>
+  <line x1="1142" y1="1174" x2="1311" y2="1174" stroke="#37474F" stroke-width="1.7" marker-end="url(#ar)"/>
+  <text x="1228" y="1168" class="ml" text-anchor="middle">transação + regen do histórico (SMLib: booleana, padrão)</text>
+  <line x1="1314" y1="1214" x2="1483" y2="1214" stroke="#37474F" stroke-width="1.7" marker-end="url(#ar)"/>
+  <text x="1400" y="1208" class="ml" text-anchor="middle">UsdNotice: prims mudaram</text>
+  <path d="M1486,1246 L1530,1246 L1530,1268 L1490,1268" fill="none" stroke="#C2185B" stroke-width="1.7" marker-end="url(#ak)"/>
+  <text x="1478" y="1260" class="ml" text-anchor="end">tesselar → UsdGeomMesh → redraw (D3D12)</text>
+  <line x1="1142" y1="1302" x2="629" y2="1302" stroke="#78909C" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#ag)"/>
+  <text x="884" y="1296" class="ml" text-anchor="middle">ok + ids criados + issues de validação + entrada no undo</text>
+  <line x1="626" y1="1402" x2="795" y2="1402" stroke="#00796B" stroke-width="1.7" marker-end="url(#at)"/>
+  <text x="712" y="1396" class="ml" text-anchor="middle">tools/call aiad_viewport_snapshot {view:"iso"}</text>
+  <line x1="798" y1="1442" x2="967" y2="1442" stroke="#00796B" stroke-width="1.7" marker-end="url(#at)"/>
+  <text x="884" y="1436" class="ml" text-anchor="middle">POST /bridge {method:"Snapshot"}</text>
+  <line x1="970" y1="1482" x2="1139" y2="1482" stroke="#37474F" stroke-width="1.7" marker-end="url(#ar)"/>
+  <text x="1056" y="1476" class="ml" text-anchor="middle">Execute("view.snapshot") na main thread</text>
+  <line x1="1142" y1="1522" x2="1483" y2="1522" stroke="#37474F" stroke-width="1.7" marker-end="url(#ar)"/>
+  <text x="1314" y="1516" class="ml" text-anchor="middle">comando de view → render target offscreen → PNG</text>
+  <line x1="1486" y1="1562" x2="629" y2="1562" stroke="#78909C" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#ag)"/>
+  <text x="1056" y="1556" class="ml" text-anchor="middle">imagem PNG (content image) — a IA confere o resultado</text>
+  <line x1="626" y1="1662" x2="457" y2="1662" stroke="#6A1B9A" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#ap)"/>
+  <text x="540" y="1656" class="ml" text-anchor="middle">result {usage, total_cost_usd, num_turns}</text>
+  <line x1="454" y1="1702" x2="285" y2="1702" stroke="#78909C" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#ag)"/>
+  <text x="368" y="1696" class="ml" text-anchor="middle">resumo + contexto / cache / custo atualizados</text>
+  <line x1="282" y1="1742" x2="113" y2="1742" stroke="#78909C" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#ag)"/>
+  <text x="196" y="1736" class="ml" text-anchor="middle">modelo pronto · Ctrl+Z desfaz cada passo da IA</text>
+  <line x1="20" y1="1834" x2="80" y2="1834" stroke="#37474F" stroke-width="1.8" marker-end="url(#ar)"/>
+  <text x="90" y="1838" class="sh">chamada em processo</text>
+  <line x1="243" y1="1834" x2="303" y2="1834" stroke="#78909C" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#ag)"/>
+  <text x="313" y="1838" class="sh">retorno</text>
+  <line x1="382" y1="1834" x2="442" y2="1834" stroke="#6A1B9A" stroke-width="1.8" marker-end="url(#ap)"/>
+  <text x="452" y="1838" class="sh">stdin/stdout do provedor (stream-json)</text>
+  <line x1="738" y1="1834" x2="798" y2="1834" stroke="#00796B" stroke-width="1.8" marker-end="url(#at)"/>
+  <text x="808" y="1838" class="sh">MCP stdio / HTTP aiad-bridge/1</text>
+  <text x="1576" y="1854" class="cs" text-anchor="end">Tootega Pesquisa e Inovação · plano v0.4 · 2026-10-18</text>
+</svg>

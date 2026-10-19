@@ -1,0 +1,1 @@
+00001:https://github.com/syoyo/tinyexr/archive/refs/tags/v1.0.13.zip

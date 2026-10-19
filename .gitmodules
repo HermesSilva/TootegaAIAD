@@ -1,0 +1,21 @@
+[submodule "deps/forks/aurora-4AIAD"]
+	path = deps/forks/aurora-4AIAD
+	url = https://github.com/HermesSilva/aurora-4AIAD.git
+	branch = main-4AIAD
+[submodule "deps/forks/libceed-4AIAD"]
+	path = deps/forks/libceed-4AIAD
+	url = https://github.com/HermesSilva/libceed-4AIAD.git
+	branch = main-4AIAD
+[submodule "deps/forks/palace-4AIAD"]
+	path = deps/forks/palace-4AIAD
+	url = https://github.com/HermesSilva/palace-4AIAD.git
+	branch = main-4AIAD
+[submodule "deps/_src/imgui"]
+	path = deps/_src/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "deps/_src/implot"]
+	path = deps/_src/implot
+	url = https://github.com/epezent/implot.git
+[submodule "deps/_src/eigen"]
+	path = deps/_src/eigen
+	url = https://gitlab.com/libeigen/eigen.git
