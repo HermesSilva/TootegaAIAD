@@ -33,7 +33,8 @@ their documents:
 |------|------|
 | Parametric OpenUSD document: design parameters + formulas, materials, rigid bodies, B-rep parts with feature history, joints (UsdPhysics) and machine elements | edges/silhouettes in the viewport |
 | Generic machine simulation: Chrono mechanism + gear/belt/rack couplings, cam and rocker contacts, coil and spiral springs, outlines that touch (escapements), stops, loads, timed motors; oscillations reported (amplitude, frequency, beats per hour) | hollow pipes (exhaust/intake) |
-| Watch scale: an imported ETA 6497 movement (STEP) ticks: escapement, balance at 18,000 vph and about 158° of amplitude, the train turning; its regulator is set by hand and changes the rate (±2.3 min/day); its hands can start at the computer's local time | the keyless works (winding stem: pull out and turn the crown) are not drawn as a mechanism yet; the drawn gear train turns the hands 600 / 411.6 times too fast (the 6497's train is 600 : 1 from the escape wheel to the centre wheel) |
+| Watch scale: an imported ETA 6497 movement (STEP) ticks: escapement, balance at about 18,470 vph (rated 18,000) and about 158° of amplitude, the train turning; its regulator is set by hand and changes the rate (±2.3 min/day); its hands can start at the computer's local time | the keyless works (winding stem: pull out and turn the crown) are not drawn as a mechanism yet; the watch gains about 37 min/day with the regulator centred, and the drawn train turns the seconds hand at about 1.2 rpm instead of 1 rpm |
+| Measuring instruments with ideal probes (they read the solver and change nothing): tachometer, timegrapher (vph, beat error, amplitude, rate), manometer, thermometer, protractor, dial indicator, force/torque gauge, voltmeter, accelerometer, timer/counter, universal meter, chart recorder; seven-segment panels with statistics, unit, decimals, gate and chart; marks in the view; read by the agent | probes on a point of a body (today: joints and elements) |
 | Parts set by hand (adjusters): recognised from the drawing (a joint with a range that nothing drives), held while the machine runs, moved with a lever or slider on the part | hand-driven inputs while running (a crown, a crank) |
 | Domain elements tied to the drawing: 0D Otto cycle chamber (bore, chamber volume and valves measured on the parts), 2D magneto (MFEM on the drawn magnet and core) → spark | valve–piston clash check; bevel/crossed gears |
 | The simulator's critique with a fix for every problem; everything it measured is listed | turbine and flow studies as document entities (next) |
@@ -41,6 +42,68 @@ their documents:
 | A UI that never waits: the live simulation on its own thread, the view updated in slices, agent commands computed off the UI thread, the magneto field table on every core | simulation speed: one step depends on the last, so a machine runs on one core (real time is reached: about 1.75x for the OHC engine, 1.0x for the OHV one on this 22-core desktop) |
 | AI layer at Cockpit level: hub, tabbed sessions, permissions, questions, plans, usage/cost | |
 | MCP server (`aiad-mcp.exe`) with the catalogue generated from the Command Bus + a skill for the agent | |
+
+## A watch that ticks
+
+![An ETA 6497 movement imported from STEP, cut open, running in the simulator with its hands at the local time](Docs/images/watch.png)
+
+The hardest test of the simulator is not the engine: it is a hand-wound **ETA 6497** pocket-watch movement
+imported from STEP (101 parts, no sketches, no feature history). The document only adds what a watchmaker
+knows: which parts form a body, where the arbors are (joints), which wheels mesh, which spirals are the
+mainspring and the hairspring, and which outlines touch. Everything else is measured on the imported solids.
+It now ticks: the mainspring drives the train, the escape wheel pushes the pallet fork, the fork kicks the
+balance, the balance swings on its hairspring and lets the train advance one tooth per beat. The hands start
+at the computer's local time.
+
+What it took to make it run right:
+
+| Problem | What was done |
+|---------|---------------|
+| **Scale.** A balance wheel's inertia is about 1e-11 kg m², a beat lasts 0.2 s, the impulse lasts a few ms. Fixed floors and stiffnesses tuned for an engine either froze the watch or made it explode | nothing in the mechanism has an absolute floor near those values: inertia floors, effective masses and coupling shafts are relative, and the contact stiffness of every touch comes from the masses it joins (a fixed contact frequency), never a fixed N/m |
+| **The escapement is geometry.** The escape wheel's teeth, the pallet stones, the impulse pin, the fork horns and the guard pin interact only through their shapes | `touch`: the outlines of two parts are cut from their solids at the height they share (fine tessellation, no sketch needed) and collide in the plane of their arbors |
+| **Springs come from the drawing.** The rate depends on the hairspring's strip, the power on the mainspring's | `torsion` measures the strip (thickness, height, active length) on the section of the drawn or imported spiral and takes its elastic modulus from the material; the regulator's index pins (`holder`) shorten the working length |
+| **The kernel fought back.** SMLib's mass integration changed the brep it measured (a hairspring's section lost 7 points in 8); rebuilding the trim curves of imported spline faces cost about 10 s per toothed wheel; booleans on flush faces read out of bounds | mass is integrated on a copy; mass and bounds are saved with each part (keyed by a fingerprint of its solid), fixed bodies need none; the boolean catches the fault and reports it |
+| **Load and size.** 70 s to open, 27 MB of text | the design in text (`.usda`, 0.16 MB) and the exact geometry in binary (`.geom.usdc`, 8.6 MB, OpenUSD payload); it opens in about 16 s with a progress bar and ETA |
+| **Speed.** A watch needs steps of tens of µs for seconds of motion | the live run reaches about 0.8–0.9x real time on one core, with the UI never waiting |
+| **Setting it.** A real watch is regulated by hand | the regulator is recognised as an adjuster (a joint with a range that nothing drives): a lever on the part moves it, and the rate follows (±0.15 rad ≈ ±2.3 min/day) |
+
+The instruments below say where it still differs from the real movement: the balance beats at about
+18,470 vph with about 158° of amplitude and a beat error of 0.25 ms (the 6497 is rated 18,000 vph: with the
+regulator centred it gains about 37 min/day, so the hairspring or the index pins are not yet as drawn by ETA),
+and the seconds hand averages about 1.2 rpm instead of 1 rpm (the drawn train does not have the 6497's ratios
+yet). The keyless works (pull the crown out and turn it) are not a mechanism yet.
+
+## Measuring instruments
+
+![Instruments plugged into the watch: timegrapher, seconds-hand tachometer, fork protractor, beat timer and mainspring torque gauge](Docs/images/watch_instruments.png)
+
+Instruments are document entities (`/Root/Instruments`) plugged into the machine with ideal probes: they
+read the solver at every step and change nothing. Right-click a part in the view (or in the tree): the menu
+lists the joints that move it and the elements that use it, each with the instruments that can read it.
+A seconds hand: its arbor, then the tachometer. View > Instruments shows and hides them; the agent plugs and
+reads them through MCP (`aiad_instrument_define`, `aiad_instrument_read`).
+
+| Instrument | Reads |
+|------------|-------|
+| TC-1 tachometer | speed of a joint (rpm, rad/s, Hz...) |
+| OA-1 oscillation analyzer (timegrapher) | beat rate (vph), period, beat error, amplitude, centre and rate in s/day against a reference |
+| MN-1 manometer, TH-1 thermometer | chamber pressure and gas temperature |
+| PR-1 protractor, DI-1 dial indicator | angle or displacement of a joint |
+| FG-1 force and torque gauge | contact, spring and touch forces, spiral torques |
+| VM-1 voltmeter | magneto primary and spark voltage |
+| AC-1 accelerometer | joint acceleration |
+| TI-1 timer and counter | interval, frequency, count or stopwatch between crossings (rise, fall, both), interpolated between steps |
+| MM-1 universal meter, CR-1 chart recorder | any channel, any dimension |
+
+Each panel is a bench instrument: a seven-segment main reading, secondary readouts (min, max, mean, and
+what the type adds), HOLD and RESET, unit, number of decimals, gate (live or averaged over 0.1 s to 10 s) and
+a chart of the last 0.5 s to 2 min (any window through the command; min/max band and mean). In the view, each probe is marked with the
+instrument's colour and its reading.
+
+![Instruments on the OHV engine: crankshaft tachometer, cylinder manometer, spark voltmeter and intake valve dial indicator](Docs/images/engine_instruments.png)
+
+On the OHV engine: about 3,190 rpm, 145.7 bar peak pressure, a 27 kV spark at every cycle and 7.4 mm of
+intake valve lift.
 
 ## What it does and how
 
@@ -67,10 +130,11 @@ It opens with no document.
 
 | Window | What it does |
 |--------|--------------|
-| **Viewport** | path-traced model. Click selects a part; **left drag** (or the middle button) pans; **Alt + left**, **Space + left** or middle + right rotates; wheel zooms. A selected part that is set by hand shows its control on it: a lever (it turns) or a slider (it slides) |
+| **Viewport** | path-traced model. Click selects a part; **right click** on a part: what can be measured on it (the joints that move it, the elements that use it) and the instruments that read it; **left drag** (or the middle button) pans; **Alt + left**, **Space + left** or middle + right rotates; the wheel zooms on the point under the cursor, from 0.1 mm to 50 m. A selected part that is set by hand shows its control on it: a lever (it turns) or a slider (it slides) |
 | **Specification Tree** / **Properties** | bodies and parts, joints, elements; material, mass, volume, features and parameters of the selected part; **Set by hand** for an adjuster |
 | **Study** | the simulator's findings (each with its fix), or the machine summary and what was measured on the drawing; design parameters (values or formulas) |
 | **Simulation** | runs the machine live at the chosen time scale (shows the speed reached when the computer cannot keep up): every joint (position and speed), chambers (pressure, volume, combustions), magnetos |
+| **Instruments** (one panel each) | plugged with a right click on a part in the view or in the tree, or on a joint or element in the tree; a seven-segment display with the main reading, secondary readouts (min/max/mean, beat error, amplitude...), HOLD, RESET, unit, decimals, gate (averaging), chart window and the chart; View > Instruments shows and hides them |
 | **Plots** | any channel (joint speed or position, chamber pressure and volume, spark voltage, contact and spring forces) against time or a joint's angle; p-V loops |
 | **History** | Command Bus history; **Ctrl+Z / Ctrl+Y** undo and redo any command, the AI's included |
 | **AI Hub** | Claude Code sessions, usage and limits, MCP servers, skills, plugins, credential vault, settings; **+ New session** opens a chat tab |
@@ -161,6 +225,7 @@ of 27 MB of text. Older single-file documents open as they are and are split on 
   - the simulator's critique (`aiad_mechanism_check`), runs (`aiad_mechanism_run`, background jobs with
     `aiad_sim_run`);
   - adjusters (`aiad_adjust`);
+  - measuring instruments (`aiad_instrument_define`, `aiad_instrument_read`...);
   - visibility, selection, camera, viewport snapshot;
   - save, undo/redo.
 - The AI is just another operator: everything it does shows up in the history, goes through permissions
@@ -250,6 +315,7 @@ are:
 | Eigen | 3.4.1 | MPL-2.0 | submodule |
 | Dear ImGui (docking) / ImPlot | v1.92.9-docking / v1.0 | MIT | submodules |
 | nlohmann/json | 3.12.0 | MIT | in the repository (`deps/_src/nlohmann_json`) |
+| DSEG7 Classic (seven-segment font of the instruments; keshikan, from RTR-Bench) | as in RTR-Bench | SIL OFL 1.1 | in the repository (`src/aiad_app/fonts`), embedded in `aiad.exe` |
 | libCEED | fork [libceed-4AIAD](https://github.com/HermesSilva/libceed-4AIAD) | BSD-2 | submodule (ThirdParty) |
 | Palace | fork [palace-4AIAD](https://github.com/HermesSilva/palace-4AIAD) | Apache-2.0 | submodule (ThirdParty; needs the MS-MPI SDK and LLVM `flang`) |
 

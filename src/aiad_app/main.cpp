@@ -10,6 +10,7 @@
 #include "AppCommands.h"
 #include "DocCommands.h"
 #include "DocumentScene.h"
+#include "InstrumentPanels.h"
 #include "Session.h"
 #include "MainThreadQueue.h"
 #include "Paths.h"
@@ -74,6 +75,16 @@ bool UserCommand(const std::string& name, const Json& args)
     if (!out.ok)
         g_lastError = out.error;
     return out.ok;
+}
+const app::RunCommand RunUserCommand = [](const std::string& name, const Json& args) { return UserCommand(name, args); };
+
+// A font embedded in the executable (aiad.rc): its bytes, or null.
+const void* EmbeddedFont(const wchar_t* name, int& size)
+{
+    HRSRC found = FindResourceW(nullptr, name, MAKEINTRESOURCEW(10));   // RT_RCDATA
+    HGLOBAL loaded = found ? LoadResource(nullptr, found) : nullptr;
+    size = found ? int(SizeofResource(nullptr, found)) : 0;
+    return loaded ? LockResource(loaded) : nullptr;
 }
 
 std::vector<uint8_t> EncodePng(const render::ViewportImage& image)
@@ -403,6 +414,12 @@ void SpecificationTree(Session& session, int& selected)
                     ImGui::TreeNodeEx(parts[i].name.c_str(), flags);
                     if (ImGui::IsItemClicked())
                         selected = int(i);
+                    if (ImGui::BeginPopupContextItem("measure"))   // right click: what can be measured on it
+                    {
+                        selected = int(i);
+                        app::MeasurePartMenu(session, parts[i].name, parts[i].body, RunUserCommand);
+                        ImGui::EndPopup();
+                    }
                     ImGui::PopID();
                 }
                 ImGui::TreePop();
@@ -414,8 +431,18 @@ void SpecificationTree(Session& session, int& selected)
         if (!joints.empty() && ImGui::TreeNodeEx(std::format("Joints ({})", joints.size()).c_str(), 0))
         {
             for (const doc::JointInfo& j : joints)
+            {
                 ImGui::BulletText("%s: %s, %s - %s%s", j.name.c_str(), j.type.c_str(), j.body0.c_str(), j.body1.empty() ? "ground" : j.body1.c_str(),
                                   j.motor.is_null() ? "" : ", motor");
+                // Right click: plug a measuring instrument into it.
+                const std::string popup = "plug:joint:" + j.name;
+                ImGui::OpenPopupOnItemClick(popup.c_str(), ImGuiPopupFlags_MouseButtonRight);
+                if (ImGui::BeginPopup(popup.c_str()))
+                {
+                    app::PlugInstrumentMenu(session, "joint", j.name, j.type != "prismatic", RunUserCommand);
+                    ImGui::EndPopup();
+                }
+            }
             ImGui::TreePop();
         }
         const std::vector<doc::ElementInfo> elements = session.document->Elements();
@@ -426,6 +453,36 @@ void SpecificationTree(Session& session, int& selected)
                 ImGui::BulletText("%s: %s", e.name.c_str(), e.type.c_str());
                 if (ImGui::IsItemHovered())
                     ImGui::SetTooltip("%s", e.definition.dump(1).c_str());
+                const std::string popup = "plug:element:" + e.name;
+                ImGui::OpenPopupOnItemClick(popup.c_str(), ImGuiPopupFlags_MouseButtonRight);
+                if (ImGui::BeginPopup(popup.c_str()))
+                {
+                    app::PlugInstrumentMenu(session, e.type, e.name, true, RunUserCommand);
+                    ImGui::EndPopup();
+                }
+            }
+            ImGui::TreePop();
+        }
+        // The measuring instruments: shown or hidden.
+        const std::vector<doc::InstrumentInfo> instruments = session.document->Instruments();
+        if (!instruments.empty() && ImGui::TreeNodeEx(std::format("Instruments ({})", instruments.size()).c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            for (const doc::InstrumentInfo& i : instruments)
+            {
+                ImGui::PushID(i.name.c_str());
+                bool visible = i.definition.value("visible", true);
+                if (ImGui::Checkbox("##shown", &visible))
+                    UserCommand("aiad_instrument_show", {{"name", i.name}, {"visible", visible}});
+                ImGui::SameLine();
+                const doc::InstrumentType* t = doc::FindInstrumentType(i.type);
+                ImGui::Text("%s  %s", t ? t->model : "", i.name.c_str());
+                if (ImGui::BeginPopupContextItem("instrument"))
+                {
+                    if (ImGui::MenuItem("Delete"))
+                        UserCommand("aiad_instrument_delete", {{"name", i.name}});
+                    ImGui::EndPopup();
+                }
+                ImGui::PopID();
             }
             ImGui::TreePop();
         }
@@ -1386,6 +1443,14 @@ int main(int argc, char** argv)
         if (!fonts.regular)
             fonts.regular = fonts.bold = fonts.mono = io.Fonts->AddFontDefault();
         io.FontDefault = fonts.regular;
+        // The instruments' seven-segment digits (DSEG7, embedded).
+        int bytes = 0;
+        if (const void* data = EmbeddedFont(L"DSEG7", bytes))
+        {
+            ImFontConfig config;
+            config.FontDataOwnedByAtlas = false;
+            fonts.seven = io.Fonts->AddFontFromMemoryTTF(const_cast<void*>(data), bytes, fonts.size * 2.0f, &config);
+        }
     }
 
     // Command Bus + engine commands; loopback bridge for the agent's MCP server.
@@ -1546,6 +1611,11 @@ int main(int argc, char** argv)
         session.document->OnChanged = [&] {
             documentChanged = true;
             ++changeCount;
+        };
+        // Instruments observe the machine: changing one rebuilds them, not the machine.
+        session.document->OnInstrumentsChanged = [&] {
+            ++changeCount;
+            session.RebuildInstruments();
         };
         // The view is saved with the document (by the user or the agent) and found again when it is opened.
         session.document->OnSaving = [&] {
@@ -2049,6 +2119,11 @@ int main(int argc, char** argv)
                 bool section = sceneReady && session.scene->SectionView();
                 if (ImGui::MenuItem("Section View", nullptr, &section, sceneReady))
                     session.scene->SetSectionView(section);
+                if (ImGui::BeginMenu("Instruments", session.document != nullptr))
+                {
+                    app::InstrumentsMenu(session, RunUserCommand);
+                    ImGui::EndMenu();
+                }
                 ImGui::Separator();
                 if (ImGui::MenuItem("Reset Layout"))
                     layoutBuilt = false;
@@ -2146,7 +2221,8 @@ int main(int argc, char** argv)
                 session.scene->SetMotion(session.Motion());
                 session.scene->SetSparkVisible(session.SparkVisible(now));
                 session.scene->SetHighlight(selected);
-                viewport->SetCamera(camera.CameraToWorld(), camera.fovDeg, 0.005, 20.0);
+                // Clipping planes that follow the camera: a watch seen from a few millimetres, an engine from a metre.
+                viewport->SetCamera(camera.CameraToWorld(), camera.fovDeg, std::max(1e-6, camera.distance * 0.01), std::max(20.0, camera.distance * 100.0));
                 viewport->Render();
                 const ImVec2 imageMin = ImGui::GetCursorScreenPos();
                 ImGui::Image(ImTextureRef(ImTextureID(texture.Srv().ptr)), ImVec2(float(w), float(h)));
@@ -2154,6 +2230,18 @@ int main(int argc, char** argv)
                 DrawCompass(camera, imageMin, imageMax);
                 // A part set by hand: its control on it, which takes the pointer before the camera does.
                 const bool onControl = AdjusterControl(session, camera, selected, imageMin, imageMax);
+                // Where the visible instruments' probes read.
+                {
+                    const pxr::GfMatrix4d toWorld = session.scene->ModelToWorld(), toCamera = camera.CameraToWorld().GetInverse();
+                    const double tanHalf = std::tan(camera.fovDeg * kPi / 360.0), aspect = double(w) / double(h);
+                    app::DrawInstrumentMarks(session, [&](const GfVec3d& model, ImVec2& out) {
+                        const GfVec3d c = toCamera.Transform(toWorld.Transform(model));
+                        if (c[2] > -1e-9)
+                            return false;
+                        out = ImVec2(float(imageMin.x + (c[0] / (-c[2] * tanHalf * aspect) + 1.0) * 0.5 * w), float(imageMin.y + (1.0 - c[1] / (-c[2] * tanHalf)) * 0.5 * h));
+                        return true;
+                    }, fonts);
+                }
                 if (ImGui::IsItemHovered() && !onControl)
                 {
                     const bool mmb = ImGui::IsMouseDown(ImGuiMouseButton_Middle), rmb = ImGui::IsMouseDown(ImGuiMouseButton_Right);
@@ -2172,7 +2260,19 @@ int main(int argc, char** argv)
                                      io.MouseClickedPos[0].x >= imageMin.x && io.MouseClickedPos[0].x < imageMax.x &&
                                      io.MouseClickedPos[0].y >= imageMin.y && io.MouseClickedPos[0].y < imageMax.y))
                         camera.Pan(io.MouseDelta.x, io.MouseDelta.y, h);
-                    camera.distance = std::clamp(camera.distance * std::pow(0.88, io.MouseWheel), 0.05, 10.0);
+                    // The wheel zooms on the point under the cursor (it stays under it), from 0.1 mm (a watch's pivots) to 50 m.
+                    if (io.MouseWheel != 0.0f)
+                    {
+                        const double before = camera.distance;
+                        camera.distance = std::clamp(camera.distance * std::pow(0.85, io.MouseWheel), 1e-4, 50.0);
+                        GfVec3d origin, direction, right, up, back;
+                        camera.Ray((io.MousePos.x - imageMin.x) / w, (io.MousePos.y - imageMin.y) / h, double(w) / h, origin, direction);
+                        camera.Axes(right, up, back);
+                        // The cursor's point on the plane through the target, facing the camera.
+                        const double along = pxr::GfDot(camera.target - origin, -back) / std::max(1e-12, pxr::GfDot(direction, -back));
+                        const GfVec3d pointed = origin + direction * along;
+                        camera.target += (pointed - camera.target) * (1.0 - camera.distance / before);
+                    }
                     // Left click (no drag past the threshold, no Alt): select the part under the cursor.
                     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !io.KeyAlt && !space &&
                         ImGui::GetMouseDragDelta(ImGuiMouseButton_Left).x == 0 && ImGui::GetMouseDragDelta(ImGuiMouseButton_Left).y == 0)
@@ -2181,6 +2281,25 @@ int main(int argc, char** argv)
                         camera.Ray((io.MousePos.x - imageMin.x) / w, (io.MousePos.y - imageMin.y) / h, double(w) / h, origin, direction);
                         selected = session.scene->Pick(origin, direction).part;
                     }
+                    // Right click (no drag; middle + right turns the view): the part under the cursor, and what can be measured on it.
+                    if (ImGui::IsMouseReleased(ImGuiMouseButton_Right) && !mmb && ImGui::GetMouseDragDelta(ImGuiMouseButton_Right).x == 0 &&
+                        ImGui::GetMouseDragDelta(ImGuiMouseButton_Right).y == 0)
+                    {
+                        GfVec3d origin, direction;
+                        camera.Ray((io.MousePos.x - imageMin.x) / w, (io.MousePos.y - imageMin.y) / h, double(w) / h, origin, direction);
+                        if (const int part = session.scene->Pick(origin, direction).part; part >= 0)
+                        {
+                            selected = part;
+                            ImGui::OpenPopup("##measure-part");
+                        }
+                    }
+                }
+                if (ImGui::BeginPopup("##measure-part"))
+                {
+                    if (selected >= 0 && selected < int(session.scene->Parts().size()))
+                        app::MeasurePartMenu(session, session.scene->Parts()[size_t(selected)].name, session.scene->Parts()[size_t(selected)].body,
+                                             RunUserCommand);
+                    ImGui::EndPopup();
                 }
                 if (selected >= 0)
                 {
@@ -2197,6 +2316,8 @@ int main(int argc, char** argv)
         StudyPanel(session);
         SimulationPanel(session);
         Plots(session);
+        if (session.document)
+            app::DrawInstrumentPanels(session, fonts, scale, RunUserCommand);
         ai.DrawHub();
         ai.DrawChats();
 

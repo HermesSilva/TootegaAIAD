@@ -54,6 +54,8 @@ part and the feature. Read the error, fix the input, try again; do not retry bli
 | `aiad_part_delete` | Remove a part (undoable) |
 | `aiad_materials_list` / `aiad_material_define` | Material table: density (drives the masses), `shear_modulus` (springs), `remanence` (magnets), `relative_permeability` (cores), colour, metallic, roughness, emission |
 | `aiad_body_define` | Rigid body and its rest origin (formulas allowed); `fixed: true` = part of the ground |
+| `aiad_instruments_list` / `aiad_instrument_define` / `aiad_instrument_show` / `aiad_instrument_delete` / `aiad_instrument_read` | Measuring instruments with ideal probes (see "Measuring instruments") |
+| `aiad_adjust` | `{"joint" or "part", "value"}`: sets an adjuster (a part set by hand, see Machines step 5) inside its range; undoable |
 | `aiad_joint_define` / `aiad_joint_delete` / `aiad_joints_list` | Joints between bodies (`revolute`, `prismatic`, `cylindrical`, `spherical`, `planar`, `fixed`; `body1` omitted = ground; `point`, `axis` as formulas; optional `motor` `{"mode": "speed"\|"torque", "value": ..., "free_speed"?, "duration"?}` in rad/s, m/s, N m or N; optional `limits` `[lower, upper]` = stops, e.g. a valve seat `[null, 0]`; optional `start`: where it starts, a value or `{"local_time": period_s, "offset": rad}` = from the computer's date and time, see Machines step 5) |
 | `aiad_element_define` / `aiad_element_delete` / `aiad_elements_list` | What else the machine is made of, tied to joints and drawn parts: `gear`, `belt`, `rack`, `contact` (cam / rocker pad on a flat face), `spring`, `torsion` (spiral spring), `touch` (outlines that touch: escapements, ratchets), `load`, `chamber` (gas), `magneto` (see below) |
 | `aiad_mechanism_check` | The simulator's critique of ANY drawing: ground, bodies not connected, joints outside their parts, gears that do not mesh, belts that miss their wheels, cams that never reach (or never release) their followers, springs that do not fit, valves without seat/spring/drive, chambers and magnetos that do not match the drawing — each with its fix; plus everything it measured (ratios, lift, stiffness, bore, chamber volume, spark angle) |
@@ -191,8 +193,55 @@ Build one like this:
    What an adjuster changes must be measured from where it is: a spiral spring (`torsion`) may name a `holder`
    (the regulator's index pins on its outer coil): only the strip up to it works, so turning the index changes
    the active length and the rate (ETA 6497: ±0.15 rad ≈ ±2.3 min/day).
+   **A part's features never make it movable**: they are its geometry (import, sketch, extrude, translate,
+   rotate). A `translate`/`rotate` feature only redraws it elsewhere, still fixed. Being set by hand comes from
+   its **body** (its own, not fixed) and its **joint** (pivot or slide, with `limits`). When the user asks to
+   make a part adjustable, define those; do not edit its features.
+   **ETA 6497 regulator** (models `Clock*.usda`): the index is "303 Two–piece regulator with pointer" [1], [3],
+   [4] (the dash is the character U+0096 from the STEP import; copy the name from `aiad_parts_list`); [4] holds
+   the two pins on the hairspring's outer coil; [2] and [5] are the stud carrier (it stays fixed). The ready
+   script is `models/Clock_regulator.aiad.json` (`aiad-model apply <doc> models/Clock_regulator.aiad.json`):
+   body "Regulator index" with [1], [3], [4]; joint "Regulator", revolute about the balance axis, limits
+   [-0.15, 0.15]; the hairspring drawn up to the stud (13.18 turns, 33.36 µm, 18,000 vph at 0) with `holder`
+   [4]. Then `aiad_adjust {"joint": "Regulator", "value": ...}`: + slows, − speeds up. Not adjusters in that
+   movement: the screws (5125, 5121...) only hold bridges.
 6. Run `aiad_mechanism_check`, apply its fixes, and check again until it finds nothing. Then run it:
    `aiad_mechanism_run {"seconds": 1}`, or `aiad_sim_run` for a measured run.
+
+## Measuring instruments
+
+Instruments observe the machine; they are not part of it. Their **probes are ideal**: they read the solver's
+state at every step and change nothing (no mass, no force, no step). Events (crossings, turning points) are
+timed between steps by interpolation. An instrument is saved with the document, shown or hidden, and undoable.
+
+- `aiad_instrument_define {"name", "type", "definition": {"probes": [{"joint": "..."} | {"element": "..."},
+  "quantity"?], "unit"?, "digits"?, "gate"?, "window"?, "visible"?, ...}}` plugs one in (or replaces it).
+  - Quantities: joint `position`, `speed`, `acceleration`; chamber `pressure`, `temperature`, `volume`;
+    magneto `voltage`; touch, contact, spring `force`; torsion `torque`. Each type has a default.
+  - `digits`: decimals (0-9). `gate`: averaging time in s (0 = live). `window`: the chart's span in s.
+- Types (`aiad_instruments_list` gives the catalogue and their units):
+  - `tachometer` (rpm...): the speed of a joint;
+  - `oscillation`: a watchmaker's timegrapher. It gives the beat rate (vph), frequency, period, beat error,
+    amplitude, centre, and rate in s/day against `reference` (vph);
+  - `manometer`, `thermometer` (a chamber), `protractor` (angle; `wrap` for 0-360°), `dial` (a slide's
+    displacement), `gauge` (force or torque), `voltmeter` (a magneto's spark), `accelerometer`;
+  - `timer`: `mode` interval, frequency, count or stopwatch, `edge` rise, fall or both, `threshold` in SI
+    (default: the middle of the swing over the window);
+  - `meter`: any quantity; `chart`: up to four probes over time.
+- `aiad_instrument_show {"name", "visible"}`, `aiad_instrument_delete {"name"}`.
+- `aiad_instrument_read {"name"?}` gives the readings of the live run. Start it with
+  `aiad_sim_start {"time_scale": 1}`, wait, then read. It returns the main value, secondary values
+  (min/max/mean, beat error...) and a status.
+- In the app:
+  - each visible instrument is a panel with a seven-segment display, secondary readouts, HOLD, RESET, unit,
+    decimals, gate and chart window, and its chart;
+  - its probe is marked in the view with its reading;
+  - the user plugs one with a right click on a part, in the view or in the tree: the menu lists the joints that move the part and the elements that use it, each with the instruments that can read it (a seconds hand: its arbor, "Second wheel arbor" → tachometer); View > Instruments shows and hides them.
+- Examples:
+  - ETA 6497: `{"name": "Timegrapher", "type": "oscillation", "definition": {"probes": [{"joint":
+    "Balance staff"}], "reference": 18000}}` reads 17,998 vph, beat error 0.3 ms, amplitude ~140°;
+  - a beat counter: `timer` on "Pallet staff", `edge` both → 200 ms per beat;
+  - an engine: `manometer` on the chamber, `tachometer` on "Main bearing", `dial` on a valve guide.
 
 **When the simulator refuses a drawing, the drawing is what to fix**, never the application. Its findings
 say what and how. If something truly cannot be expressed with these tools, tell the user. Do not ask to

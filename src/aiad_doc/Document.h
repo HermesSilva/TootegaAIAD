@@ -13,6 +13,7 @@
 #pragma once
 
 #include "Expression.h"
+#include "Instruments.h"
 #include "Json.h"
 #include "Kernel.h"
 
@@ -193,6 +194,13 @@ public:
 
     // Called after every successful change (scene refresh, simulation rebuild).
     std::function<void()> OnChanged;
+    // Measuring instruments (Instruments.h): they observe the machine and are not part of it, so changing one calls
+    // OnInstrumentsChanged instead of OnChanged (the machine study stays as it is).
+    std::vector<InstrumentInfo> Instruments() const;
+    std::optional<InstrumentInfo> FindInstrument(const std::string& name) const;
+    bool DefineInstrument(const InstrumentInfo& instrument, std::string& error);
+    bool DeleteInstrument(const std::string& name, std::string& error);
+    std::function<void()> OnInstrumentsChanged;
     // Called before the document is written (by the user or the agent): the app stores its view in it then.
     std::function<void()> OnSaving;
     // The last view of the document (camera, as the app writes it; JSON, empty when never saved): kept with the

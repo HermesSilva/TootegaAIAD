@@ -1,0 +1,3 @@
+// Resources embedded in aiad.exe (the executable stays self-contained).
+// DSEG7 Classic (SIL Open Font License 1.1, fonts/LICENSE-DSEG.txt): the instruments' seven-segment displays.
+DSEG7 RCDATA "fonts\\DSEG7Classic-Regular.ttf"

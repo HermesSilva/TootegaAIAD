@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -46,6 +46,8 @@
     <ClCompile Include="AppCommands.cpp" />
     <ClCompile Include="AiPanels.cpp" />
     <ClCompile Include="Markdown.cpp" />
+    <ClCompile Include="InstrumentBank.cpp" />
+    <ClCompile Include="InstrumentPanels.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AiPanels.h" />
@@ -56,6 +58,8 @@
     <ClInclude Include="MechanismStudy.h" />
     <ClInclude Include="StudyFinding.h" />
     <ClInclude Include="Markdown.h" />
+    <ClInclude Include="InstrumentBank.h" />
+    <ClInclude Include="InstrumentPanels.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\deps\forks\aurora-4AIAD\Libraries\Aurora\Aurora.vcxproj">
@@ -111,4 +115,9 @@
   <Import Project="$(AiadDeps)forks\aurora-4AIAD\Aurora4AIAD.Runtime.targets" />
   <!-- OpenUSD plugin folder (usd\) next to aiad.exe, read before main: run and debug from Visual Studio. -->
   <Import Project="AiadRuntime.targets" />
+  <ItemGroup>
+    <ResourceCompile Include="aiad.rc" />
+    <None Include="fonts\DSEG7Classic-Regular.ttf" />
+    <None Include="fonts\LICENSE-DSEG.txt" />
+  </ItemGroup>
 </Project>

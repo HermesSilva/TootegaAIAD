@@ -4,6 +4,7 @@
 
 #include "Document.h"
 #include "DocumentScene.h"
+#include "InstrumentBank.h"
 #include "MechanismStudy.h"
 
 #include "machine/Machine.h"
@@ -116,6 +117,8 @@ struct Session
     std::atomic<double> achievedScale = 0.0;   // simulated seconds per wall second, measured
     std::deque<double> historyTime;
     std::vector<Channel> channels;
+    // The document's measuring instruments, sampled at every step (read under Lock).
+    InstrumentBank instruments;
     double nextSample = 0.0;
     static constexpr double kSamplePeriod = 1.0e-4;
     static constexpr size_t kHistory = 8000;
@@ -142,6 +145,7 @@ struct Session
         sparkUntil = 0.0;
         historyTime.clear();
         channels.clear();
+        instruments = InstrumentBank();
         nextSample = 0.0;
         simTime = 0.0;
     }
@@ -231,6 +235,8 @@ struct Session
         historyTime.clear();
         channels.clear();
         nextSample = 0.0;
+        if (document)
+            instruments.Build(*document, study);
         if (!isMechanism || !studyError.empty() || !TablesReady())
             return;
         machine = std::make_unique<sim::machine::Machine>(study.machine, magnetoTables);
@@ -257,6 +263,14 @@ struct Session
     }
 
     double Time() const { return machine ? simTime.load() : 0.0; }
+
+    // The document's instruments changed (added, set, shown, removed): rebuilt, the machine going on as it is.
+    void RebuildInstruments()
+    {
+        const auto lock = Lock();
+        if (document)
+            instruments.Build(*document, study);
+    }
 
     // Moves an adjuster (a joint of the study) to `value` in the machine, the view following, without deriving the study
     // again: while the user drags its control. The drawing changes (aiad_adjust) when the control is let go.
@@ -381,6 +395,7 @@ private:
     {
         machine->Step(dt);
         simTime = machine->Time();
+        instruments.Sample(*machine, study);
         bool spark = false;
         for (size_t g = 0; g < study.machine.magnetos.size(); ++g)
             spark = spark || machine->Magneto(g).spark;

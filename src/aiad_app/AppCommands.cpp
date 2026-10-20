@@ -467,8 +467,13 @@ void RegisterAppCommands(cmd::CommandBus& bus, AppContext& context, SimulationJo
                   }});
 
     // ---- Simulation ----------------------------------------------------------------------------
-    bus.Register({"aiad_sim_start", "Start simulation (live)", "Starts (or restarts) the live simulation of the machine shown in the viewport (slow motion).",
-                  NoArgs(), {}, [ctx, ready, notReady](const Json&) {
+    bus.Register({"aiad_sim_start", "Start simulation (live)",
+                  "Starts (or restarts) the live simulation of the machine shown in the viewport. time_scale: simulated seconds per wall second "
+                  "(default: as set in the app, 0.02 = slow motion; 1 = real time when the computer keeps up).",
+                  Json{{"type", "object"}, {"properties", {{"time_scale", {{"type", "number"}, {"exclusiveMinimum", 0}, {"maximum", 10}}}}}, {"additionalProperties", false}},
+                  {}, [ctx, ready, notReady](const Json& args) {
+                      if (args.contains("time_scale"))
+                          ctx->session->timeScale = args["time_scale"].get<double>();
                       if (!ready())
                           return notReady();
                       if (ctx->session->studyStale)
@@ -487,6 +492,28 @@ void RegisterAppCommands(cmd::CommandBus& bus, AppContext& context, SimulationJo
                       ctx->session->running = false;
                       CommandOutput o;
                       o.text = "Stopped.";
+                      return o;
+                  }});
+    bus.Register({"aiad_instrument_read", "Read instruments",
+                  "The readings of the measuring instruments on the live simulation (aiad_sim_start): main value, secondary values "
+                  "(statistics, beat error, amplitude...), status, and each probe's target and sample count. Name one, or none for all.",
+                  Json{{"type", "object"}, {"properties", {{"name", {{"type", "string"}}}}}, {"additionalProperties", false}}, {true, false, false}, [ctx](const Json& args) {
+                      const Session& s = *ctx->session;
+                      const auto lock = s.Lock();
+                      CommandOutput o;
+                      o.result = s.instruments.Read(args.value("name", ""), s.instruments.Now());
+                      std::string text = s.running ? std::format("Running, t = {:.4f} s.\n", s.Time()) : std::format("Stopped at t = {:.4f} s.\n", s.Time());
+                      for (const Json& i : o.result)
+                      {
+                          text += std::format("- {} ({} {}): {} = {} {}", i["name"].get<std::string>(), i["model"].get<std::string>(), i["type"].get<std::string>(),
+                                              i["main"]["label"].get<std::string>(), i["main"]["text"].get<std::string>(), i["main"]["unit"].get<std::string>());
+                          for (const Json& x : i["secondary"])
+                              text += std::format("; {} {} {}", x["label"].get<std::string>(), x["text"].get<std::string>(), x["unit"].get<std::string>());
+                          if (!i["status"].get<std::string>().empty())
+                              text += " (" + i["status"].get<std::string>() + ")";
+                          text += "\n";
+                      }
+                      o.text = o.result.empty() ? "No instrument (aiad_instrument_define plugs one in)." : text;
                       return o;
                   }});
     bus.Register({"aiad_sim_status", "Live simulation status",

@@ -48,7 +48,7 @@ const TfToken kParameters("aiad:parameters"), kMaterials("aiad:materials"), kBod
     kMaterial("aiad:material"), kRole("aiad:role"), kSectioned("aiad:sectioned"), kFeatures("aiad:features"), kError("aiad:error");
 const TfToken kShape("Shape"), kImported("Imported"), kSection("Section"), kLooks("Looks"), kBrepArray("BrepArray");
 const TfToken kFixed("aiad:fixed"), kJoints("Joints"), kJointType("aiad:type"), kBody0("aiad:body0"), kBody1("aiad:body1"),
-    kPoint("aiad:point"), kAxis("aiad:axis"), kMotor("aiad:motor"), kLimits("aiad:limits"), kStart("aiad:start"), kView("aiad:view"), kElements("Elements"),
+    kPoint("aiad:point"), kAxis("aiad:axis"), kMotor("aiad:motor"), kLimits("aiad:limits"), kStart("aiad:start"), kView("aiad:view"), kInstruments("Instruments"), kElements("Elements"),
     kDefinition("aiad:definition");
 const std::set<std::string> kJointTypes{"revolute", "prismatic", "cylindrical", "spherical", "planar", "fixed"};
 
@@ -1130,6 +1130,56 @@ bool Document::DeleteElement(const std::string& name, std::string& error)
     return true;
 }
 
+
+// ---- Instruments ----------------------------------------------------------------------------------------------------
+
+std::vector<InstrumentInfo> Document::Instruments() const
+{
+    std::vector<InstrumentInfo> list;
+    if (const UsdPrim scope = m_stage->GetPrimAtPath(m_root.AppendChild(kInstruments)))
+        for (const UsdPrim& prim : scope.GetChildren())
+        {
+            const Json definition = ParseJson(GetString(prim, kDefinition));
+            list.push_back({GetString(prim, kName), GetString(prim, kJointType), definition.is_object() ? definition : Json::object()});
+        }
+    return list;
+}
+
+std::optional<InstrumentInfo> Document::FindInstrument(const std::string& name) const
+{
+    for (InstrumentInfo& i : Instruments())
+        if (i.name == name)
+            return i;
+    return std::nullopt;
+}
+
+bool Document::DefineInstrument(const InstrumentInfo& instrument, std::string& error)
+{
+    if (!ValidateInstrument(*this, instrument, error))
+        return false;
+    UsdGeomScope::Define(m_stage, m_root.AppendChild(kInstruments));
+    UsdPrim prim = UsdGeomScope::Define(m_stage, m_root.AppendChild(kInstruments).AppendChild(TfToken(PrimName(instrument.name)))).GetPrim();
+    SetString(prim, kName, instrument.name);
+    SetString(prim, kJointType, instrument.type);
+    SetString(prim, kDefinition, instrument.definition.dump());
+    if (OnInstrumentsChanged)
+        OnInstrumentsChanged();
+    return true;
+}
+
+bool Document::DeleteInstrument(const std::string& name, std::string& error)
+{
+    const SdfPath path = m_root.AppendChild(kInstruments).AppendChild(TfToken(PrimName(name)));
+    if (!m_stage->GetPrimAtPath(path))
+    {
+        error = "no instrument '" + name + "'";
+        return false;
+    }
+    m_stage->RemovePrim(path);
+    if (OnInstrumentsChanged)
+        OnInstrumentsChanged();
+    return true;
+}
 
 Json Document::BodyOriginDefinition(const std::string& body) const
 {

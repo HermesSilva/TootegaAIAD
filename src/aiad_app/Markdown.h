@@ -16,6 +16,7 @@ struct UiFonts
     ImFont* regular = nullptr;
     ImFont* bold = nullptr;
     ImFont* mono = nullptr;
+    ImFont* seven = nullptr;   // DSEG7 seven-segment digits (the instruments' displays), embedded in the executable
     float size = 15.0f;  // base size (unscaled)
 };
 

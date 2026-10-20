@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -38,12 +38,14 @@
     <ClCompile Include="Features.cpp" />
     <ClCompile Include="Document.cpp" />
     <ClCompile Include="DocCommands.cpp" />
+    <ClCompile Include="Instruments.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DocCommands.h" />
     <ClInclude Include="Document.h" />
     <ClInclude Include="Expression.h" />
     <ClInclude Include="Features.h" />
+    <ClInclude Include="Instruments.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\aiad_cmd\aiad_cmd.vcxproj">

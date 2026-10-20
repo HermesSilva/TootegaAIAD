@@ -690,6 +690,112 @@ void RegisterDocumentCommands(cmd::CommandBus& bus, std::function<Document*()> d
                       return o;
                   }});
 
+    // ---- Instruments: they observe the machine (ideal probes), they are not part of it ----
+    auto setInstrument = [document](const std::string& name, const std::optional<InstrumentInfo>& state) {
+        Document* d = document();
+        if (!d)
+            return;
+        std::string e;
+        if (state)
+            d->DefineInstrument(*state, e);
+        else if (d->FindInstrument(name))
+            d->DeleteInstrument(name, e);
+    };
+    std::string catalogue;
+    for (const InstrumentType& t : InstrumentTypes())
+    {
+        std::string units;
+        for (const Dimension dim : t.dimensions)
+            for (const Unit& u : UnitsOf(dim))
+                units += (units.empty() ? "" : ", ") + std::string(u.name);
+        catalogue += std::format("- {} ({} {}): {}{}.\n", t.type, t.model, t.title, t.purpose,
+                                 units.empty() ? std::string() : std::format("; units {} (default {})", units, t.defaultUnit));
+    }
+    bus.Register({"aiad_instruments_list", "List instruments",
+                  "The measuring instruments of the document (each with its probes and settings) and the catalogue of types.",
+                  Object(Json::object()), {true, false, true}, [document, none, catalogue](const Json&) {
+                      Document* d = document();
+                      if (!d)
+                          return none();
+                      CommandOutput o;
+                      o.result = Json::array();
+                      std::string text = "| Instrument | Type | Definition |\n|---|---|---|\n";
+                      for (const InstrumentInfo& i : d->Instruments())
+                      {
+                          o.result.push_back({{"name", i.name}, {"type", i.type}, {"definition", i.definition}});
+                          text += std::format("| {} | {} | {} |\n", i.name, i.type, i.definition.dump());
+                      }
+                      o.text = (d->Instruments().empty() ? std::string("No instrument yet.\n") : text) + "\nTypes:\n" + catalogue;
+                      return o;
+                  }});
+    bus.Register({"aiad_instrument_define", "Define instrument",
+                  "Creates or replaces a measuring instrument: its probes plug into what it measures and are ideal (they read the solver's "
+                  "state at every step and change nothing). Definition: probes [{\"joint\": name} or {\"element\": name}, \"quantity\"?] "
+                  "(joint: position, speed, acceleration; chamber: pressure, temperature, volume; magneto: voltage; touch, contact, spring: "
+                  "force; torsion: torque; default by type), unit?, digits? (decimals, 0-9), gate? (averaging time, s, default 0.5), window? "
+                  "(the chart's span, s, default 10), visible? (shown in the app, default true). Oscillation: reference? (nominal beats per "
+                  "hour, for the rate in s/day). Timer: mode? (interval, count, frequency, stopwatch), edge? (rise, fall, both), threshold? "
+                  "(SI unit of the probe; default the middle of its swing). aiad_instrument_read gives its readings while the machine runs. "
+                  "Types:\n" + catalogue,
+                  Object({{"name", {{"type", "string"}}},
+                          {"type", {{"type", "string"}}},
+                          {"definition", {{"type", "object"}, {"description", "probes and settings"}}}},
+                         {"name", "type", "definition"}),
+                  {}, [document, none, setInstrument](const Json& args) {
+                      Document* d = document();
+                      if (!d)
+                          return none();
+                      const InstrumentInfo instrument{args["name"].get<std::string>(), args["type"].get<std::string>(), args["definition"]};
+                      const std::optional<InstrumentInfo> before = d->FindInstrument(instrument.name);
+                      std::string error;
+                      if (!d->DefineInstrument(instrument, error))
+                          return CommandOutput::Fail(std::format("Instrument {}: {}", instrument.name, error));
+                      CommandOutput o;
+                      o.label = "Instrument " + instrument.name;
+                      o.text = std::format("{} '{}' plugged in{}.", FindInstrumentType(instrument.type)->title, instrument.name,
+                                           instrument.definition.value("visible", true) ? " and shown" : " (hidden)");
+                      o.undo = [setInstrument, name = instrument.name, before] { setInstrument(name, before); };
+                      o.redo = [setInstrument, name = instrument.name, after = std::optional<InstrumentInfo>(instrument)] { setInstrument(name, after); };
+                      return o;
+                  }});
+    bus.Register({"aiad_instrument_show", "Show or hide instrument", "Shows or hides an instrument (its panel and its probes' marks in the view).",
+                  Object({{"name", {{"type", "string"}}}, {"visible", {{"type", "boolean"}}}}, {"name", "visible"}), {},
+                  [document, none, setInstrument](const Json& args) {
+                      Document* d = document();
+                      if (!d)
+                          return none();
+                      std::optional<InstrumentInfo> i = d->FindInstrument(args["name"].get<std::string>());
+                      if (!i)
+                          return CommandOutput::Fail("No instrument '" + args["name"].get<std::string>() + "' (aiad_instruments_list).");
+                      const std::optional<InstrumentInfo> before = i;
+                      i->definition["visible"] = args["visible"].get<bool>();
+                      std::string error;
+                      if (!d->DefineInstrument(*i, error))
+                          return CommandOutput::Fail(error);
+                      CommandOutput o;
+                      o.label = (args["visible"].get<bool>() ? "Show " : "Hide ") + i->name;
+                      o.text = i->name + (args["visible"].get<bool>() ? " shown." : " hidden.");
+                      o.undo = [setInstrument, name = i->name, before] { setInstrument(name, before); };
+                      o.redo = [setInstrument, name = i->name, after = i] { setInstrument(name, after); };
+                      return o;
+                  }});
+    bus.Register({"aiad_instrument_delete", "Delete instrument", "Unplugs and removes an instrument (undoable).", Object({{"name", {{"type", "string"}}}}, {"name"}),
+                  {false, true, false}, [document, none, setInstrument](const Json& args) {
+                      Document* d = document();
+                      if (!d)
+                          return none();
+                      const std::string name = args["name"];
+                      const std::optional<InstrumentInfo> before = d->FindInstrument(name);
+                      std::string error;
+                      if (!d->DeleteInstrument(name, error))
+                          return CommandOutput::Fail(error);
+                      CommandOutput o;
+                      o.label = "Delete instrument " + name;
+                      o.text = "Removed " + name + ".";
+                      o.undo = [setInstrument, name, before] { setInstrument(name, before); };
+                      o.redo = [setInstrument, name] { setInstrument(name, std::nullopt); };
+                      return o;
+                  }});
     bus.Register({"aiad_doc_save", "Save document", "Saves the document (USD) to its file, or to `path`.", Object({{"path", {{"type", "string"}}}}),
                   {false, false, true}, [document, none](const Json& args) {
                       Document* d = document();

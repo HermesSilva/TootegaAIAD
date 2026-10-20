@@ -2325,7 +2325,7 @@ def Xform "ETA_6497_1" (
     def Xform "P5125_Screw_for_pallet_bridge"
     {
         custom string aiad:body = "5125 Screw for pallet bridge"
-        custom bool aiad:fixed = 1
+        custom bool aiad:fixed = 0
         custom string aiad:origin = "[0,0,0]"
         double3 xformOp:translate:rest = (0, 0, 0)
         uniform token[] xformOpOrder = ["xformOp:translate:rest"]
@@ -2930,26 +2930,6 @@ def Xform "ETA_6497_1" (
         double3 xformOp:translate:rest = (0, 0, 0)
         uniform token[] xformOpOrder = ["xformOp:translate:rest"]
 
-        def Xform "P303_Two_piece_regulator_with_pointer_1"
-        {
-            custom string aiad:derived = '{"area":2.534204759199101e-05,"bounds":[[0.007962858106513423,-0.0063046046959723875,0.0012499999999999998],[0.0139877053359342,0.00189527157899714,0.0015700000000000006]],"centroid":[0.010890134250267558,-0.003048386701068718,0.0014788075226271605],"inertia":[4.523830479087272e-15,2.9345253759945663e-15,7.444127416351205e-15,-3.7036670861254814e-17,-2.2815324049902616e-17,-1.5770646192408774e-15],"key":"4a82082871c2b92a","volume":1.0846256838835288e-09}'
-            custom string aiad:error = ""
-            custom string aiad:features = '''[
- {
-  "file": "ETA 6497-1 Movement Corrected.STEP",
-  "format": "STEP",
-  "occurrence": "NAUO32",
-  "op": "import",
-  "product": "303 Twopiece regulator with pointer",
-  "solid": 1
- }
-]'''
-            custom string aiad:material = "Imported 908880"
-            custom string aiad:name = "303 Twopiece regulator with pointer [1]"
-            custom string aiad:role = ""
-            custom bool aiad:sectioned = 1
-        }
-
         def Xform "P303_Two_piece_regulator_with_pointer_2"
         {
             custom string aiad:derived = '{"area":1.9132051322884398e-05,"bounds":[[0.00719401907890896,-0.00853498656622075,0.0013699999999999975],[0.012962858106513422,-0.001309106470768779,0.0014700000000000008]],"centroid":[0.00965622129287212,-0.005052051383304637,0.0014200000000000003],"inertia":[2.63135614873696e-15,2.235025820186109e-15,4.86506348356805e-15,3.204902314792735e-31,-3.9668702516060784e-32,-3.9314567255248615e-16],"key":"199c9f30d65e8d72","volume":7.910912130140956e-10}'
@@ -2966,46 +2946,6 @@ def Xform "ETA_6497_1" (
 ]'''
             custom string aiad:material = "Imported 908880"
             custom string aiad:name = "303 Twopiece regulator with pointer [2]"
-            custom string aiad:role = ""
-            custom bool aiad:sectioned = 1
-        }
-
-        def Xform "P303_Two_piece_regulator_with_pointer_3"
-        {
-            custom string aiad:derived = '{"area":2.144682949699116e-05,"bounds":[[0.0077628581065134206,-0.00792878828756922,0.0012699999999999999],[0.012962858106513424,-0.001304604695972387,0.0013700000000000019]],"centroid":[0.010645262321478869,-0.00442737064428055,0.0013200000000000002],"inertia":[3.228208216719705e-15,2.412828988572913e-15,5.639543228226891e-15,3.782725428614889e-31,-1.9722248675269956e-31,6.216848949468599e-16],"key":"13b0e4fec9ad58eb","volume":8.96386239435902e-10}'
-            custom string aiad:error = ""
-            custom string aiad:features = '''[
- {
-  "file": "ETA 6497-1 Movement Corrected.STEP",
-  "format": "STEP",
-  "occurrence": "NAUO32",
-  "op": "import",
-  "product": "303 Twopiece regulator with pointer",
-  "solid": 3
- }
-]'''
-            custom string aiad:material = "Imported 908880"
-            custom string aiad:name = "303 Twopiece regulator with pointer [3]"
-            custom string aiad:role = ""
-            custom bool aiad:sectioned = 1
-        }
-
-        def Xform "P303_Two_piece_regulator_with_pointer_4"
-        {
-            custom string aiad:derived = '{"area":2.918261230475802e-06,"bounds":[[0.011673189876371951,-0.00780874273180788,0.00017000000000000064],[0.012806578022767186,-0.0069515166483039605,0.001470000000000001]],"centroid":[0.012239893751656575,-0.007380118116647446,0.0011074622637278395],"inertia":[2.3083869821881053e-17,2.5862989064652666e-17,1.0064523419631245e-17,-3.462192522077832e-22,-3.500001336497275e-22,-1.8793327930752963e-18],"key":"97cc8762b4c03cfb","volume":1.7827832943514972e-10}'
-            custom string aiad:error = ""
-            custom string aiad:features = '''[
- {
-  "file": "ETA 6497-1 Movement Corrected.STEP",
-  "format": "STEP",
-  "occurrence": "NAUO32",
-  "op": "import",
-  "product": "303 Twopiece regulator with pointer",
-  "solid": 4
- }
-]'''
-            custom string aiad:material = "Imported 908880"
-            custom string aiad:name = "303 Twopiece regulator with pointer [4]"
             custom string aiad:role = ""
             custom bool aiad:sectioned = 1
         }
@@ -3921,6 +3861,48 @@ def Xform "ETA_6497_1" (
             float physics:lowerLimit = -inf
             float physics:upperLimit = inf
         }
+
+        def PhysicsRevoluteJoint "Regulator"
+        {
+            custom string aiad:axis = "[0,0,1]"
+            custom string aiad:body0 = "Regulator index"
+            custom string aiad:body1 = ""
+            custom string aiad:limits = "[-0.15,0.15]"
+            custom string aiad:motor = ""
+            custom string aiad:name = "Regulator"
+            custom string aiad:point = "[0.010523763966183444,-0.003713129196626728,0]"
+            custom string aiad:start = "0.0"
+            custom string aiad:type = "revolute"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </ETA_6497_1/Regulator_index>
+            point3f physics:localPos0 = (0.010523764, -0.003713129, 0)
+            point3f physics:localPos1 = (0.010523764, -0.003713129, 0)
+            quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+            quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+            float physics:lowerLimit = -8.594367
+            float physics:upperLimit = 8.594367
+        }
+
+        def PhysicsRevoluteJoint "Pallet_bridge_screw"
+        {
+            custom string aiad:axis = "[0,0,1]"
+            custom string aiad:body0 = "5125 Screw for pallet bridge"
+            custom string aiad:body1 = ""
+            custom string aiad:limits = "[-3.14159,3.14159]"
+            custom string aiad:motor = ""
+            custom string aiad:name = "Pallet bridge screw"
+            custom string aiad:point = "[0.0131628336142832,-0.0072771366872220605,0]"
+            custom string aiad:start = "-0.15655603856442327"
+            custom string aiad:type = "revolute"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </ETA_6497_1/P5125_Screw_for_pallet_bridge>
+            point3f physics:localPos0 = (0.013162834, -0.0072771367, 0)
+            point3f physics:localPos1 = (0.013162834, -0.0072771367, 0)
+            quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+            quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+            float physics:lowerLimit = -179.99985
+            float physics:upperLimit = 179.99985
+        }
     }
 
     def Scope "Elements"
@@ -3969,7 +3951,7 @@ def Xform "ETA_6497_1" (
 
         def Scope "Hairspring"
         {
-            custom string aiad:definition = '{"free":-0.532,"joint":"Balance staff","part":"721 Balance [2]"}'
+            custom string aiad:definition = '{"free":-0.532,"holder":"303 Regulator index pins","joint":"Balance staff","part":"721 Balance [2]"}'
             custom string aiad:name = "Hairspring"
             custom string aiad:type = "torsion"
         }
@@ -4017,6 +3999,74 @@ def Xform "ETA_6497_1" (
         custom string aiad:origin = "[0,0,0]"
         double3 xformOp:translate:rest = (0, 0, 0)
         uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+    }
+
+    def Xform "Regulator_index"
+    {
+        custom string aiad:body = "Regulator index"
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P303_Two_piece_regulator_with_pointer_1"
+        {
+            custom string aiad:derived = '{"area":2.534204759199101e-05,"bounds":[[0.007962858106513423,-0.0063046046959723875,0.0012499999999999998],[0.0139877053359342,0.00189527157899714,0.0015700000000000006]],"centroid":[0.010890134250267558,-0.003048386701068718,0.0014788075226271605],"inertia":[4.523830479087272e-15,2.9345253759945663e-15,7.444127416351205e-15,-3.7036670861254814e-17,-2.2815324049902616e-17,-1.5770646192408774e-15],"key":"4a82082871c2b92a","volume":1.0846256838835288e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO32",
+  "op": "import",
+  "product": "303 Twopiece regulator with pointer",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "303 Twopiece regulator with pointer [1]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P303_Two_piece_regulator_with_pointer_3"
+        {
+            custom string aiad:derived = '{"area":2.144682949699116e-05,"bounds":[[0.0077628581065134206,-0.00792878828756922,0.0012699999999999999],[0.012962858106513424,-0.001304604695972387,0.0013700000000000019]],"centroid":[0.010645262321478869,-0.00442737064428055,0.0013200000000000002],"inertia":[3.228208216719705e-15,2.412828988572913e-15,5.639543228226891e-15,3.782725428614889e-31,-1.9722248675269956e-31,6.216848949468599e-16],"key":"13b0e4fec9ad58eb","volume":8.96386239435902e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO32",
+  "op": "import",
+  "product": "303 Twopiece regulator with pointer",
+  "solid": 3
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "303 Twopiece regulator with pointer [3]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P303_Regulator_index_pins"
+        {
+            custom string aiad:derived = '{"area":2.918261230475802e-06,"bounds":[[0.011673189876371951,-0.00780874273180788,0.00017000000000000064],[0.012806578022767186,-0.0069515166483039605,0.001470000000000001]],"centroid":[0.012239893751656575,-0.007380118116647446,0.0011074622637278395],"inertia":[2.3083869821881053e-17,2.5862989064652666e-17,1.0064523419631245e-17,-3.462192522077832e-22,-3.500001336497275e-22,-1.8793327930752963e-18],"key":"97cc8762b4c03cfb","volume":1.7827832943514972e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO32",
+  "op": "import",
+  "product": "303 Twopiece regulator with pointer",
+  "solid": 4
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "303 Regulator index pins"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
     }
 }
 
