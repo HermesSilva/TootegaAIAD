@@ -34,11 +34,11 @@ their documents:
 | Parametric OpenUSD document: design parameters + formulas, materials, rigid bodies, B-rep parts with feature history, joints (UsdPhysics) and machine elements | edges/silhouettes in the viewport |
 | Generic machine simulation: Chrono mechanism + gear/belt/rack couplings, cam and rocker contacts, coil and spiral springs, outlines that touch (escapements), stops, loads, timed motors; oscillations reported (amplitude, frequency, beats per hour) | hollow pipes (exhaust/intake) |
 | Watch scale: an imported ETA 6497 movement (STEP) ticks: escapement, balance at about 18,470 vph (rated 18,000) and about 158° of amplitude, the train turning; its regulator is set by hand and changes the rate (±2.3 min/day); its hands can start at the computer's local time | the keyless works (winding stem: pull out and turn the crown) are not drawn as a mechanism yet; the watch gains about 37 min/day with the regulator centred, and the drawn train turns the seconds hand at about 1.2 rpm instead of 1 rpm |
-| Measuring instruments with ideal probes (they read the solver and change nothing): tachometer, timegrapher (vph, beat error, amplitude, rate), manometer, thermometer, protractor, dial indicator, force/torque gauge, voltmeter, accelerometer, timer/counter, universal meter, chart recorder; seven-segment panels with statistics, unit, decimals, gate and chart; marks in the view; read by the agent | probes on a point of a body (today: joints and elements) |
+| Measuring instruments with ideal probes (they read the solver and change nothing): tachometer, timegrapher (vph, beat error, amplitude, rate), manometer, thermometer, protractor, dial indicator, force/torque gauge, voltmeter, accelerometer, timer/counter, universal meter, chart recorder, dynamometer readout; seven-segment panels with statistics, unit, decimals, gate and chart, readable in slow motion, detachable to another monitor; marks in the view; read by the agent | probes on a point of a body (today: joints and elements) |
 | Parts set by hand (adjusters): recognised from the drawing (a joint with a range that nothing drives), held while the machine runs, moved with a lever or slider on the part | hand-driven inputs while running (a crown, a crank) |
-| Domain elements tied to the drawing: 0D Otto cycle chamber (bore, chamber volume and valves measured on the parts), 2D magneto (MFEM on the drawn magnet and core) → spark | valve–piston clash check; bevel/crossed gears |
+| Domain elements tied to the drawing: 0D Otto cycle chamber (bore, chamber volume and valves measured on the parts), 2D magneto (MFEM on the drawn magnet and core) → spark; a dynamometer (bench brake) on any shaft for the real brake power, torque and power curve | valve–piston clash check; bevel/crossed gears |
 | The simulator's critique with a fix for every problem; everything it measured is listed | turbine and flow studies as document entities (next) |
-| Hydra/Aurora viewport with path tracing, selection, highlight, section view, 6-DOF animation of any body; per-object motion vectors, so the denoiser keeps moving parts sharp | live cost estimate during a turn |
+| Hydra/Aurora viewport with path tracing, selection, highlight, section planes (any number, any orientation, per part, dragged in the view), 6-DOF animation of any body; per-object motion vectors, so the denoiser keeps moving parts sharp | live cost estimate during a turn |
 | A UI that never waits: the live simulation on its own thread, the view updated in slices, agent commands computed off the UI thread, the magneto field table on every core | simulation speed: one step depends on the last, so a machine runs on one core (real time is reached: about 1.75x for the OHC engine, 1.0x for the OHV one on this 22-core desktop) |
 | AI layer at Cockpit level: hub, tabbed sessions, permissions, questions, plans, usage/cost | |
 | MCP server (`aiad-mcp.exe`) with the catalogue generated from the Command Bus + a skill for the agent | |
@@ -88,6 +88,7 @@ reads them through MCP (`aiad_instrument_define`, `aiad_instrument_read`).
 | TC-1 tachometer | speed of a joint (rpm, rad/s, Hz...) |
 | OA-1 oscillation analyzer (timegrapher) | beat rate (vph), period, beat error, amplitude, centre and rate in s/day against a reference |
 | MN-1 manometer, TH-1 thermometer | chamber pressure and gas temperature |
+| DY-1 dynamometer | on a `dynamometer` element: brake power (kW, W, hp, cv), torque, speed, held speed, the indicated power of the chambers turning that shaft and the mechanical efficiency, the peak power and torque with their rpm, and the torque and power curve against rpm (only the points where the brake held the speed) |
 | PR-1 protractor, DI-1 dial indicator | angle or displacement of a joint |
 | FG-1 force and torque gauge | contact, spring and touch forces, spiral torques |
 | VM-1 voltmeter | magneto primary and spark voltage |
@@ -120,7 +121,7 @@ It opens with no document.
 
 - **Menus:** **File** has New (Ctrl+N), Open… (Ctrl+O), Open Recent, Save (Ctrl+S), Save As…
   (Ctrl+Shift+S), Close and Exit, and asks before discarding unsaved changes. **Edit** undoes and redoes;
-  **View** fits the model, toggles the section and restores the layout.
+  **View** fits the model, toggles the section, opens the section planes and restores the layout.
 - **Opening a document:** the machine of the drawing is derived and checked.
 - **Example engines:** `models\Engine_SingleCylinder.usda` (OHC) and
   `models\Engine_SingleCylinder_Pushrod.usda` (OHV), next to the executable.
@@ -137,7 +138,7 @@ It opens with no document.
 
 | Window | What it does |
 |--------|--------------|
-| **Viewport** | path-traced model. Click selects a part; **right click** on a part: what can be measured on it (the joints that move it, the elements that use it) and the instruments that read it; **left drag** (or the middle button) pans; **Alt + left**, **Space + left** or middle + right rotates; the wheel zooms on the point under the cursor, from 0.1 mm to 50 m. A selected part that is set by hand shows its control on it: a lever (it turns) or a slider (it slides) |
+| **Viewport** | path-traced model. Click selects a part; **right click** on a part: what can be measured on it (the joints that move it, the elements that use it) and the instruments that read it; **left drag** (or the middle button) pans; **Alt + left**, **Space + left** or middle + right rotates; the wheel zooms on the point under the cursor, from 0.1 mm to 50 m. **Section planes** (toolbar **Planes...**, or right click on a part: "Cut only this part"): as many as needed, any orientation, each cutting every part, only some parts or bodies, or all but some; drag the tip of a plane's arrow to turn it in 3D and its centre to move it in depth (the cut follows live, one undo step when let go); the Sections panel sets the same by axis, facing the view, turn, tilt and offset. Display only: the solids are never cut. A selected part that is set by hand shows its control on it: a lever (it turns) or a slider (it slides) |
 | **Specification Tree** / **Properties** | bodies and parts, joints, elements; material, mass, volume, features and parameters of the selected part; **Set by hand** for an adjuster |
 | **Study** | the simulator's findings (each with its fix), or the machine summary and what was measured on the drawing; design parameters (values or formulas) |
 | **Simulation** | runs the machine live at the chosen time scale (shows the speed reached when the computer cannot keep up): every joint (position and speed), chambers (pressure, volume, combustions), magnetos |
@@ -201,6 +202,7 @@ Everything in the viewport is a part of the document, created by commands; there
 | `torsion` | the strip of a drawn spiral (hairspring, mainspring: sketch tool `spiral` or imported), measured on its section, and its elastic modulus; a `holder` (a regulator's index pins) leaves only the strip up to it working, from where the holder is set |
 | `touch` | the outlines of two parts cut from their solids (drawn or imported) where they share a height: escape wheel and pallets, impulse pin and fork, guard pin and roller |
 | `load` | friction, brake or propeller torque on a joint |
+| `dynamometer` | a bench brake on a shaft (any revolute joint: a crankshaft, a turbine's rotor) that measures the real (brake) power: holds a speed and reads the torque it absorbs there, sweeps the speed for the torque and power curve, or brakes with a constant torque; it only absorbs, its controller's gains come from the shaft's inertia measured on the drawing |
 | `chamber` | bore, chamber volume and valve sizes measured on the parts |
 | `magneto` | magnet, pole shoes and core geometry; the field is computed with MFEM |
 

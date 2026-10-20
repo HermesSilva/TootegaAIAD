@@ -1182,6 +1182,69 @@ void ReadMagneto(Reader& r, const doc::ElementInfo& e)
 
 // ---- Chambers -----------------------------------------------------------------------------------------------------------
 
+// A dynamometer: a brake on a shaft that measures what the machine gives there. Its controller's gains come from the
+// inertia of the shaft's body about the axis (parallel axes from its centre of mass).
+void ReadDynamometer(Reader& r, const doc::ElementInfo& e)
+{
+    const int j = r.NeedJoint(e, "joint");
+    if (j < 0)
+        return;
+    const sim::mb::Joint& joint = r.s.machine.mechanism.joints[size_t(j)];
+    if (joint.type != sim::mb::JointType::Revolute && joint.type != sim::mb::JointType::Cylindrical)
+    {
+        r.Error(std::format("The dynamometer '{}' is on '{}', which does not turn (a dynamometer brakes a shaft).", e.name, joint.name),
+                "Put it on the revolute joint of the output shaft (a crankshaft's main bearing, a turbine's rotor).");
+        return;
+    }
+    sim::machine::Dynamometer d;
+    d.name = e.name;
+    d.joint = j;
+    const std::string mode = e.definition.value("mode", "speed");
+    d.mode = mode == "sweep" ? sim::machine::Dynamometer::Mode::Sweep : mode == "torque" ? sim::machine::Dynamometer::Mode::Torque : sim::machine::Dynamometer::Mode::Speed;
+    constexpr double rpm = 2.0 * std::numbers::pi / 60.0;
+    d.speed = r.Number(e, "speed", 0.0) * rpm;
+    d.from = r.Number(e, "from", 0.0) * rpm;
+    d.to = r.Number(e, "to", 0.0) * rpm;
+    d.seconds = r.Number(e, "seconds", 0.0);
+    d.torque = r.Number(e, "torque", 0.0);
+    d.maxTorque = r.Number(e, "max_torque", 1.0e4);
+    d.start = r.Number(e, "start", 0.0);
+    const char* missing = d.mode == sim::machine::Dynamometer::Mode::Speed && d.speed <= 0.0      ? "a held speed > 0 ('speed', rpm)"
+                          : d.mode == sim::machine::Dynamometer::Mode::Sweep && (d.to <= 0.0 || d.seconds <= 0.0) ? "'from', 'to' (rpm) and 'seconds' > 0"
+                          : d.mode == sim::machine::Dynamometer::Mode::Torque && d.torque <= 0.0 ? "a braking torque > 0 ('torque', N m)"
+                          : d.maxTorque <= 0.0                                                    ? "'max_torque' > 0"
+                                                                                                  : nullptr;
+    if (missing)
+    {
+        r.Error(std::format("The dynamometer '{}' ({}) needs {}.", e.name, mode, missing), "Set it with aiad_element_define.");
+        return;
+    }
+    // Inertia of the braked body about the shaft (the ground side when body0 is fixed).
+    const int b = joint.body0 >= 0 && r.Moving(joint.body0) ? joint.body0 : joint.body1;
+    if (b < 0 || !r.Moving(b))
+    {
+        r.Error(std::format("The dynamometer '{}' is on '{}', and no moving body turns there.", e.name, joint.name), "Put it on a joint that turns a body.");
+        return;
+    }
+    const sim::mb::Body& body = r.s.machine.mechanism.bodies[size_t(b)];
+    sim::mb::Vec3 a = joint.axis;
+    const double length = std::sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
+    for (double& c : a)
+        c /= std::max(length, 1e-12);
+    const auto& I = body.inertia;   // Ixx, Iyy, Izz, Iyz, Izx, Ixy
+    const double axial = a[0] * a[0] * I[0] + a[1] * a[1] * I[1] + a[2] * a[2] * I[2] + 2.0 * (a[1] * a[2] * I[3] + a[2] * a[0] * I[4] + a[0] * a[1] * I[5]);
+    const sim::mb::Vec3 rel{body.centroid[0] - joint.point[0], body.centroid[1] - joint.point[1], body.centroid[2] - joint.point[2]};
+    const double along = rel[0] * a[0] + rel[1] * a[1] + rel[2] * a[2];
+    const double off2 = rel[0] * rel[0] + rel[1] * rel[1] + rel[2] * rel[2] - along * along;
+    d.inertia = std::max(axial + body.mass * std::max(off2, 0.0), 1e-12);
+    r.s.measured.push_back(std::format("Dynamometer {}: brakes '{}' ({}), shaft inertia {:.4g} kg m^2, absorbs up to {:.0f} N m, from {:.2f} s{}.", e.name,
+                                       joint.name, d.mode == sim::machine::Dynamometer::Mode::Speed   ? std::format("holds {:.0f} rpm", d.speed / rpm)
+                                                   : d.mode == sim::machine::Dynamometer::Mode::Sweep ? std::format("sweeps {:.0f} -> {:.0f} rpm in {:.1f} s", d.from / rpm, d.to / rpm, d.seconds)
+                                                                                                      : std::format("{:.2f} N m", d.torque),
+                                       d.inertia, d.maxTorque, d.start, ""));
+    r.s.machine.dynamometers.push_back(d);
+}
+
 void ReadChamber(Reader& r, const doc::ElementInfo& e, const std::map<std::string, int>& magnetos)
 {
     const int piston = r.NeedJoint(e, "piston");
@@ -1516,7 +1579,7 @@ bool DeriveMechanismStudy(const doc::Document& d, MechanismStudy& study)
 
     // Elements: loads, couplings, contacts and springs (the mechanism), then magnetos and chambers.
     std::map<std::string, int> magnetos;
-    for (const char* kind : {"load", "gear", "belt", "rack", "contact", "spring", "torsion", "touch", "magneto", "chamber"})
+    for (const char* kind : {"load", "gear", "belt", "rack", "contact", "spring", "torsion", "touch", "dynamometer", "magneto", "chamber"})
         for (const doc::ElementInfo& e : elements)
         {
             if (e.type != kind)
@@ -1541,6 +1604,8 @@ bool DeriveMechanismStudy(const doc::Document& d, MechanismStudy& study)
                 ReadTorsion(r, e);
             else if (e.type == "touch")
                 ReadTouch(r, e);
+            else if (e.type == "dynamometer")
+                ReadDynamometer(r, e);
             else if (e.type == "magneto")
             {
                 const size_t before = study.machine.magnetos.size();

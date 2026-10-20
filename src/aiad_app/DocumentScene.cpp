@@ -17,6 +17,7 @@
 #include <chrono>
 #include <stb_image_write.h>
 #include <cmath>
+#include <format>
 
 namespace aiad::app
 {
@@ -105,10 +106,12 @@ void DocumentScene::Refresh()
         {
             ScenePart& old = it->second;
             part.visible = old.visible;
-            if (!old.dirty && old.revision == part.revision && old.material == part.material && old.role == part.role && old.sectioned == part.sectioned)
+            if (!old.dirty && old.revision == part.revision && old.material == part.material && old.role == part.role)
             {
                 part.mesh = std::move(old.mesh);
                 part.section = std::move(old.section);
+                part.cut = old.cut, part.removed = old.removed, part.cutDirty = old.cutDirty;
+                part.cutKey = std::move(old.cutKey), part.cutPose = old.cutPose;
                 part.dirty = false;
                 sparkKept = sparkKept || part.role == "spark";
             }
@@ -140,11 +143,237 @@ void DocumentScene::Refresh()
     const int highlight = m_highlight;
     m_highlight = -1;
     SetHighlight(highlight < int(m_parts.size()) ? highlight : -1);
+    ReadSections();
+}
+
+void DocumentScene::ReadSections()
+{
+    m_planes.clear();
+    std::vector<doc::ElementInfo> sections = m_document.Sections();
+    if (!m_previewName.empty())
+    {
+        auto it = std::find_if(sections.begin(), sections.end(), [&](const doc::ElementInfo& s) { return s.name == m_previewName; });
+        if (it != sections.end())
+            it->definition = m_preview;
+        else
+            sections.push_back({m_previewName, "section", m_preview});
+    }
+    auto names = [](const Json& d, const char* key) {
+        std::vector<std::string> list;
+        for (const Json& n : d.value(key, Json::array()))
+            if (n.is_string())
+                list.push_back(n.get<std::string>());
+        return list;
+    };
+    for (const doc::ElementInfo& s : sections)
+    {
+        const Json& d = s.definition;
+        if (!d.value("enabled", true) || !d.contains("point") || !d.contains("normal"))
+            continue;
+        SectionPlane plane;
+        plane.name = s.name;
+        plane.point = {d["point"][0].get<double>(), d["point"][1].get<double>(), d["point"][2].get<double>()};
+        plane.normal = {d["normal"][0].get<double>(), d["normal"][1].get<double>(), d["normal"][2].get<double>()};
+        plane.fill = d.value("fill", true);
+        plane.targets = names(d, "parts");
+        for (const std::string& b : names(d, "bodies"))
+            plane.targets.push_back(b);
+        plane.only = d.contains("parts") || d.contains("bodies");   // an empty list: it cuts nothing until one is added
+        plane.exclude = names(d, "exclude");
+        m_planes.push_back(std::move(plane));
+    }
+    // A drawing without section planes: the parts marked `sectioned` are cut at y = 0, the back half kept.
+    if (sections.empty())
+    {
+        SectionPlane plane{"(sectioned parts)", {0.0, 0.0, 0.0}, {0.0, -1.0, 0.0}, true, true, {}, {}};
+        for (const ScenePart& p : m_parts)
+            if (p.sectioned)
+                plane.targets.push_back(p.name);
+        if (!plane.targets.empty())
+            m_planes.push_back(std::move(plane));
+    }
+    for (ScenePart& p : m_parts)
+        if (!p.dirty && CutKey(p) != p.cutKey)
+            p.cutDirty = true;
+}
+
+std::string DocumentScene::CutKey(const ScenePart& part) const
+{
+    if (part.role == "spark")
+        return {};
+    std::string key;
+    auto has = [&](const std::vector<std::string>& list) {
+        return std::find(list.begin(), list.end(), part.name) != list.end() || std::find(list.begin(), list.end(), part.body) != list.end();
+    };
+    for (const SectionPlane& s : m_planes)
+        if ((!s.only || has(s.targets)) && !has(s.exclude))
+            key += std::format("{:.9g},{:.9g},{:.9g},{:.9g},{:.9g},{:.9g},{};", s.point.x, s.point.y, s.point.z, s.normal.x, s.normal.y, s.normal.z, s.fill);
+    return key;
+}
+
+GfMatrix4d DocumentScene::Pose(const std::string& body) const
+{
+    GfMatrix4d m(1.0);
+    if (auto it = m_motion.find(body); it != m_motion.end())
+        it->second.Get(&m);
+    return m;
+}
+
+void DocumentScene::Follow(bool running)
+{
+    if (running)
+        return;
+    for (ScenePart& p : m_parts)
+        if (!p.dirty && !p.cutDirty && !p.cutKey.empty() && !m_document.BodyFixed(p.body) && Pose(p.body) != p.cutPose)
+            p.cutDirty = true;
+}
+
+namespace
+{
+void Append(kernel::Mesh& to, const kernel::Mesh& from)
+{
+    const int base = int(to.points.size());
+    to.points.insert(to.points.end(), from.points.begin(), from.points.end());
+    to.normals.insert(to.normals.end(), from.normals.begin(), from.normals.end());
+    for (const auto& t : from.triangles)
+        to.triangles.push_back({t[0] + base, t[1] + base, t[2] + base});
+}
+
+// Hidden by scale, not by visibility: the renderer re-creates an instance on every visibility toggle (~110 ms).
+void Shown(const UsdStageRefPtr& stage, const SdfPath& path, bool shown)
+{
+    UsdPrim prim = stage->GetPrimAtPath(path);
+    if (!prim)
+        return;
+    UsdAttribute scale = prim.GetAttribute(TfToken("xformOp:scale:cut"));
+    if (!scale)
+    {
+        UsdGeomXformable x(prim);
+        scale = x.AddScaleOp(UsdGeomXformOp::PrecisionFloat, TfToken("cut")).GetAttr();
+    }
+    const GfVec3f value(shown ? 1.0f : 1e-6f);
+    GfVec3f now;
+    if (!scale.Get(&now) || now != value)
+        scale.Set(value);
+}
+}  // namespace
+
+void DocumentScene::Cut(ScenePart& part)
+{
+    const UsdStageRefPtr& stage = m_document.Stage();
+    const UsdEditContext session(stage, stage->GetSessionLayer());
+    for (const TfToken& t : {kDisplaySection, kDisplayFill})
+        stage->RemovePrim(part.path.AppendChild(t));
+    part.section = kernel::Mesh();
+    part.cut = part.removed = part.cutDirty = false;
+    part.cutKey = CutKey(part);
+    part.cutPose = Pose(part.body);
+    if (!part.cutKey.empty() && !part.mesh.triangles.empty())
+    {
+        // The planes in the part's frame where its body is now: p_model = rest origin + pose(p_body).
+        const kernel::Vec3 origin = m_document.BodyOrigin(part.body);
+        const GfMatrix4d inverse = part.cutPose.GetInverse();
+        auto has = [&](const std::vector<std::string>& list) {
+            return std::find(list.begin(), list.end(), part.name) != list.end() || std::find(list.begin(), list.end(), part.body) != list.end();
+        };
+        kernel::Mesh kept = part.mesh, caps;
+        bool fill = false, touched = false;
+        for (const SectionPlane& s : m_planes)
+        {
+            if ((s.only && !has(s.targets)) || has(s.exclude))
+                continue;
+            const GfVec3d p = inverse.Transform(GfVec3d(s.point.x - origin.x, s.point.y - origin.y, s.point.z - origin.z));
+            const GfVec3d n = inverse.TransformDir(GfVec3d(s.normal.x, s.normal.y, s.normal.z)).GetNormalized();
+            kernel::Mesh next, cap, clipped, unused;
+            kernel::SectionMesh(kept, {p[0], p[1], p[2]}, {n[0], n[1], n[2]}, next, cap);
+            touched = touched || next.triangles.size() != kept.triangles.size() || !cap.triangles.empty();
+            // The fill of the planes before is cut by this one too.
+            if (!caps.triangles.empty())
+            {
+                kernel::SectionMesh(caps, {p[0], p[1], p[2]}, {n[0], n[1], n[2]}, clipped, unused);
+                caps = std::move(clipped);
+            }
+            if (s.fill)
+                Append(caps, cap), fill = true;
+            kept = std::move(next);
+        }
+        if (kept.triangles.empty())
+            part.removed = true;
+        else if (touched)
+        {
+            part.cut = true;
+            part.section = std::move(kept);
+            const SdfPath look = m_document.Root().AppendChild(TfToken("Looks")).AppendChild(TfToken(doc::PrimName(part.material)));
+            WriteMesh(stage, part.path.AppendChild(kDisplaySection), part.section, All(part.section), look);
+            if (fill && !caps.triangles.empty())
+                WriteMesh(stage, part.path.AppendChild(kDisplayFill), caps, All(caps), SdfPath("/View/Looks/SectionFill"));
+        }
+    }
+    ShowCut(part);
+    if (int(&part - m_parts.data()) == m_highlight)
+        BindLook(m_highlight, true);
+}
+
+void DocumentScene::ShowCut(const ScenePart& p)
+{
+    const UsdStageRefPtr& stage = m_document.Stage();
+    const UsdEditContext session(stage, stage->GetSessionLayer());
+    const bool cutting = m_section && (p.cut || p.removed);
+    Shown(stage, p.path.AppendChild(kDisplay), !cutting);
+    Shown(stage, p.path.AppendChild(kDisplaySection), m_section);
+    Shown(stage, p.path.AppendChild(kDisplayFill), m_section);
+}
+
+GfRange3d DocumentScene::ModelBounds() const
+{
+    GfRange3d box;
+    for (const ScenePart& p : m_parts)
+    {
+        if (p.role == "spark")
+            continue;
+        const kernel::Vec3 o = m_document.BodyOrigin(p.body);
+        for (const auto& q : p.mesh.points)
+            box.UnionWith(GfVec3d(q[0] + o.x, q[1] + o.y, q[2] + o.z));
+    }
+    return box;
+}
+
+GfRange3d DocumentScene::PartBounds(int index) const
+{
+    GfRange3d box;
+    if (index < 0 || index >= int(m_parts.size()))
+        return box;
+    const ScenePart& p = m_parts[size_t(index)];
+    GfRange3d local;
+    for (const auto& q : p.mesh.points)
+        local.UnionWith(GfVec3d(q[0], q[1], q[2]));
+    if (local.IsEmpty())
+        return box;
+    const kernel::Vec3 o = m_document.BodyOrigin(p.body);
+    const GfMatrix4d pose = Pose(p.body);
+    for (size_t c = 0; c < 8; ++c)
+        box.UnionWith(GfVec3d(o.x, o.y, o.z) + pose.Transform(local.GetCorner(c)));
+    return box;
+}
+
+GfVec3d DocumentScene::PartCentre(int index) const
+{
+    const GfRange3d box = PartBounds(index);
+    return box.IsEmpty() ? GfVec3d(0.0) : box.GetMidpoint();
+}
+
+void DocumentScene::SetPreview(const std::string& name, const Json& definition)
+{
+    if (name == m_previewName && definition == m_preview)
+        return;
+    m_previewName = name;
+    m_preview = definition;
+    ReadSections();
 }
 
 bool DocumentScene::Pending() const
 {
-    return std::any_of(m_parts.begin(), m_parts.end(), [](const ScenePart& p) { return p.dirty; });
+    return std::any_of(m_parts.begin(), m_parts.end(), [](const ScenePart& p) { return p.dirty || p.cutDirty; });
 }
 
 size_t DocumentScene::PendingCount() const
@@ -170,11 +399,14 @@ bool DocumentScene::Update(double budgetMs)
             std::string error;
             m_document.Mass(part.path, mp, error);
         }
-        ApplySection(part);
+        part.dirty = false;
+        Cut(part);
         if (int(i) == m_highlight)
             BindLook(int(i), true);
-        part.dirty = false;
     }
+    for (size_t i = 0; i < m_parts.size() && elapsed() < budgetMs; ++i)
+        if (!m_parts[i].dirty && m_parts[i].cutDirty)
+            Cut(m_parts[i]);
     m_tessellationSeconds += elapsed() / 1e3;
     return !Pending();
 }
@@ -208,24 +440,6 @@ void DocumentScene::WriteDisplay(ScenePart& part)
         mesh.AddTranslateOp(UsdGeomXformOp::PrecisionDouble, TfToken("pivot"), true);
         m_sparkScale.Set(GfVec3f(1e-4f));
     }
-    if (!part.sectioned)
-        return;
-    // Section view (display only): the part's mesh clipped at the plane y = 0 of the mechanism frame,
-    // keeping the back half (y >= 0), and the cut closed by the CAD section fill.
-    const kernel::Vec3 origin = m_document.BodyOrigin(part.body);
-    kernel::Mesh cap;
-    kernel::SectionMesh(part.mesh, {-origin.x, -origin.y, -origin.z}, {0, -1, 0}, part.section, cap);
-    if (part.section.triangles.empty())
-        return;
-    auto all = [](const kernel::Mesh& m) {
-        std::vector<int> t(m.triangles.size());
-        for (size_t i = 0; i < t.size(); ++i)
-            t[i] = int(i);
-        return t;
-    };
-    WriteMesh(stage, part.path.AppendChild(kDisplaySection), part.section, all(part.section), look);
-    if (!cap.triangles.empty())
-        WriteMesh(stage, part.path.AppendChild(kDisplayFill), cap, all(cap), SdfPath("/View/Looks/SectionFill"));
 }
 int DocumentScene::Find(const std::string& name) const
 {
@@ -256,24 +470,7 @@ void DocumentScene::SetSectionView(bool section)
 {
     m_section = section;
     for (const ScenePart& p : m_parts)
-        ApplySection(p);
-}
-
-void DocumentScene::ApplySection(const ScenePart& p)
-{
-    if (!p.sectioned)
-        return;
-    const UsdStageRefPtr& stage = m_document.Stage();
-    const UsdEditContext session(stage, stage->GetSessionLayer());
-    auto set = [&](const TfToken& child, bool shown) {
-        if (UsdPrim prim = stage->GetPrimAtPath(p.path.AppendChild(child)))
-            UsdGeomImageable(prim).CreateVisibilityAttr().Set(shown ? UsdGeomTokens->inherited : UsdGeomTokens->invisible);
-    };
-    // A part with nothing behind the plane has no section display: it stays whole.
-    const bool hasSection = bool(stage->GetPrimAtPath(p.path.AppendChild(kDisplaySection)));
-    set(kDisplay, !m_section || !hasSection);
-    set(kDisplaySection, m_section);
-    set(kDisplayFill, m_section);
+        ShowCut(p);
 }
 
 void DocumentScene::SetVisible(int part, bool visible)
@@ -323,9 +520,9 @@ PickResult DocumentScene::Pick(const GfVec3d& origin, const GfVec3d& direction) 
     for (size_t i = 0; i < m_parts.size(); ++i)
     {
         const ScenePart& p = m_parts[i];
-        if (!p.visible || p.role == "spark")
+        if (!p.visible || p.role == "spark" || (m_section && p.removed))
             continue;
-        const kernel::Mesh& mesh = p.sectioned && m_section && !p.section.triangles.empty() ? p.section : p.mesh;
+        const kernel::Mesh& mesh = m_section && p.cut ? p.section : p.mesh;
         const GfMatrix4d inverse = PartToWorld(p).GetInverse();
         const GfVec3d o = inverse.Transform(origin), d = inverse.TransformDir(direction);
         // Moller-Trumbore; t is the same ray parameter in world space.

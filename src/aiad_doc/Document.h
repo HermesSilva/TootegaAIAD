@@ -80,6 +80,7 @@ struct JointInfo
 //   contact {part, body, point, normal, radius}        a drawn profile (cam, rocker pad) pushes a flat face
 //   spring {part, body0, point0, body1, point1, free_length}   a drawn coil spring between two bodies
 //   load {joint, constant, linear, quadratic}          resisting torque / force (friction, brake, propeller)
+//   dynamometer {joint, mode, speed | from, to, seconds | torque, max_torque, start}   a bench brake on a shaft (rpm, N m, s)
 //   chamber {piston, cylinder, head, intake, exhaust, ignition}   a gas chamber closed by a piston (0D cycle)
 //   magneto {rotor, magnet, shoes, core, coil, points_open}       a flywheel magneto firing a chamber
 struct ElementInfo
@@ -201,6 +202,17 @@ public:
     bool DefineInstrument(const InstrumentInfo& instrument, std::string& error);
     bool DeleteInstrument(const std::string& name, std::string& error);
     std::function<void()> OnInstrumentsChanged;
+    // Section planes (display only: they cut what the view shows, never the solids). Definition:
+    //   point [x, y, z] (m, model frame), normal [x, y, z] (the side it points to is cut away),
+    //   parts / bodies [names]: only these are cut (none: every part), exclude [part or body names]: kept whole,
+    //   enabled (default true), fill (close the cut with the section fill, default true).
+    // A part cut by several planes keeps what is behind all of them. Changing one calls OnSectionsChanged (the view
+    // re-cuts; the machine is not touched). Without any, the parts marked `sectioned` are cut at y = 0.
+    std::vector<ElementInfo> Sections() const;   // name, type "section", definition
+    std::optional<ElementInfo> FindSection(const std::string& name) const;
+    bool DefineSection(const std::string& name, const Json& definition, std::string& error);
+    bool DeleteSection(const std::string& name, std::string& error);
+    std::function<void()> OnSectionsChanged;
     // Called before the document is written (by the user or the agent): the app stores its view in it then.
     std::function<void()> OnSaving;
     // The last view of the document (camera, as the app writes it; JSON, empty when never saved): kept with the

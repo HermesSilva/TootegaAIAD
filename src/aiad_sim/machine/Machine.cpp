@@ -40,6 +40,7 @@ Machine::Machine(const Description& description, std::vector<std::vector<magneto
         m_ignitions.emplace_back(i < tables.size() ? tables[i] : std::vector<magneto::MagnetoSample>(), m_description.magnetos[i].circuit);
         m_magnetos.push_back({});
     }
+    m_dynos.resize(m_description.dynamometers.size());
 }
 
 Machine::~Machine() = default;
@@ -65,6 +66,41 @@ void Machine::Step(double dt)
         const double force = m_cylinders[i].PistonForce();
         m_chambers[i].gasForce = force;
         mb.ApplyJointLoad(c.piston, -c.sign * force);
+    }
+    // Dynamometers: a PI controller on the shaft's speed, absorbing only (it brakes, never drives), its gains from the
+    // shaft's inertia. Slow on purpose, as a bench's: it holds the mean speed over several engine cycles (an engine's
+    // torque pulses every cycle; a fast brake would chase the pulses and, absorbing only, hold below the target).
+    const double t = mb.Time();
+    for (size_t i = 0; i < m_dynos.size(); ++i)
+    {
+        const Dynamometer& d = m_description.dynamometers[i];
+        DynamometerState& s = m_dynos[i];
+        const double rate = mb.Rate(d.joint);
+        s.speed = std::abs(rate);
+        s.torque = 0.0;
+        s.target = 0.0;
+        if (t >= d.start)
+        {
+            if (d.mode == Dynamometer::Mode::Torque)
+                s.torque = std::min(d.torque, d.maxTorque) * std::tanh(s.speed / 0.5);
+            else
+            {
+                s.target = d.mode == Dynamometer::Mode::Speed || d.seconds <= 0.0
+                               ? (d.mode == Dynamometer::Mode::Speed ? d.speed : d.to)
+                               : d.from + (d.to - d.from) * std::clamp((t - d.start) / d.seconds, 0.0, 1.0);
+                const double kp = std::max(d.inertia, 1e-9) / 0.25, ki = kp / 0.5;
+                const double error = s.speed - s.target;
+                const double wanted = kp * error + ki * (s.integral + error * dt);
+                // Anti-windup: the integral only grows while the brake is not at a limit.
+                if ((wanted > 0.0 || error > 0.0) && (wanted < d.maxTorque || error < 0.0))
+                    s.integral = std::max(0.0, s.integral + error * dt);
+                s.torque = std::clamp(kp * error + ki * s.integral, 0.0, d.maxTorque);
+            }
+        }
+        s.power = s.torque * s.speed;
+        s.energy += s.power * dt;
+        if (s.torque > 0.0)
+            mb.ApplyJointLoad(d.joint, rate >= 0.0 ? -s.torque : s.torque);
     }
     mb.Step(dt);
 

@@ -26,9 +26,23 @@ struct ScenePart
     std::string name, body, material, role;
     bool sectioned = false;
     bool visible = true;
-    kernel::Mesh mesh, section; // body frame (picking, bounds)
+    kernel::Mesh mesh, section; // body frame (picking, bounds); section: what the planes leave of it
     uint64_t revision = 0;      // the document's shape revision shown
     bool dirty = true;          // its display is still to be (re)written
+    // Section planes: cut (the section display replaces the whole one) or removed (nothing is left), the planes
+    // and the body's pose it was cut with (a moving part is re-cut where it stopped), still to be re-cut.
+    bool cut = false, removed = false, cutDirty = false;
+    std::string cutKey;
+    pxr::GfMatrix4d cutPose{1.0};
+};
+
+// A section plane of the view, in the model frame: the side `normal` points to is cut away.
+struct SectionPlane
+{
+    std::string name;
+    kernel::Vec3 point, normal;
+    bool fill = true, only = false;
+    std::vector<std::string> targets, exclude;   // part or body names (targets: when `only`)
 };
 
 struct PickResult
@@ -64,6 +78,16 @@ public:
     void SetSparkVisible(bool visible);
     void SetSectionView(bool section);
     bool SectionView() const { return m_section; }
+    // The document's section planes (after any change of them): the parts whose cut changed are re-cut by Update.
+    void ReadSections();
+    const std::vector<SectionPlane>& Sections() const { return m_planes; }
+    // Moving parts are cut where they are; while the machine stands still, a part that moved is re-cut there.
+    void Follow(bool running);
+    pxr::GfRange3d ModelBounds() const;        // model frame, rest placement
+    pxr::GfVec3d PartCentre(int part) const;   // model frame, where it is now
+    pxr::GfRange3d PartBounds(int part) const;  // model frame, where it is now
+    // A plane being dragged (not yet a command): the view cuts with it at once; empty name ends the preview.
+    void SetPreview(const std::string& name, const Json& definition);
     void SetVisible(int part, bool visible);
     void SetHighlight(int part);
     PickResult Pick(const pxr::GfVec3d& origin, const pxr::GfVec3d& direction) const;
@@ -74,7 +98,10 @@ public:
 
 private:
     void WriteDisplay(ScenePart& part);
-    void ApplySection(const ScenePart& part);
+    void ShowCut(const ScenePart& part);
+    void Cut(ScenePart& part);
+    std::string CutKey(const ScenePart& part) const;
+    pxr::GfMatrix4d Pose(const std::string& body) const;
     void BindLook(int part, bool highlighted);
     pxr::GfMatrix4d PartToWorld(const ScenePart& part) const;
 
@@ -83,6 +110,9 @@ private:
     std::map<std::string, pxr::UsdAttribute> m_motion;
     pxr::UsdAttribute m_sparkScale;
     bool m_section = true;
+    std::vector<SectionPlane> m_planes;
+    std::string m_previewName;
+    Json m_preview;
     int m_highlight = -1;
     double m_tessellationSeconds = 0.0;
 };

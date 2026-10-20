@@ -63,7 +63,8 @@ part and the feature. Read the error, fix the input, try again; do not retry bli
 | `aiad_sim_run` / `aiad_sim_job_status` | Measured run in the background (up to 30 s): joint speeds, chambers (displacement, compression ratio, peak pressure, combustions, indicated power), magnetos, and `runs_on_its_own` (does it keep going after its timed motors stop) |
 | `aiad_sim_start` / `aiad_sim_stop` / `aiad_sim_status` | Live animation in the viewport |
 | `aiad_viewport_snapshot` | PNG of the viewport as the user sees it |
-| `aiad_view_set` | `{"view": "iso|front|back|right|left|top", "fit": true, "section": true|false}` |
+| `aiad_view_set` | `{"view": "iso|front|back|right|left|top", "fit": true, "section": true|false}` (section: shows or hides every section plane's cut) |
+| `aiad_sections_list` / `aiad_section_define` / `aiad_section_delete` | Section planes of the view (display only, saved with the document, undoable): `{"name", "definition": {"point": [x,y,z], "normal": [x,y,z] (model frame, m; the side it points to is cut away), "parts"?/"bodies"? (only these; an empty list cuts nothing), "exclude"? (kept whole), "enabled"?, "fill"?}}`. Several planes may cut one part (it keeps what is behind all of them). Without any, the parts marked `sectioned` are cut at y = 0 |
 | `aiad_part_set_visible` / `aiad_selection_set` | Show/hide a part, highlight it |
 | `aiad_undo` / `aiad_redo` / `aiad_history` | Undo stack shared with the user |
 | `aiad_doc_save` / `aiad_doc_orient` | Save the document; orientation of the whole model |
@@ -251,6 +252,22 @@ machine. A chamber's manometer/thermometer also reads the gas at the events of t
 say what and how. If something truly cannot be expressed with these tools, tell the user. Do not ask to
 change the app's code.
 
+### Real (brake) power: the dynamometer
+
+The power a machine really gives is measured as on a test bench: a `dynamometer` element brakes its output shaft and
+a DY-1 instrument reads it.
+
+- `aiad_element_define {"name": "Dyno", "type": "dynamometer", "definition": {"joint": "<output shaft>", "mode": "speed", "speed": 2500, "start": 1.5}}`
+  holds 2500 rpm (absorbing only) from 1.5 s on (let the starter bring the engine up first); the torque it absorbs there
+  is the machine's torque at that speed. `"mode": "sweep", "from": 1500, "to": 4000, "seconds": 20` gives the curve;
+  `"mode": "torque", "torque": 30` brakes with 30 N m and the machine settles where it can carry it.
+- `aiad_instrument_define {"name": "Dyno", "type": "dynamometer", "definition": {"probes": [{"element": "Dyno"}], "window": 30}}`
+  (window >= the sweep), then `aiad_sim_start` and `aiad_instrument_read`: brake power, torque, speed, held speed,
+  indicated power (the chambers on that shaft), mechanical efficiency, peak power and peak torque with their rpm.
+- Other `load` elements on the same shaft keep absorbing: a propeller-like load in the drawing hides power from the
+  dynamometer (friction belongs to the engine; an external load does not). Tell the user, do not remove it unasked.
+- When the machine cannot reach the held speed the brake lets go (status "not braking"): that speed is beyond what it
+  can carry.
 ## This model: the single-cylinder engine
 
 - Mechanism frame: crank axis **Z**, cylinder axis **+X** (the model is turned upright for viewing). It is

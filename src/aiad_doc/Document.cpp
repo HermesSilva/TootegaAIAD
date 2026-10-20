@@ -35,6 +35,7 @@
 #include <map>
 #include <numbers>
 #include <set>
+#include <tuple>
 
 namespace aiad::doc
 {
@@ -48,7 +49,7 @@ const TfToken kParameters("aiad:parameters"), kMaterials("aiad:materials"), kBod
     kMaterial("aiad:material"), kRole("aiad:role"), kSectioned("aiad:sectioned"), kFeatures("aiad:features"), kError("aiad:error");
 const TfToken kShape("Shape"), kImported("Imported"), kSection("Section"), kLooks("Looks"), kBrepArray("BrepArray");
 const TfToken kFixed("aiad:fixed"), kJoints("Joints"), kJointType("aiad:type"), kBody0("aiad:body0"), kBody1("aiad:body1"),
-    kPoint("aiad:point"), kAxis("aiad:axis"), kMotor("aiad:motor"), kLimits("aiad:limits"), kStart("aiad:start"), kView("aiad:view"), kInstruments("Instruments"), kElements("Elements"),
+    kPoint("aiad:point"), kAxis("aiad:axis"), kMotor("aiad:motor"), kLimits("aiad:limits"), kStart("aiad:start"), kView("aiad:view"), kInstruments("Instruments"), kSections("Sections"),kElements("Elements"),
     kDefinition("aiad:definition");
 const std::set<std::string> kJointTypes{"revolute", "prismatic", "cylindrical", "spherical", "planar", "fixed"};
 
@@ -960,7 +961,7 @@ namespace
 {
 
 // Fields of each element type: kind (j joint, p part, b body or "ground", e element, n number or formula,
-// v [x, y, z], t true/false, P list of parts, V list of valves {joint, part}) and whether it is required.
+// v [x, y, z], t true/false, m a dynamometer's mode, P list of parts, V list of valves {joint, part}) and whether it is required.
 struct Field
 {
     const char* name;
@@ -982,6 +983,16 @@ const std::map<std::string, std::vector<Field>> kElementFields = {
       {"active_turns", 'n', false},
       {"damping", 'n', false}}},
     {"load", {{"joint", 'j', true}, {"constant", 'n', false}, {"linear", 'n', false}, {"quadratic", 'n', false}}},
+    {"dynamometer",
+     {{"joint", 'j', true},
+      {"mode", 'm', false},
+      {"speed", 'n', false},
+      {"from", 'n', false},
+      {"to", 'n', false},
+      {"seconds", 'n', false},
+      {"torque", 'n', false},
+      {"max_torque", 'n', false},
+      {"start", 'n', false}}},
     {"torsion", {{"joint", 'j', true}, {"part", 'p', true}, {"free", 'n', false}, {"damping", 'n', false}, {"holder", 'p', false}}},
     {"touch", {{"part0", 'p', true}, {"part1", 'p', true}, {"at", 'n', false}, {"stiffness", 'n', false}, {"damping", 'n', false}}},
     {"chamber",
@@ -1042,7 +1053,7 @@ bool Document::DefineElement(const ElementInfo& element, std::string& error)
     if (element.name.empty())
         error = "an element needs a name";
     else if (type == kElementFields.end())
-        error = "unknown element type '" + element.type + "' (gear, belt, rack, contact, spring, torsion, touch, load, chamber, magneto)";
+        error = "unknown element type '" + element.type + "' (gear, belt, rack, contact, spring, torsion, touch, load, dynamometer, chamber, magneto)";
     else if (!element.definition.is_object())
         error = "the definition is an object of fields";
     if (!error.empty())
@@ -1069,6 +1080,7 @@ bool Document::DefineElement(const ElementInfo& element, std::string& error)
         case 'n': return EvaluateNumber(v, number, e) ? "" : field + ": " + e;
         case 'v': return EvaluateVector(v, vector, e) ? "" : field + ": " + e;
         case 't': return v.is_boolean() ? "" : field + ": expected true or false";
+        case 'm': return name(v) == "speed" || name(v) == "sweep" || name(v) == "torque" ? "" : field + ": expected \"speed\", \"sweep\" or \"torque\"";
         }
         if (!v.is_array())
             return field + ": expected a list";
@@ -1178,6 +1190,86 @@ bool Document::DeleteInstrument(const std::string& name, std::string& error)
     m_stage->RemovePrim(path);
     if (OnInstrumentsChanged)
         OnInstrumentsChanged();
+    return true;
+}
+
+// ---- Section planes ------------------------------------------------------------------------------------------------
+
+std::vector<ElementInfo> Document::Sections() const
+{
+    std::vector<ElementInfo> list;
+    if (const UsdPrim scope = m_stage->GetPrimAtPath(m_root.AppendChild(kSections)))
+        for (const UsdPrim& prim : scope.GetChildren())
+        {
+            const Json definition = ParseJson(GetString(prim, kDefinition));
+            list.push_back({GetString(prim, kName), "section", definition.is_object() ? definition : Json::object()});
+        }
+    return list;
+}
+
+std::optional<ElementInfo> Document::FindSection(const std::string& name) const
+{
+    for (ElementInfo& s : Sections())
+        if (s.name == name)
+            return s;
+    return std::nullopt;
+}
+
+bool Document::DefineSection(const std::string& name, const Json& d, std::string& error)
+{
+    if (name.empty())
+        return error = "a section needs a name", false;
+    if (!d.is_object())
+        return error = "the definition must be an object", false;
+    auto vector = [&](const char* key, bool needed, bool nonzero) {
+        if (!d.contains(key))
+            return !needed || (error = std::format("'{}' is missing: [x, y, z]", key), false);
+        const Json& v = d[key];
+        if (!v.is_array() || v.size() != 3 || !v[0].is_number() || !v[1].is_number() || !v[2].is_number())
+            return error = std::format("'{}' must be [x, y, z] (numbers, m in the model frame)", key), false;
+        if (nonzero && v[0].get<double>() == 0.0 && v[1].get<double>() == 0.0 && v[2].get<double>() == 0.0)
+            return error = std::format("'{}' must not be zero", key), false;
+        return true;
+    };
+    if (!vector("point", true, false) || !vector("normal", true, true))
+        return false;
+    const std::vector<std::string> bodies = Bodies();
+    const std::vector<PartInfo> parts = Parts();
+    auto known = [&](const std::string& n, bool part, bool body) {
+        return (part && std::any_of(parts.begin(), parts.end(), [&](const PartInfo& p) { return p.name == n; })) ||
+               (body && std::find(bodies.begin(), bodies.end(), n) != bodies.end());
+    };
+    for (const auto& [key, part, body] : {std::tuple{"parts", true, false}, std::tuple{"bodies", false, true}, std::tuple{"exclude", true, true}})
+    {
+        if (!d.contains(key))
+            continue;
+        if (!d[key].is_array())
+            return error = std::format("'{}' must be a list of names", key), false;
+        for (const Json& n : d[key])
+            if (!n.is_string() || !known(n.get<std::string>(), part, body))
+                return error = std::format("'{}': '{}' is not a {} of the document", key, n.is_string() ? n.get<std::string>() : n.dump(),
+                                           part && body ? "part or body" : part ? "part" : "body"), false;
+    }
+    for (const char* key : {"enabled", "fill"})
+        if (d.contains(key) && !d[key].is_boolean())
+            return error = std::format("'{}' must be true or false", key), false;
+    UsdGeomScope::Define(m_stage, m_root.AppendChild(kSections));
+    UsdPrim prim = UsdGeomScope::Define(m_stage, m_root.AppendChild(kSections).AppendChild(TfToken(PrimName(name)))).GetPrim();
+    SetString(prim, kName, name);
+    SetString(prim, kDefinition, d.dump());
+    if (OnSectionsChanged)
+        OnSectionsChanged();
+    return true;
+}
+
+bool Document::DeleteSection(const std::string& name, std::string& error)
+{
+    const SdfPath path = m_root.AppendChild(kSections).AppendChild(TfToken(PrimName(name)));
+    if (!m_stage->GetPrimAtPath(path))
+        return error = "no section '" + name + "'", false;
+    m_stage->RemovePrim(path);
+    if (OnSectionsChanged)
+        OnSectionsChanged();
     return true;
 }
 

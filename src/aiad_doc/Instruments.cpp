@@ -34,7 +34,8 @@ const std::vector<Unit>& UnitsOf(Dimension d)
         {{"s", "s", 1, 0}, {"ms", "ms", 1e3, 0}, {"us", "µs", 1e6, 0}, {"min", "min", 1 / 60.0, 0}},
         {{"Hz", "Hz", 1, 0}, {"vph", "vph", 7200, 0}, {"rpm", "rpm", 60, 0}, {"kHz", "kHz", 1e-3, 0}},
         {{"count", "", 1, 0}},
-        {{"%", "%", 100, 0}, {"ratio", "", 1, 0}}};
+        {{"%", "%", 100, 0}, {"ratio", "", 1, 0}},
+        {{"kW", "kW", 1e-3, 0}, {"W", "W", 1, 0}, {"hp", "hp", 1 / 745.69987, 0}, {"cv", "cv", 1 / 735.49875, 0}}};
     return units[size_t(d)];
 }
 
@@ -49,7 +50,7 @@ const Unit& FindUnit(Dimension d, const std::string& name)
 
 const char* SiUnit(Dimension d)
 {
-    static const char* si[] = {"rad", "rad/s", "rad/s2", "m", "m/s", "m/s2", "Pa", "K", "m3", "N", "N.m", "V", "s", "Hz", "count", "ratio"};
+    static const char* si[] = {"rad", "rad/s", "rad/s2", "m", "m/s", "m/s2", "Pa", "K", "m3", "N", "N.m", "V", "s", "Hz", "count", "ratio", "W"};
     return si[size_t(d)];
 }
 
@@ -73,6 +74,10 @@ const std::vector<InstrumentType>& InstrumentTypes()
          "events where a probe crosses a threshold (rise, fall or both): the interval between them, their frequency, their count, or the "
          "machine's time (stopwatch)",
          1, "ms", 3, {}},
+        {"dynamometer", "DY-1", "Dynamometer",
+         "the real (brake) power a machine gives at a shaft, read on a dynamometer element (a bench brake): power, torque, speed, the "
+         "indicated power of the chambers turning that shaft and the mechanical efficiency, and the torque and power curve against rpm",
+         1, "kW", 2, {D::Power}},
         {"meter", "MM-1", "Universal meter", "any quantity a probe can read, with its statistics", 1, "", 4, {}},
         {"chart", "CR-1", "Chart recorder", "up to four probes drawn over time", 4, "", 4, {}}};
     return types;
@@ -100,7 +105,9 @@ bool QuantityDimension(const std::string& targetKind, bool rotation, const std::
                               {"chamber", "temperature", D::Temperature, D::Temperature}, {"chamber", "volume", D::Volume, D::Volume},
                               {"magneto", "voltage", D::Voltage, D::Voltage},       {"touch", "force", D::Force, D::Force},
                               {"contact", "force", D::Force, D::Force},             {"spring", "force", D::Force, D::Force},
-                              {"torsion", "torque", D::Torque, D::Torque}};
+                              {"torsion", "torque", D::Torque, D::Torque},
+                              {"dynamometer", "power", D::Power, D::Power},       {"dynamometer", "torque", D::Torque, D::Torque},
+                              {"dynamometer", "speed", D::AngularSpeed, D::AngularSpeed}};
     known.clear();
     for (const Q& q : table)
         if (targetKind == q.kind)
@@ -120,7 +127,10 @@ std::string DefaultQuantity(const std::string& type, const std::string& targetKi
     if (targetKind == "joint")
         return type == "tachometer" ? "speed" : type == "accelerometer" ? "acceleration" : "position";
     static const std::pair<const char*, const char*> byKind[] = {{"chamber", "pressure"}, {"magneto", "voltage"}, {"touch", "force"},
-                                                                {"contact", "force"},   {"spring", "force"},    {"torsion", "torque"}};
+                                                                {"contact", "force"},   {"spring", "force"},    {"torsion", "torque"},
+                                                                {"dynamometer", "power"}};
+    if (targetKind == "dynamometer" && (type == "gauge" || type == "tachometer"))
+        return type == "gauge" ? "torque" : "speed";
     if (targetKind == "chamber" && type == "thermometer")
         return "temperature";
     for (const auto& [kind, quantity] : byKind)

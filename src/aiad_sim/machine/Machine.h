@@ -46,11 +46,32 @@ struct Magneto
     magneto::IgnitionCircuit circuit;
 };
 
+// A dynamometer on a shaft (a revolute joint): an absorber that brakes it, as an eddy-current bench brake does, and
+// measures the torque it takes. Speed: holds the shaft at `speed` (absorbing only: below it, it lets go) and reads the
+// torque the machine gives there; sweep: the held speed goes from `from` to `to` in `seconds` (a power curve); torque:
+// a constant braking torque, the speed is where the machine settles. Engaged from `start` [s].
+struct Dynamometer
+{
+    std::string name;
+    int joint = -1;
+    enum class Mode
+    {
+        Speed,
+        Sweep,
+        Torque
+    } mode = Mode::Speed;
+    double speed = 0.0, from = 0.0, to = 0.0, seconds = 0.0;   // [rad/s], [s]
+    double torque = 0.0, maxTorque = 1.0e4;                    // [N m]
+    double start = 0.0;                                        // [s]
+    double inertia = 0.0;                                      // of the shaft about its axis [kg m^2] (the controller's gains)
+};
+
 struct Description
 {
     mb::Model mechanism;
     std::vector<Chamber> chambers;
     std::vector<Magneto> magnetos;
+    std::vector<Dynamometer> dynamometers;
 };
 
 struct ChamberState
@@ -62,6 +83,16 @@ struct ChamberState
     int combustions = 0;
     double work = 0.0;                                        // indicated work since the start [J]
     double minVolume = 1e30, maxVolume = 0.0, peakPressure = 0.0;
+};
+
+struct DynamometerState
+{
+    double target = 0.0;    // held speed [rad/s] (0: not engaged)
+    double torque = 0.0;    // absorbed [N m], >= 0
+    double speed = 0.0;     // of the shaft [rad/s], >= 0
+    double power = 0.0;     // torque x speed [W]
+    double energy = 0.0;    // absorbed since the start [J]
+    double integral = 0.0;  // the controller's
 };
 
 struct MagnetoState
@@ -87,6 +118,7 @@ public:
     const mb::Multibody& Mechanism() const { return *m_mechanism; }
     const ChamberState& Chamber(size_t i) const { return m_chambers[i]; }
     const MagnetoState& Magneto(size_t i) const { return m_magnetos[i]; }
+    const DynamometerState& Dyno(size_t i) const { return m_dynos[i]; }
 
 private:
     Description m_description;
@@ -95,6 +127,7 @@ private:
     std::vector<magneto::MagnetoIgnition> m_ignitions;
     std::vector<ChamberState> m_chambers;
     std::vector<MagnetoState> m_magnetos;
+    std::vector<DynamometerState> m_dynos;
 };
 
 }  // namespace aiad::sim::machine

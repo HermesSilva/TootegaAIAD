@@ -9,6 +9,7 @@
     <ClCompile Include="AiPanels.cpp" />
     <ClCompile Include="InstrumentBank.cpp" />
     <ClCompile Include="InstrumentPanels.cpp" />
+    <ClCompile Include="SectionPanel.cpp" />
     <ClCompile Include="Markdown.cpp" />
     <ClInclude Include="AiPanels.h" />
     <ClInclude Include="D3DContext.h" />
@@ -19,6 +20,7 @@
     <ClInclude Include="StudyFinding.h" />
     <ClInclude Include="InstrumentBank.h" />
     <ClInclude Include="InstrumentPanels.h" />
+    <ClInclude Include="SectionPanel.h" />
     <ClInclude Include="Markdown.h" />
   </ItemGroup>
 </Project>

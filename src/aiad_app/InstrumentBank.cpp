@@ -52,9 +52,59 @@ double ReadSource(const InstrumentProbe& p, const sim::machine::Machine& machine
         const sim::mb::TorsionSpring& t = study.machine.mechanism.torsions[size_t(p.index)];
         return t.stiffness * (t.free - mb.Coordinate(t.joint));
     }
+    case Source::DynoPower: return machine.Dyno(size_t(p.index)).power;
+    case Source::DynoTorque: return machine.Dyno(size_t(p.index)).torque;
+    case Source::DynoSpeed: return machine.Dyno(size_t(p.index)).speed;
+    case Source::DynoTarget: return machine.Dyno(size_t(p.index)).target;
+    case Source::IndicatedWork:
+    {
+        // The chambers whose crank (or ignition rotor) is the dynamometer's shaft.
+        const sim::machine::Description& d = study.machine;
+        const int shaft = d.dynamometers[size_t(p.index)].joint;
+        double work = 0.0;
+        for (size_t i = 0; i < d.chambers.size(); ++i)
+        {
+            const sim::machine::Chamber& c = d.chambers[i];
+            const int crank = c.crank >= 0 ? c.crank : c.ignition >= 0 ? d.magnetos[size_t(c.ignition)].rotor : -1;
+            if (crank == shaft)
+                work += machine.Chamber(i).work;
+        }
+        return work;
+    }
     case Source::None: break;
     }
     return 0.0;
+}
+
+}  // namespace
+
+// A dynamometer's point of the curve: the brake held the shaft at its speed (within 2 %).
+bool DynoHeld(double speed, double target)
+{
+    return target > 0.0 && std::abs(speed - target) <= 0.02 * target;
+}
+
+namespace
+{
+
+// The change of a probe from `t0` to its newest sample (false with fewer than two samples there).
+bool ChangeSince(const InstrumentProbe& p, double t0, double& change, double& span)
+{
+    if (p.rawCount < 2)
+        return false;
+    const InstrumentSample& last = p.raw[(p.rawHead + kRawSamples - 1) % kRawSamples];
+    const InstrumentSample* first = nullptr;
+    for (size_t k = 1; k < p.rawCount; ++k)
+    {
+        const InstrumentSample& s = p.raw[(p.rawHead + kRawSamples - 1 - k) % kRawSamples];
+        if (s.t < t0)
+            break;
+        first = &s;
+    }
+    if (!first || last.t <= first->t)
+        return false;
+    change = last.v - first->v, span = last.t - first->t;
+    return true;
 }
 
 // The samples of a probe from the newest back to `t0` (mean, or false when there are none).
@@ -143,6 +193,11 @@ void InstrumentBank::Build(const doc::Document& document, const MechanismStudy& 
                 p.index = IndexByName(model.springs, p.target), p.source = Source::SpringForce;
             else if (kind == "torsion")
                 p.index = IndexByName(model.torsions, p.target), p.source = Source::TorsionTorque;
+            else if (kind == "dynamometer")
+            {
+                p.index = IndexByName(study.machine.dynamometers, p.target);
+                p.source = p.quantity == "torque" ? Source::DynoTorque : p.quantity == "speed" ? Source::DynoSpeed : Source::DynoPower;
+            }
             if (p.problem.empty() && p.index < 0)
             {
                 p.problem = std::format("'{}' is not in the machine (the simulator refused the drawing, or it is not running)", p.target);
@@ -151,6 +206,16 @@ void InstrumentBank::Build(const doc::Document& document, const MechanismStudy& 
             p.raw.resize(kRawSamples);
             li.probes.push_back(std::move(p));
         }
+        // A dynamometer reads its brake's torque, speed and held speed, and the chambers' work on its shaft, too.
+        if (info.type == "dynamometer" && li.probes.size() == 1 && li.probes[0].source == Source::DynoPower)
+            for (const auto& [source, dimension] : {std::pair{Source::DynoTorque, doc::Dimension::Torque}, std::pair{Source::DynoSpeed, doc::Dimension::AngularSpeed},
+                                                    std::pair{Source::DynoTarget, doc::Dimension::AngularSpeed}, std::pair{Source::IndicatedWork, doc::Dimension::Ratio}})
+            {
+                InstrumentProbe q;
+                q.source = source, q.index = li.probes[0].index, q.dimension = dimension, q.target = li.probes[0].target, q.hidden = true;
+                q.raw.resize(kRawSamples);
+                li.probes.push_back(std::move(q));
+            }
         // The unit shown: the definition's, else the type's default when it fits, else the first of the dimension.
         const doc::Dimension shown = info.type == "oscillation"   ? doc::Dimension::Frequency
                                      : info.type == "timer"       ? (li.mode == "count"       ? doc::Dimension::Count
@@ -370,6 +435,44 @@ Readout InstrumentBank::Measure(const LiveInstrument& li, double now) const
             r.secondary.push_back({"Rate", (f * 7200.0 / li.reference - 1.0) * 86400.0, "s/day", 1, true});
         return r;
     }
+    if (type == "dynamometer" && li.probes.size() >= 5)
+    {
+        // Brake power and torque over the gate; the indicated power from the chambers' work over the same time.
+        const InstrumentProbe &torque = li.probes[1], &speed = li.probes[2], &target = li.probes[3], &work = li.probes[4];
+        const double gate = std::max(Gate(li), 1e-9);
+        double power = 0.0, t = 0.0, w = 0.0, held = 0.0, dw = 0.0, span = 0.0;
+        const bool ok = samples && MeanSince(p, now - gate, power);
+        r.main = Make("Brake power", power, doc::Dimension::Power, li.unit, li.digits, ok);
+        r.secondary.push_back(Make("Torque", t, doc::Dimension::Torque, "N.m", 2, MeanSince(torque, now - gate, t)));
+        r.secondary.push_back(Make("Speed", w, doc::Dimension::AngularSpeed, "rpm", 0, MeanSince(speed, now - gate, w)));
+        r.secondary.push_back(Make("Held at", held, doc::Dimension::AngularSpeed, "rpm", 0, MeanSince(target, now - gate, held) && held > 0.0));
+        const bool indicated = ChangeSince(work, now - gate, dw, span) && dw != 0.0;
+        r.secondary.push_back(Make("Indicated", indicated ? dw / span : 0.0, doc::Dimension::Power, li.unit, li.digits, indicated));
+        r.secondary.push_back({"Mech. efficiency", indicated && ok ? 100.0 * power / (dw / span) : 0.0, "%", 1, indicated && ok && dw > 0.0});
+        // The best of the curve so far (the chart's buckets: power and speed side by side), where the brake held the
+        // speed (within 2 %): the moment it engages it also takes the flywheel's energy, which is not the machine's power.
+        double best = -1.0, bestAt = 0.0, most = -1.0, mostAt = 0.0;
+        for (size_t k = 0; k < p.history.size() && k < speed.history.size() && k < torque.history.size() && k < target.history.size(); ++k)
+        {
+            if (!DynoHeld(speed.history[k].mean, target.history[k].mean))
+                continue;
+            if (p.history[k].mean > best)
+                best = p.history[k].mean, bestAt = speed.history[k].mean;
+            if (torque.history[k].mean > most)
+                most = torque.history[k].mean, mostAt = speed.history[k].mean;
+        }
+        if (best > 0.0)
+        {
+            const doc::Unit& u = doc::FindUnit(doc::Dimension::Power, li.unit);
+            r.secondary.push_back({std::format("Peak power (at {:.0f} rpm)", bestAt * 60.0 / (2.0 * std::numbers::pi)), best * u.scale + u.offset, u.label, li.digits, true});
+            r.secondary.push_back({std::format("Peak torque (at {:.0f} rpm)", mostAt * 60.0 / (2.0 * std::numbers::pi)), most, "N·m", 2, true});
+        }
+        if (!ok)
+            r.status = "no signal yet: run the machine";
+        else if (held <= 0.0 && t <= 0.0)
+            r.status = "not braking: the shaft is below the held speed";
+        return r;
+    }
     if (type == "timer")
     {
         std::vector<double> e;
@@ -463,7 +566,8 @@ Json InstrumentBank::Read(const std::string& name, double now) const
             secondary.push_back(reading(x));
         Json probes = Json::array();
         for (const InstrumentProbe& p : li.probes)
-            probes.push_back({{"target", p.target}, {"quantity", p.quantity}, {"unit_si", doc::SiUnit(p.dimension)}, {"samples", p.statCount},
+            if (!p.hidden)
+                probes.push_back({{"target", p.target}, {"quantity", p.quantity}, {"unit_si", doc::SiUnit(p.dimension)}, {"samples", p.statCount},
                               {"problem", p.problem}});
         list.push_back({{"name", li.info.name}, {"type", li.info.type}, {"model", li.type->model}, {"visible", li.visible}, {"time_s", now},
                         {"main", reading(r.main)}, {"secondary", secondary}, {"status", r.status}, {"probes", probes}});

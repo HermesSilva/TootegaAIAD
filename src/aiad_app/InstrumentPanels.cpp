@@ -8,6 +8,7 @@
 #include <cmath>
 #include <format>
 #include <map>
+#include <numbers>
 
 namespace aiad::app
 {
@@ -77,7 +78,8 @@ std::string ProbeText(const LiveInstrument& li)
 {
     std::string text;
     for (const InstrumentProbe& p : li.probes)
-        text += (text.empty() ? "" : ", ") + p.target + " · " + p.quantity;
+        if (!p.hidden)
+            text += (text.empty() ? "" : ", ") + p.target + " · " + p.quantity;
     return text;
 }
 
@@ -234,7 +236,35 @@ void DrawInstrumentPanels(Session& session, const UiFonts& fonts, float scale, c
                 // The chart: the history over the window (mean, and the band from min to max in each bucket).
                 ImPlot::PushStyleColor(ImPlotCol_PlotBg, Colour(kDisplay));
                 ImPlot::PushStyleColor(ImPlotCol_FrameBg, Colour(kChassis));
-                if (ImPlot::BeginPlot("##chart", ImVec2(-1.0f, base * 8.0f), ImPlotFlags_NoMenus | ImPlotFlags_NoBoxSelect | (li.probes.size() > 1 ? 0 : ImPlotFlags_NoLegend)))
+                // A dynamometer draws its curve: brake power and torque against the shaft's speed (every bucket of the history).
+                if (li.info.type == "dynamometer" && li.probes.size() >= 5 &&
+                    ImPlot::BeginPlot("##curve", ImVec2(-1.0f, base * 10.0f), ImPlotFlags_NoMenus | ImPlotFlags_NoBoxSelect))
+                {
+                    const InstrumentProbe &power = li.probes[0], &torque = li.probes[1], &speed = li.probes[2], &held = li.probes[3];
+                    const doc::Unit& u = doc::FindUnit(doc::Dimension::Power, li.unit);
+                    ImPlot::SetupAxes("rpm", u.label, ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
+                    ImPlot::SetupAxis(ImAxis_Y2, "N·m", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_Opposite);
+                    std::vector<double> rpm, kw, nm;
+                    for (size_t k = 0; k < power.history.size() && k < torque.history.size() && k < speed.history.size() && k < held.history.size(); ++k)
+                        if (DynoHeld(speed.history[k].mean, held.history[k].mean))
+                        {
+                            rpm.push_back(speed.history[k].mean * 60.0 / (2.0 * std::numbers::pi));
+                            kw.push_back(power.history[k].mean * u.scale + u.offset);
+                            nm.push_back(torque.history[k].mean);
+                        }
+                    if (!rpm.empty())
+                    {
+                        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
+                        const ImVec4 pc = Colour(IM_COL32(90, 200, 255, 255)), tc = Colour(IM_COL32(255, 176, 0, 255));   // power blue, torque amber
+                        ImPlot::PlotScatter(std::format("Power [{}]", u.label).c_str(), rpm.data(), kw.data(), int(rpm.size()),
+                                            ImPlotSpec(ImPlotProp_LineColor, pc, ImPlotProp_MarkerFillColor, pc, ImPlotProp_MarkerLineColor, pc, ImPlotProp_MarkerSize, 2.0f * scale));
+                        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y2);
+                        ImPlot::PlotScatter("Torque [N·m]", rpm.data(), nm.data(), int(rpm.size()),
+                                            ImPlotSpec(ImPlotProp_LineColor, tc, ImPlotProp_MarkerFillColor, tc, ImPlotProp_MarkerLineColor, tc, ImPlotProp_MarkerSize, 2.0f * scale));
+                    }
+                    ImPlot::EndPlot();
+                }
+                if (ImPlot::BeginPlot("##chart", ImVec2(-1.0f, base * 8.0f), ImPlotFlags_NoMenus | ImPlotFlags_NoBoxSelect | (std::count_if(li.probes.begin(), li.probes.end(), [](const InstrumentProbe& q) { return !q.hidden; }) > 1 ? 0 : ImPlotFlags_NoLegend)))
                 {
                     const double window = bank.Window(li);
                     ImPlot::SetupAxes(window < 1.0 ? "machine ms" : "machine s", nullptr, ImPlotAxisFlags_None, ImPlotAxisFlags_AutoFit);
@@ -243,6 +273,8 @@ void DrawInstrumentPanels(Session& session, const UiFonts& fonts, float scale, c
                     for (size_t k = 0; k < li.probes.size(); ++k)
                     {
                         const InstrumentProbe& p = li.probes[k];
+                        if (p.hidden)
+                            continue;
                         const doc::Unit& u = doc::FindUnit(p.dimension, k == 0 && li.info.type != "oscillation" && li.info.type != "timer" ? li.unit : std::string());
                         std::vector<double> x, mean, lo, hi;
                         for (const InstrumentProbe::Bucket& b : p.history)
@@ -295,9 +327,14 @@ void DrawInstrumentMarks(Session& session, const Project& project, const UiFonts
                     at += pxr::GfVec3d(q[0], q[1], q[2]) / double(std::max<size_t>(points.size(), 1));
             };
             using S = InstrumentProbe::Source;
-            if (!known)
+            if (!known || p.hidden)
                 continue;
-            if (p.source == S::JointPosition || p.source == S::JointSpeed || p.source == S::JointAcceleration)
+            if (p.source == S::DynoPower || p.source == S::DynoTorque || p.source == S::DynoSpeed)
+            {
+                const auto& j = model.joints[size_t(session.study.machine.dynamometers[size_t(p.index)].joint)];
+                at = pxr::GfVec3d(j.point[0], j.point[1], j.point[2]);
+            }
+            else if (p.source == S::JointPosition || p.source == S::JointSpeed || p.source == S::JointAcceleration)
                 at = pxr::GfVec3d(model.joints[size_t(p.index)].point[0], model.joints[size_t(p.index)].point[1], model.joints[size_t(p.index)].point[2]);
             else if (p.source == S::TorsionTorque)
             {

@@ -364,6 +364,22 @@ juntas e elementos.
   - **UI:** painéis de bancada (display de sete segmentos, fonte DSEG7 embutida por recurso), marcas no viewport;
     um painel arrastado para fora da janela principal vira janela própria (multi-viewport do Dear ImGui), com
     posição e tamanho salvos no layout. O agente usa `aiad_instrument_define/show/delete/read`.
+- **Dinamômetro (2026-10-20):** elemento `dynamometer` (freio de bancada num eixo): `sim::machine::Machine` aplica
+  um torque de frenagem por um PI só absorvente (ganhos pela inércia do eixo medida no desenho; lento de propósito,
+  segura a rotação média sobre vários ciclos), nos modos rotação fixa, varredura e torque fixo. O instrumento DY-1 lê
+  potência no freio, torque, rotação, potência indicada das câmaras daquele eixo (trabalho p dV), rendimento mecânico e
+  a curva torque/potência × rpm só com os pontos em que o freio segurou a rotação (o tranco do engate absorve a
+  energia do volante e não é potência do motor).
+- **Planos de corte (2026-10-20):** entidades do documento em `/Root/Sections` (ponto, normal, `parts`/`bodies`,
+  `exclude`, `enabled`, `fill`), só de exibição: o sólido nunca é cortado. Quantos forem precisos, em qualquer
+  orientação; uma peça cortada por vários fica com o que está atrás de todos. A `DocumentScene` corta a malha de
+  exibição na pose atual do corpo (`kernel::SectionMesh`, tampas recortadas pelos planos seguintes), em fatias por
+  frame; peças móveis levam o corte consigo durante a corrida e são recortadas onde param. A troca entre peça
+  inteira e cortada é por escala (não por visibilidade, que faz o Aurora recriar a instância). UI: painel Sections
+  (eixo, de frente para a vista, giro, inclinação, profundidade, peças), alças no viewport (a ponta da seta gira o
+  plano em 3D, o centro o desloca; o corte acompanha ao vivo e vira um comando ao soltar) e o menu do botão direito
+  da peça. Comandos `aiad_section_define/delete`, `aiad_sections_list`.
+
 ---
 
 ## 10. Render (`aiad_render`) e UI

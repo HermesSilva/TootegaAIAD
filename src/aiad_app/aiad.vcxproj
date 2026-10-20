@@ -48,6 +48,7 @@
     <ClCompile Include="Markdown.cpp" />
     <ClCompile Include="InstrumentBank.cpp" />
     <ClCompile Include="InstrumentPanels.cpp" />
+    <ClCompile Include="SectionPanel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AiPanels.h" />
@@ -60,6 +61,7 @@
     <ClInclude Include="Markdown.h" />
     <ClInclude Include="InstrumentBank.h" />
     <ClInclude Include="InstrumentPanels.h" />
+    <ClInclude Include="SectionPanel.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\deps\forks\aurora-4AIAD\Libraries\Aurora\Aurora.vcxproj">

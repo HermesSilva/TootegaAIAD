@@ -77,8 +77,14 @@ struct InstrumentProbe
         TouchForce,
         ContactForce,
         SpringForce,
-        TorsionTorque
+        TorsionTorque,
+        DynoPower,
+        DynoTorque,
+        DynoSpeed,
+        DynoTarget,
+        IndicatedWork   // the work the chambers turning a dynamometer's shaft did since the start [J]
     } source = Source::None;
+    bool hidden = false;   // read for the instrument's own readouts (a dynamometer's torque, speed...), not shown as a probe
     int index = -1;                  // the joint, chamber, magneto, touch, contact, spring or torsion
     doc::Dimension dimension = doc::Dimension::Ratio;
     std::string target, quantity, problem;   // problem: why it reads nothing
@@ -127,6 +133,9 @@ struct LiveInstrument
     bool detached = false;   // in a window of its own, out of the main one (square corners there)
     unsigned colour = 0;
 };
+
+// A dynamometer's point of its curve: the brake held the shaft at the speed it was set to (within 2 %).
+bool DynoHeld(double speed, double target);
 
 class InstrumentBank
 {

@@ -11,6 +11,7 @@
 #include "DocCommands.h"
 #include "DocumentScene.h"
 #include "InstrumentPanels.h"
+#include "SectionPanel.h"
 #include "Session.h"
 #include "MainThreadQueue.h"
 #include "Paths.h"
@@ -56,6 +57,8 @@
 #include <vector>
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
+// The model-frame direction from the scene toward the camera (a section plane "facing the view"), each frame.
+static pxr::GfVec3d g_sectionFacing(0.0, -1.0, 0.0);
 
 namespace
 {
@@ -418,6 +421,7 @@ void SpecificationTree(Session& session, int& selected)
                     {
                         selected = int(i);
                         app::MeasurePartMenu(session, parts[i].name, parts[i].body, RunUserCommand);
+                        app::SectionPartItems(session, int(i), g_sectionFacing, RunUserCommand);
                         ImGui::EndPopup();
                     }
                     ImGui::PopID();
@@ -1621,6 +1625,12 @@ int main(int argc, char** argv)
             ++changeCount;
             session.RebuildInstruments();
         };
+        // Section planes cut the view only: the parts they touch are re-cut, the machine is not rebuilt.
+        session.document->OnSectionsChanged = [&] {
+            ++changeCount;
+            if (session.scene)
+                session.scene->ReadSections();
+        };
         // The view is saved with the document (by the user or the agent) and found again when it is opened.
         session.document->OnSaving = [&] {
             session.document->SetView(Json{{"yaw", camera.yaw},
@@ -1704,7 +1714,7 @@ int main(int argc, char** argv)
     auto fileSave = [&] { saveDocument(); };
     auto fileSaveAs = [&] { saveDocumentAs(""); };
     std::string windowTitle;
-    bool quit = false, showAbout = false;
+    bool quit = false, showAbout = false, showSections = false;
     if (!startDocument.empty() && !openDocument(startDocument))
         std::fprintf(stderr, "%s\n", g_lastError.c_str());
 
@@ -1823,6 +1833,8 @@ int main(int argc, char** argv)
         }
         syncDocument();
         // A slice of the view (changed parts), then the machine study and its field tables.
+        if (sceneReady)
+            session.scene->Follow(session.running);
         if (sceneReady && session.scene->Pending())
             session.scene->Update(10.0);
         else if (sceneReady)
@@ -2123,6 +2135,7 @@ int main(int argc, char** argv)
                 bool section = sceneReady && session.scene->SectionView();
                 if (ImGui::MenuItem("Section View", nullptr, &section, sceneReady))
                     session.scene->SetSectionView(section);
+                ImGui::MenuItem("Section Planes...", nullptr, &showSections, sceneReady);
                 if (ImGui::BeginMenu("Instruments", session.document != nullptr))
                 {
                     app::InstrumentsMenu(session, RunUserCommand);
@@ -2209,6 +2222,9 @@ int main(int argc, char** argv)
             if (ImGui::Checkbox("Section", &section))
                 session.scene->SetSectionView(section);
             ImGui::SameLine();
+            if (ImGui::Button("Planes..."))
+                showSections = !showSections;
+            ImGui::SameLine();
             ImGui::TextDisabled("  LMB click select | LMB drag or MMB pan | Alt+LMB, Space+LMB or MMB+RMB rotate | wheel zoom");
 
             const ImVec2 avail = ImGui::GetContentRegionAvail();
@@ -2233,7 +2249,7 @@ int main(int argc, char** argv)
                 const ImVec2 imageMax(imageMin.x + w, imageMin.y + h);
                 DrawCompass(camera, imageMin, imageMax);
                 // A part set by hand: its control on it, which takes the pointer before the camera does.
-                const bool onControl = AdjusterControl(session, camera, selected, imageMin, imageMax);
+                bool onControl = AdjusterControl(session, camera, selected, imageMin, imageMax);
                 // Where the visible instruments' probes read.
                 {
                     const pxr::GfMatrix4d toWorld = session.scene->ModelToWorld(), toCamera = camera.CameraToWorld().GetInverse();
@@ -2245,6 +2261,19 @@ int main(int argc, char** argv)
                         out = ImVec2(float(imageMin.x + (c[0] / (-c[2] * tanHalf * aspect) + 1.0) * 0.5 * w), float(imageMin.y + (1.0 - c[1] / (-c[2] * tanHalf)) * 0.5 * h));
                         return true;
                     }, fonts);
+                    // Section planes (while their panel is open), with their handles.
+                    GfVec3d right, up, back;
+                    camera.Axes(right, up, back);
+                    const pxr::GfMatrix4d toModel = toWorld.GetInverse();
+                    g_sectionFacing = toModel.TransformDir(back).GetNormalized();
+                    const bool overPlane = app::DrawSectionPlanes(session, [&](const GfVec3d& model, ImVec2& out) {
+                        const GfVec3d c = toCamera.Transform(toWorld.Transform(model));
+                        if (c[2] > -1e-9)
+                            return false;
+                        out = ImVec2(float(imageMin.x + (c[0] / (-c[2] * tanHalf * aspect) + 1.0) * 0.5 * w), float(imageMin.y + (1.0 - c[1] / (-c[2] * tanHalf)) * 0.5 * h));
+                        return true;
+                    }, toModel.TransformDir(right).GetNormalized(), toModel.TransformDir(up).GetNormalized(), ImGui::IsItemHovered() && !onControl, RunUserCommand);
+                    onControl = onControl || overPlane;
                 }
                 if (ImGui::IsItemHovered() && !onControl)
                 {
@@ -2301,8 +2330,11 @@ int main(int argc, char** argv)
                 if (ImGui::BeginPopup("##measure-part"))
                 {
                     if (selected >= 0 && selected < int(session.scene->Parts().size()))
+                    {
                         app::MeasurePartMenu(session, session.scene->Parts()[size_t(selected)].name, session.scene->Parts()[size_t(selected)].body,
                                              RunUserCommand);
+                        app::SectionPartItems(session, selected, g_sectionFacing, RunUserCommand);
+                    }
                     ImGui::EndPopup();
                 }
                 if (selected >= 0)
@@ -2322,6 +2354,8 @@ int main(int argc, char** argv)
         Plots(session);
         if (session.document)
             app::DrawInstrumentPanels(session, fonts, scale, RunUserCommand);
+        if (sceneReady)
+            app::DrawSectionsPanel(session, showSections, selected, g_sectionFacing, RunUserCommand);
         ai.DrawHub();
         ai.DrawChats();
 

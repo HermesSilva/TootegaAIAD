@@ -39,7 +39,8 @@ enum class Dimension
     Time,           // s
     Frequency,      // Hz
     Count,          // events
-    Ratio           // dimensionless
+    Ratio,          // dimensionless
+    Power           // W
 };
 
 struct Unit
@@ -74,7 +75,7 @@ bool ResolveProbe(const Document& document, const std::string& type, const Json&
                   std::string& quantity, Dimension& dimension, std::string& error);
 
 // The dimension of a probe's quantity on its target kind: a joint ("revolute" turns, "prismatic" slides) or an element
-// type ("chamber", "magneto", "touch", "contact", "spring", "torsion"). False when the target has no such quantity;
+// type ("chamber", "magneto", "touch", "contact", "spring", "torsion", "dynamometer"). False when the target has no such quantity;
 // `known` lists the ones it has.
 bool QuantityDimension(const std::string& targetKind, bool rotation, const std::string& quantity, Dimension& dimension, std::string& known);
 

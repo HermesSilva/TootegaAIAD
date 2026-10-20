@@ -634,13 +634,19 @@ void RegisterDocumentCommands(cmd::CommandBus& bus, std::function<Document*()> d
                   "(a height along the axis [m]). stiffness [N/m]: default automatic (the heavier side bouncing at 10 kHz).\n"
                   "- load {joint, constant?, linear?, quadratic?}: resisting torque or force -(c0 sign + c1 rate + c2 rate|rate|) (friction, "
                   "brake, propeller).\n"
+                  "- dynamometer {joint, mode? (speed, sweep, torque; default speed), speed? (rpm), from?, to? (rpm), seconds?, torque? (N m), "
+                  "max_torque? (N m), start? (s)}: a bench brake on a shaft (revolute joint) that measures the machine's real (brake) power: "
+                  "speed holds the shaft at `speed` and reads the torque it absorbs there; sweep raises the held speed from `from` to `to` in "
+                  "`seconds` (the torque and power curve); torque brakes with a constant torque. It only absorbs (below the held speed it "
+                  "lets go) and engages at `start`. Read it with a dynamometer instrument (DY-1): brake power, torque, speed, indicated power "
+                  "of the chambers on that shaft, mechanical efficiency, and the curve against rpm.\n"
                   "- chamber {piston (joint), cylinder (bore part), head (part), intake [{joint, part}], exhaust [{joint, part}], ignition? "
                   "(magneto element), crank? (joint), intake_pressure?, intake_temperature?, exhaust_pressure?, exhaust_temperature?, "
                   "air_fuel_ratio?, burn_duration? (deg)}: 0D gas cycle; bore, chamber volume and valve sizes measured on the parts.\n"
                   "- magneto {rotor (joint), magnet (part), shoes [parts], core [parts], coil?, points_open (deg), points_close?, primary_turns?, "
                   "secondary_turns?}: field from the drawn magnet and core (MFEM), breaker points, spark to the chamber that names it.",
                   Object({{"name", {{"type", "string"}}},
-                          {"type", {{"type", "string"}, {"enum", {"gear", "belt", "rack", "contact", "spring", "torsion", "touch", "load", "chamber", "magneto"}}}},
+                          {"type", {{"type", "string"}, {"enum", {"gear", "belt", "rack", "contact", "spring", "torsion", "touch", "load", "dynamometer", "chamber", "magneto"}}}},
                           {"definition", {{"type", "object"}, {"description", "the fields of the type"}}}},
                          {"name", "type", "definition"}),
                   {}, [document, none, setElement](const Json& args) {
@@ -794,6 +800,74 @@ void RegisterDocumentCommands(cmd::CommandBus& bus, std::function<Document*()> d
                       o.text = "Removed " + name + ".";
                       o.undo = [setInstrument, name, before] { setInstrument(name, before); };
                       o.redo = [setInstrument, name] { setInstrument(name, std::nullopt); };
+                      return o;
+                  }});
+    // ---- Section planes: they cut what the view shows (display only) ----
+    auto setSection = [document](const std::string& name, const std::optional<ElementInfo>& state) {
+        Document* d = document();
+        if (!d)
+            return;
+        std::string e;
+        if (state)
+            d->DefineSection(name, state->definition, e);
+        else if (d->FindSection(name))
+            d->DeleteSection(name, e);
+    };
+    bus.Register({"aiad_sections_list", "List section planes", "The section planes of the view: where each cuts and which parts it cuts.",
+                  Object(Json::object()), {true, false, true}, [document, none](const Json&) {
+                      Document* d = document();
+                      if (!d)
+                          return none();
+                      CommandOutput o;
+                      o.result = Json::array();
+                      std::string text = "| Section | Definition |\n|---|---|\n";
+                      for (const ElementInfo& s : d->Sections())
+                      {
+                          o.result.push_back({{"name", s.name}, {"definition", s.definition}});
+                          text += std::format("| {} | {} |\n", s.name, s.definition.dump());
+                      }
+                      o.text = d->Sections().empty() ? std::string("No section plane: the parts marked 'sectioned' are cut at y = 0 of the model.") : text;
+                      return o;
+                  }});
+    bus.Register({"aiad_section_define", "Define section plane",
+                  "Creates or replaces a section plane of the view (display only: the solids are never cut). Definition: point [x, y, z] "
+                  "and normal [x, y, z] in the model frame (m; the side the normal points to is cut away, any orientation), parts? / "
+                  "bodies? (only these are cut; none: every part), exclude? (parts or bodies kept whole), enabled? (default true), fill? "
+                  "(close the cut with the section colour, default true). A part cut by several planes keeps what is behind all of them. "
+                  "The 'Section' switch of the view shows or hides every cut (aiad_view_set section).",
+                  Object({{"name", {{"type", "string"}}}, {"definition", {{"type", "object"}, {"description", "point, normal, parts, bodies, exclude, enabled, fill"}}}},
+                         {"name", "definition"}),
+                  {}, [document, none, setSection](const Json& args) {
+                      Document* d = document();
+                      if (!d)
+                          return none();
+                      const std::string name = args["name"];
+                      const std::optional<ElementInfo> before = d->FindSection(name);
+                      std::string error;
+                      if (!d->DefineSection(name, args["definition"], error))
+                          return CommandOutput::Fail(std::format("Section {}: {}", name, error));
+                      CommandOutput o;
+                      o.label = "Section " + name;
+                      o.text = std::format("Section plane '{}' {}.", name, args["definition"].value("enabled", true) ? "cuts the view" : "defined (off)");
+                      o.undo = [setSection, name, before] { setSection(name, before); };
+                      o.redo = [setSection, name, after = std::optional<ElementInfo>(ElementInfo{name, "section", args["definition"]})] { setSection(name, after); };
+                      return o;
+                  }});
+    bus.Register({"aiad_section_delete", "Delete section plane", "Removes a section plane (undoable).", Object({{"name", {{"type", "string"}}}}, {"name"}),
+                  {false, true, false}, [document, none, setSection](const Json& args) {
+                      Document* d = document();
+                      if (!d)
+                          return none();
+                      const std::string name = args["name"];
+                      const std::optional<ElementInfo> before = d->FindSection(name);
+                      std::string error;
+                      if (!d->DeleteSection(name, error))
+                          return CommandOutput::Fail(error);
+                      CommandOutput o;
+                      o.label = "Delete section " + name;
+                      o.text = "Removed section " + name + ".";
+                      o.undo = [setSection, name, before] { setSection(name, before); };
+                      o.redo = [setSection, name] { setSection(name, std::nullopt); };
                       return o;
                   }});
     bus.Register({"aiad_doc_save", "Save document", "Saves the document (USD) to its file, or to `path`.", Object({{"path", {{"type", "string"}}}}),
