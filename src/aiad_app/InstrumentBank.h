@@ -8,6 +8,7 @@
 #include "Instruments.h"
 #include "Json.h"
 
+#include <cmath>
 #include <deque>
 #include <string>
 #include <vector>
@@ -54,6 +55,12 @@ struct InstrumentEvent
     bool rising;
 };
 
+// What a chamber's gas was at the events of one cycle (NaN: not seen).
+struct ChamberCycle
+{
+    double intakeCloses = NAN, ignition = NAN, peak = NAN, peakAfterTdcDeg = NAN, exhaustOpens = NAN;
+};
+
 struct InstrumentProbe
 {
     // What it reads.
@@ -96,6 +103,10 @@ struct InstrumentProbe
     double runExtreme = 0.0;
     int direction = 0;                        // +1 rising, -1 falling, 0 unknown
     bool armed = false;
+    // A chamber's pressure or temperature: the cycle being seen and the last complete one.
+    ChamberCycle cycle, lastCycle;
+    bool intakeOpen = false, exhaustOpen = false, burning = false;
+    double tdcVolume = 1e30, tdcAngle = 0.0;
 };
 
 struct LiveInstrument
@@ -113,6 +124,7 @@ struct LiveInstrument
     bool hold = false;
     Readout shown;
     double refreshedAt = -1.0;
+    bool detached = false;   // in a window of its own, out of the main one (square corners there)
     unsigned colour = 0;
 };
 
@@ -121,8 +133,13 @@ class InstrumentBank
 public:
     // From the document's instruments and the machine's study: each probe finds what it reads (or says why not).
     void Build(const doc::Document& document, const MechanismStudy& study);
-    // Every solver step (simulation thread, under the session's lock).
-    void Sample(const sim::machine::Machine& machine, const MechanismStudy& study);
+    // Every solver step (simulation thread, under the session's lock). timeScale: machine seconds per wall second.
+    void Sample(const sim::machine::Machine& machine, const MechanismStudy& study, double timeScale);
+    // Gate and chart window are what the user watches, in wall time: in slow motion they cover that much less machine
+    // time (at 0.002x a 500 ms gate averages 1 ms of the machine, so a reading follows each moment of a cycle).
+    double Gate(const LiveInstrument& li) const { return li.gate * Slow(); }
+    double Window(const LiveInstrument& li) const { return li.window * Slow(); }
+    double Slow() const { return m_scale > 0.0 && m_scale < 1.0 ? m_scale : 1.0; }
     // Statistics, history and events of one instrument (or all) from now on.
     void Reset(const std::string& name = std::string());
     // The readings at the machine's time `now` (computed from the samples; HOLD keeps the panel's).
@@ -134,7 +151,7 @@ public:
 
 private:
     std::vector<LiveInstrument> m_instruments;
-    double m_now = 0.0;
+    double m_now = 0.0, m_scale = 1.0;
 };
 
 }  // namespace aiad::app

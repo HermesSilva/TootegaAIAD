@@ -213,6 +213,10 @@ Build one like this:
 Instruments observe the machine; they are not part of it. Their **probes are ideal**: they read the solver's
 state at every step and change nothing (no mass, no force, no step). Events (crossings, turning points) are
 timed between steps by interpolation. An instrument is saved with the document, shown or hidden, and undoable.
+Gate and window are wall time as watched: in slow motion (time scale < 1) they cover time scale x that much of the
+machine. A chamber's manometer/thermometer also reads the gas at the events of the last cycle: `Intake closes`,
+`Ignition`, `Combustion peak`, `Peak after TDC` (crank degrees), `Exhaust opens` (secondary readouts of
+`aiad_instrument_read`).
 
 - `aiad_instrument_define {"name", "type", "definition": {"probes": [{"joint": "..."} | {"element": "..."},
   "quantity"?], "unit"?, "digits"?, "gate"?, "window"?, "visible"?, ...}}` plugs one in (or replaces it).

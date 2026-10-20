@@ -178,14 +178,45 @@ void InstrumentBank::Reset(const std::string& name)
                 p.extremes.clear();
                 p.direction = 0;
                 p.armed = false;
+                p.cycle = p.lastCycle = ChamberCycle();
                 li.shown = Readout();
             }
 }
 
-void InstrumentBank::Sample(const sim::machine::Machine& machine, const MechanismStudy& study)
+// A chamber's events in one cycle: the intake closing, the ignition, the combustion's peak (and how far after top dead
+// centre the crank was then), the exhaust opening, which ends the cycle.
+static void SampleCycle(InstrumentProbe& p, double v, const sim::machine::Machine& machine, const MechanismStudy& study)
+{
+    const sim::machine::ChamberState& s = machine.Chamber(size_t(p.index));
+    const int crank = study.machine.chambers[size_t(p.index)].crank;
+    const double angle = crank >= 0 ? machine.Mechanism().Coordinate(crank) : NAN;
+    const bool intake = s.intakeLift > 1e-6, exhaust = s.exhaustLift > 1e-6;
+    if (p.intakeOpen && !intake)
+        p.cycle.intakeCloses = v, p.tdcVolume = 1e30;
+    if (!intake && !exhaust && s.volume < p.tdcVolume)
+        p.tdcVolume = s.volume, p.tdcAngle = angle;
+    if (s.combustion && !p.burning)
+        p.cycle.ignition = v, p.cycle.peak = v;
+    if (std::isfinite(p.cycle.ignition) && !exhaust && v >= p.cycle.peak)
+        p.cycle.peak = v, p.cycle.peakAfterTdcDeg = angle;   // the crank's position for now, made relative at the end
+    if (!p.exhaustOpen && exhaust)
+    {
+        p.cycle.exhaustOpens = v;
+        if (crank >= 0 && std::isfinite(p.cycle.peakAfterTdcDeg) && p.tdcVolume < 1e30)
+            p.cycle.peakAfterTdcDeg = (p.cycle.peakAfterTdcDeg - p.tdcAngle) * (machine.Mechanism().Rate(crank) < 0.0 ? -1.0 : 1.0) * 180.0 / std::numbers::pi;
+        else
+            p.cycle.peakAfterTdcDeg = NAN;
+        p.lastCycle = p.cycle;
+        p.cycle = ChamberCycle();
+    }
+    p.intakeOpen = intake, p.exhaustOpen = exhaust, p.burning = s.combustion;
+}
+
+void InstrumentBank::Sample(const sim::machine::Machine& machine, const MechanismStudy& study, double timeScale)
 {
     const double t = machine.Time();
     m_now = t;
+    m_scale = timeScale;
     for (LiveInstrument& li : m_instruments)
         for (InstrumentProbe& p : li.probes)
         {
@@ -198,6 +229,8 @@ void InstrumentBank::Sample(const sim::machine::Machine& machine, const Mechanis
                 v = p.lastT >= 0.0 && t > p.lastT ? (rate - p.lastRate) / (t - p.lastT) : 0.0;
                 p.lastRate = rate;
             }
+            if (p.source == Source::ChamberPressure || p.source == Source::ChamberTemperature)
+                SampleCycle(p, v, machine, study);
             // Raw samples and statistics.
             p.raw[p.rawHead] = {t, v};
             p.rawHead = (p.rawHead + 1) % kRawSamples;
@@ -207,7 +240,7 @@ void InstrumentBank::Sample(const sim::machine::Machine& machine, const Mechanis
             p.statMin = std::min(p.statMin, v), p.statMax = std::max(p.statMax, v);
             p.statSum += v, p.statSquares += v * v;
             // The chart's buckets.
-            const double bucket = li.window / double(kHistoryBuckets);
+            const double window = Window(li), bucket = window / double(kHistoryBuckets);
             if (p.bucketStart < 0.0)
                 p.bucketStart = t, p.bucketMin = p.bucketMax = v, p.bucketSum = 0.0, p.bucketCount = 0;
             p.bucketMin = std::min(p.bucketMin, v), p.bucketMax = std::max(p.bucketMax, v), p.bucketSum += v, ++p.bucketCount;
@@ -218,7 +251,7 @@ void InstrumentBank::Sample(const sim::machine::Machine& machine, const Mechanis
                     p.history.pop_front();
                 // The swing over the window: its middle is the level events are timed at (bounces on a stop do not move it).
                 double lo = p.history.back().min, hi = p.history.back().max;
-                for (auto it = p.history.rbegin(); it != p.history.rend() && it->t >= t - li.window; ++it)
+                for (auto it = p.history.rbegin(); it != p.history.rend() && it->t >= t - window; ++it)
                     lo = std::min(lo, it->min), hi = std::max(hi, it->max);
                 p.level = 0.5 * (lo + hi), p.span = hi - lo, p.levelKnown = true;
                 p.bucketStart = t, p.bucketMin = p.bucketMax = v, p.bucketSum = 0.0, p.bucketCount = 0;
@@ -303,7 +336,7 @@ Readout InstrumentBank::Measure(const LiveInstrument& li, double now) const
         // one cycle); beat error from the two half-periods; amplitude from the last high and low.
         std::vector<double> c;
         for (const InstrumentEvent& e : p.crossings)
-            if (e.t >= now - std::max(li.gate, 1e-9))
+            if (e.t >= now - std::max(Gate(li), 1e-9))
                 c.push_back(e.t);
         if (c.size() < 3)
         {
@@ -345,7 +378,7 @@ Readout InstrumentBank::Measure(const LiveInstrument& li, double now) const
             if (li.edge == "both" || ev.rising == (li.edge == "rise"))
             {
                 ++count;
-                if (ev.t >= now - li.gate)
+                if (ev.t >= now - Gate(li))
                     e.push_back(ev.t);
             }
         if (li.mode == "stopwatch")
@@ -376,7 +409,7 @@ Readout InstrumentBank::Measure(const LiveInstrument& li, double now) const
     }
     // The meters: the mean over the gate (the last value with no gate); the voltmeter shows the last spark.
     double value = 0.0;
-    const bool ok = samples && (type == "voltmeter" || li.gate <= 0.0 ? (value = p.lastV, true) : MeanSince(p, now - li.gate, value));
+    const bool ok = samples && (type == "voltmeter" || li.gate <= 0.0 || !MeanSince(p, now - Gate(li), value) ? (value = p.lastV, true) : true);
     if (li.wrap && dim == doc::Dimension::Angle)
         value = std::fmod(std::fmod(value, 2.0 * std::numbers::pi) + 2.0 * std::numbers::pi, 2.0 * std::numbers::pi);
     static const std::pair<const char*, const char*> labels[] = {{"tachometer", "Speed"},   {"manometer", "Pressure"},  {"thermometer", "Temperature"},
@@ -392,6 +425,16 @@ Readout InstrumentBank::Measure(const LiveInstrument& li, double now) const
     if (!ok)
         r.status = "no signal yet: run the machine";
     stats(p, li.unit, li.digits);
+    // A chamber's gas at the events of its last cycle: what a reading at one moment cannot show at full speed.
+    if ((p.source == Source::ChamberPressure || p.source == Source::ChamberTemperature) && type != "chart")
+    {
+        const ChamberCycle& c = p.lastCycle;
+        r.secondary.push_back(Make("Intake closes", c.intakeCloses, dim, li.unit, li.digits, std::isfinite(c.intakeCloses)));
+        r.secondary.push_back(Make("Ignition", c.ignition, dim, li.unit, li.digits, std::isfinite(c.ignition)));
+        r.secondary.push_back(Make("Combustion peak", c.peak, dim, li.unit, li.digits, std::isfinite(c.peak)));
+        r.secondary.push_back({"Peak after TDC", c.peakAfterTdcDeg, "°", 1, std::isfinite(c.peakAfterTdcDeg)});
+        r.secondary.push_back(Make("Exhaust opens", c.exhaustOpens, dim, li.unit, li.digits, std::isfinite(c.exhaustOpens)));
+    }
     if (type == "chart")
     {
         r.secondary.clear();
@@ -399,7 +442,7 @@ Readout InstrumentBank::Measure(const LiveInstrument& li, double now) const
         {
             const InstrumentProbe& q = li.probes[k];
             double m = 0.0;
-            const bool has = q.source != Source::None && MeanSince(q, now - li.gate, m);
+            const bool has = q.source != Source::None && MeanSince(q, now - Gate(li), m);
             r.secondary.push_back(Make(q.target + " " + q.quantity, m, q.dimension, k == 0 ? li.unit : std::string(), li.digits, has));
         }
     }

@@ -395,7 +395,7 @@ private:
     {
         machine->Step(dt);
         simTime = machine->Time();
-        instruments.Sample(*machine, study);
+        instruments.Sample(*machine, study, timeScale);
         bool spark = false;
         for (size_t g = 0; g < study.machine.magnetos.size(); ++g)
             spark = spark || machine->Magneto(g).spark;

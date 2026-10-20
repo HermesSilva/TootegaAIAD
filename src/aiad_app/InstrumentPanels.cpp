@@ -113,11 +113,13 @@ void DrawInstrumentPanels(Session& session, const UiFonts& fonts, float scale, c
             ImGui::PushStyleColor(ImGuiCol_WindowBg, Colour(kChassis));
             ImGui::PushStyleColor(ImGuiCol_TitleBg, Colour(IM_COL32(16, 17, 20, 255)));
             ImGui::PushStyleColor(ImGuiCol_TitleBgActive, Colour(IM_COL32(30, 33, 38, 255)));
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f * scale);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, li.detached ? 0.0f : 8.0f * scale);
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.0f * scale, 10.0f * scale));
             bool open = true;
             const std::string title = std::format("{}  {}###instrument:{}", li.type->model, li.info.name, li.info.name);
-            if (ImGui::Begin(title.c_str(), &open, ImGuiWindowFlags_NoCollapse))
+            const bool shownNow = ImGui::Begin(title.c_str(), &open, ImGuiWindowFlags_NoCollapse);
+            li.detached = ImGui::GetWindowViewport() != ImGui::GetMainViewport();
+            if (shownNow)
             {
                 const float base = ImGui::GetFontSize();
                 ImDrawList* draw = ImGui::GetWindowDrawList();
@@ -225,22 +227,28 @@ void DrawInstrumentPanels(Session& session, const UiFonts& fonts, float scale, c
                                    [](double v) { return v > 0.0 ? std::format("reference {:g} vph", v) : std::string("no reference"); }, base * 9.0f))
                         set("reference", ref);
                 }
+                // In slow motion, gate and chart cover less of the machine's time (as watched): say how much.
+                if (bank.Slow() < 1.0)
+                    ImGui::TextColored(Colour(kDim), "%s: gate %s, chart %s of machine time", std::format("{:g}x", bank.Slow()).c_str(),
+                                       li.gate > 0.0 ? Seconds(bank.Gate(li)).c_str() : "live", Seconds(bank.Window(li)).c_str());
                 // The chart: the history over the window (mean, and the band from min to max in each bucket).
                 ImPlot::PushStyleColor(ImPlotCol_PlotBg, Colour(kDisplay));
                 ImPlot::PushStyleColor(ImPlotCol_FrameBg, Colour(kChassis));
                 if (ImPlot::BeginPlot("##chart", ImVec2(-1.0f, base * 8.0f), ImPlotFlags_NoMenus | ImPlotFlags_NoBoxSelect | (li.probes.size() > 1 ? 0 : ImPlotFlags_NoLegend)))
                 {
-                    ImPlot::SetupAxes("s", nullptr, ImPlotAxisFlags_None, ImPlotAxisFlags_AutoFit);
-                    ImPlot::SetupAxisLimits(ImAxis_X1, -li.window, 0.0, ImPlotCond_Always);
+                    const double window = bank.Window(li);
+                    ImPlot::SetupAxes(window < 1.0 ? "machine ms" : "machine s", nullptr, ImPlotAxisFlags_None, ImPlotAxisFlags_AutoFit);
+                    const double xs = window < 1.0 ? 1e3 : 1.0;
+                    ImPlot::SetupAxisLimits(ImAxis_X1, -window * xs, 0.0, ImPlotCond_Always);
                     for (size_t k = 0; k < li.probes.size(); ++k)
                     {
                         const InstrumentProbe& p = li.probes[k];
                         const doc::Unit& u = doc::FindUnit(p.dimension, k == 0 && li.info.type != "oscillation" && li.info.type != "timer" ? li.unit : std::string());
                         std::vector<double> x, mean, lo, hi;
                         for (const InstrumentProbe::Bucket& b : p.history)
-                            if (b.t >= now - li.window)
+                            if (b.t >= now - window)
                             {
-                                x.push_back(b.t - now);
+                                x.push_back((b.t - now) * xs);
                                 mean.push_back(b.mean * u.scale + u.offset);
                                 lo.push_back(b.min * u.scale + u.offset);
                                 hi.push_back(b.max * u.scale + u.offset);

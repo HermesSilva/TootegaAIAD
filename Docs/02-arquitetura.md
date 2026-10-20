@@ -312,6 +312,8 @@ mesmos comandos (usuário, IA via MCP, scripts), e o solver (Project Chrono) é 
 | Acoplamento | engrenagem, correia/corrente, cremalheira | dentes / diâmetros desenhados |
 | Par superior | came–seguidor, contato entre perfis | perfis desenhados |
 | Elemento de força | mola (rigidez do fio, diâmetro, espiras e material desenhados), amortecedor, carga | desenho |
+| Espiral (	orsion) | mola espiral (cabelo, corda) com o holder opcional (pinças do regulador encurtam a parte ativa) | lâmina medida no corte da espiral desenhada ou importada, módulo do material |
+| Toque (	ouch) | contornos de duas peças que se tocam (escapamentos, catracas) | contornos cortados dos sólidos na altura comum (peças importadas sem esboço) |
 | Elemento de domínio | câmara de combustão (ciclo 0D) entre êmbolo e cilindro desenhados; magneto (MFEM na geometria desenhada) | desenho |
 
 O **estudo** critica o mecanismo antes de rodar: mobilidade (Grübler–Kutzbach), corpos soltos,
@@ -340,6 +342,28 @@ animação 6 GDL; **B** acoplamentos e pares superiores; **C** elementos de dom�
 remoção do `EngineSimulation` específico; **D** os motores de exemplo (OHC e varetas) como documentos com
 juntas e elementos.
 
+### 9.2 Ajustes, partida e instrumentos de medida (2026-10-20)
+
+- **Ajustes (peças acertadas à mão):** uma junta com faixa (`limits`) que nada aciona é reconhecida pelo estudo
+  como ajuste (regulador, parafuso de marcha lenta, alavanca). Fica presa onde foi posta enquanto a máquina roda;
+  muda por `aiad_adjust` ou por uma alavanca/cursor sobre a peça no viewport. Nenhum código por tipo de peça.
+- **Partida:** `start` na junta: um valor ou `{"local_time": período}` a partir da data e hora do computador (os
+  ponteiros de um relógio); `Multibody::Impl::Place` gira o corpo antes da corrida e as engrenagens tomam a fase
+  como estão.
+- **Instrumentos:** entidades do documento em `/Root/Instruments` (`aiad:type` + definição JSON com as pontas),
+  não partes da máquina. Pontas **ideais**: o `InstrumentBank` (`aiad_app`) lê o estado do solver a cada passo, na
+  thread da simulação sob o lock da sessão, e não altera nada (sem massa, força ou passo). Guarda amostras brutas,
+  histórico em baldes (mín/máx/média), estatísticas e eventos (cruzamentos e pontos de retorno, interpolados entre
+  passos, com histerese de 10% da excursão). Tipos: tacômetro, analisador de oscilação (vph, erro de batida,
+  amplitude, marcha em s/dia), manômetro, termômetro, transferidor, relógio comparador, dinamômetro/torquímetro,
+  voltímetro, acelerômetro, cronômetro/contador, multímetro e registrador.
+  - **Câmera lenta:** gate e janela do gráfico são tempo de parede (o que o usuário assiste): na escala `s < 1`
+    cobrem `s ×` esse tempo de máquina, para a leitura acompanhar cada momento do ciclo.
+  - **Ciclo da câmara:** manômetro e termômetro de uma câmara guardam o gás nos eventos do último ciclo:
+    fechamento da admissão, ignição, pico da combustão (graus após o PMS), abertura do escape.
+  - **UI:** painéis de bancada (display de sete segmentos, fonte DSEG7 embutida por recurso), marcas no viewport;
+    um painel arrastado para fora da janela principal vira janela própria (multi-viewport do Dear ImGui), com
+    posição e tamanho salvos no layout. O agente usa `aiad_instrument_define/show/delete/read`.
 ---
 
 ## 10. Render (`aiad_render`) e UI

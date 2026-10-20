@@ -98,7 +98,14 @@ reads them through MCP (`aiad_instrument_define`, `aiad_instrument_read`).
 Each panel is a bench instrument: a seven-segment main reading, secondary readouts (min, max, mean, and
 what the type adds), HOLD and RESET, unit, number of decimals, gate (live or averaged over 0.1 s to 10 s) and
 a chart of the last 0.5 s to 2 min (any window through the command; min/max band and mean). In the view, each probe is marked with the
-instrument's colour and its reading.
+instrument's colour and its reading. A panel dragged out of the main window becomes a window of its own (another
+monitor: an instrument bench); where it is and its size are saved with the layout.
+
+**Slow motion.** Gate and chart are what the user watches, in wall time: at 0.002x a 500 ms gate averages 1 ms of
+the machine and a 10 s chart shows its last 20 ms, so a reading follows each moment of a cycle (the panel says
+how much machine time they cover). At full speed one moment cannot be read, so a chamber's manometer and
+thermometer also show the gas at the events of its last cycle: when the intake closes, at ignition, the
+combustion peak (and how many degrees after top dead centre), when the exhaust opens.
 
 ![Instruments on the OHV engine: crankshaft tachometer, cylinder manometer, spark voltmeter and intake valve dial indicator](Docs/images/engine_instruments.png)
 
@@ -134,7 +141,7 @@ It opens with no document.
 | **Specification Tree** / **Properties** | bodies and parts, joints, elements; material, mass, volume, features and parameters of the selected part; **Set by hand** for an adjuster |
 | **Study** | the simulator's findings (each with its fix), or the machine summary and what was measured on the drawing; design parameters (values or formulas) |
 | **Simulation** | runs the machine live at the chosen time scale (shows the speed reached when the computer cannot keep up): every joint (position and speed), chambers (pressure, volume, combustions), magnetos |
-| **Instruments** (one panel each) | plugged with a right click on a part in the view or in the tree, or on a joint or element in the tree; a seven-segment display with the main reading, secondary readouts (min/max/mean, beat error, amplitude...), HOLD, RESET, unit, decimals, gate (averaging), chart window and the chart; View > Instruments shows and hides them |
+| **Instruments** (one panel each) | plugged with a right click on a part in the view or in the tree, or on a joint or element in the tree; a seven-segment display with the main reading, secondary readouts (min/max/mean, beat error, amplitude...), HOLD, RESET, unit, decimals, gate (averaging), chart window and the chart; a chamber's gas at the events of its last cycle; can be dragged out to another monitor; View > Instruments shows and hides them |
 | **Plots** | any channel (joint speed or position, chamber pressure and volume, spark voltage, contact and spring forces) against time or a joint's angle; p-V loops |
 | **History** | Command Bus history; **Ctrl+Z / Ctrl+Y** undo and redo any command, the AI's included |
 | **AI Hub** | Claude Code sessions, usage and limits, MCP servers, skills, plugins, credential vault, settings; **+ New session** opens a chat tab |

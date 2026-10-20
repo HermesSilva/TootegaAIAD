@@ -585,3 +585,22 @@ Correção pedida pelo dono: todo objeto do viewport vem de desenho, nunca de c�
   A crítica achou um defeito real no primeiro script do motor de varetas: o mancal da engrenagem
   intermediária estava fora da peça.
 
+### 2026-10-19/20 — Relógio ETA 6497 importado rodando; ajustes; instrumentos de medida
+
+- **Relógio:** movimento ETA 6497 importado de STEP (101 peças, sem esboços), com corpos, juntas, engrenagens,
+  espirais (`torsion`) e toques (`touch`: roda de escape × paletas, pino de impulso × garfo) definidos por
+  comandos. Ele marcha: cerca de 18.470 vph (nominal 18.000), amplitude por volta de 158°, erro de batida 0,25 ms.
+  - Escala: inércias ~1e-11 kg m²; nenhum piso absoluto no mecanismo, rigidez de contato a partir das massas.
+  - Kernel: integração de massa numa cópia (o SMLib alterava o brep), massa e limites salvos por peça
+    (`aiad:derived`, impressão digital dos vértices), booleana protegida por SEH.
+  - Arquivo: `.usda` (projeto, 0,16 MB) + `.geom.usdc` (B-rep, 8,6 MB) por payload; abre em ~16 s (antes 70 s,
+    27 MB).
+  - Pendências: marcha +37 min/dia com o regulador centrado (espiral/pinças a conferir); trem desenhado leva o
+    ponteiro de segundos a ~1,2 rpm; mecanismo de corda/acerto (coroa) não modelado.
+- **Ajustes** reconhecidos do desenho (junta com faixa que nada aciona) e **partida pela hora local**.
+- **Instrumentos de medida** (§9.2 da arquitetura): 12 tipos, pontas ideais, painéis destacáveis para outro
+  monitor, leitura em câmera lenta e eventos por ciclo da câmara. No motor de varetas: ~3.190 rpm, pico de
+  145,7 bar a 4,4° após o PMS, gás a 2.453 °C no pico, faísca de 27 kV, levante de 7,4 mm.
+  - Achado do modelo 0D: na partida a câmara cai a ~0,02 bar e ~−150 °C (expansão quase no vácuo); a investigar.
+- **UI:** botão direito na peça (no viewport) lista o que medir nela; zoom no cursor de 0,1 mm a 50 m; vista salva
+  com o documento; arraste com o botão esquerdo desloca a vista.

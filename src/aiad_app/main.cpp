@@ -1399,6 +1399,10 @@ int main(int argc, char** argv)
     ImPlot::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    // Panels dragged out of the main window become windows of their own (another monitor: an instrument bench); where
+    // they are and their size are saved with the layout.
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+    io.ConfigViewportsNoTaskBarIcon = true;   // they belong to the main window (one icon in the task bar)
     // Panels as the user left them (aiadconfig.json; the layout file of earlier versions is taken over once).
     // The UI test always starts from the default layout.
     io.IniFilename = nullptr;
@@ -2497,6 +2501,11 @@ int main(int argc, char** argv)
         }
         else
             g_d3d.EndFrame();
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+        }
         if (uiTest && uiCaptureFrames == 124)
             ai.OpenNewSession();
         if (uiTest && uiCaptureFrames == 134)
