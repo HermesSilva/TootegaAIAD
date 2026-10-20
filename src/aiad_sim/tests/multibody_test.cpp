@@ -131,6 +131,29 @@ int main()
         CHECK(std::abs(mb.Coordinate(1) + 11.25) < 1e-3 && std::abs(mb.Coordinate(2) - 5.0) < 1e-3);
     }
 
+    // The same train started away from the drawing: the idler at 0.5 rad, the output from the local time as a minute hand
+    // (period 3600 s). They start there, the meshes do not drag them back, and from there they follow the driver.
+    {
+        Model model;
+        model.bodies = {wheel("Driver", {0, 0, 0}), wheel("Idler", {0.04, 0, 0}), wheel("Output", {0.04, 0.06, 0})};
+        drive.value = 10.0;
+        model.joints = {{"A", JointType::Revolute, 0, -1, {0, 0, 0}, {0, 0, 1}, drive},
+                        {"I", JointType::Revolute, 1, -1, {0.04, 0, 0}, {0, 0, 1}, {}},
+                        {"C", JointType::Revolute, 2, -1, {0.04, 0.06, 0}, {0, 0, 1}, {}}};
+        model.joints[1].start = 0.5;
+        model.joints[2].clockPeriod = 3600.0;
+        model.couplings = {{"A-I", 0, 1, -18.0 / 16.0}, {"I-C", 1, 2, -16.0 / 36.0}};
+        const double minute = 2.0 * std::numbers::pi * std::fmod(LocalClockSeconds(), 3600.0) / 3600.0;
+        Multibody mb(model);
+        const double idler0 = mb.Coordinate(1), output0 = mb.Coordinate(2);
+        for (int i = 0; i < 1000; ++i)
+            mb.Step(1e-3);
+        std::printf("started: idler %.4f -> %.4f rad, output %.4f (local time %.4f) -> %.4f rad\n", idler0, mb.Coordinate(1), output0, minute,
+                    mb.Coordinate(2));
+        CHECK(std::abs(idler0 - 0.5) < 1e-9 && std::abs(output0 - minute) < 1e-3);
+        CHECK(std::abs(mb.Coordinate(1) - (0.5 - 11.25)) < 1e-3 && std::abs(mb.Coordinate(2) - (output0 + 5.0)) < 1e-3);
+    }
+
     // Rack and pinion: pinion (pitch radius 25 mm) at 2 rad/s, the rack slides 25 mm per radian.
     {
         Model model;
@@ -220,6 +243,104 @@ int main()
             mb.Step(dt);
         std::printf("stop: slider at %.4f mm (stop at 10 mm), speed %.2e m/s\n", mb.Coordinate(0) * 1e3, mb.Rate(0));
         CHECK(std::abs(mb.Coordinate(0) - 0.01) < 1e-5 && std::abs(mb.Rate(0)) < 1e-3);
+    }
+
+    // A watch balance: 3.4e-9 kg m^2 on its staff, a hairspring tuned to 2.5 Hz (18000 beats per hour), relaxed
+    // at 0.5 rad: it swings between 0 and 1 rad with T = 2 pi sqrt(I / k).
+    {
+        const double I = 3.4e-9, f = 2.5, k = I * std::pow(2.0 * kPi * f, 2);
+        Model model;
+        Body balance;
+        balance.name = "Balance";
+        balance.mass = 1.1e-4;
+        balance.inertia = {I / 2.0, I / 2.0, I, 0.0, 0.0, 0.0};
+        model.bodies = {balance};
+        model.joints = {{"Staff", JointType::Revolute, 0, -1, {0, 0, 0}, {0, 0, 1}, {}}};
+        model.torsions = {{"Hairspring", 0, k, 0.5, 0.0}};
+        Multibody mb(model);
+        const double dt = std::min(1e-4, mb.StableStep());
+        double previous = 0.0, firstTurn = -1.0, period = -1.0, widest = 0.0;
+        while (mb.Time() < 2.0 && period < 0.0)
+        {
+            mb.Step(dt);
+            const double w = mb.Rate(0);
+            widest = std::max(widest, mb.Coordinate(0));
+            if (mb.Time() > 2.0 * dt && previous > 0.0 && w <= 0.0)
+            {
+                if (firstTurn < 0.0)
+                    firstTurn = mb.Time();
+                else
+                    period = mb.Time() - firstTurn;
+            }
+            previous = w;
+        }
+        std::printf("balance: period %.4f s (closed form %.4f s), swings to %.3f rad\n", period, 1.0 / f, widest);
+        CHECK(std::abs(period - 1.0 / f) < 0.002);
+        CHECK(std::abs(widest - 1.0) < 0.01);
+    }
+
+    // Outlines that touch (watch scale): an arm 1..3 mm from its staff, 0.5 mm wide, turned by a torsion spring
+    // (1e-6 N m at rest, relaxed at 1 rad) against a fixed block over it, 2..2.5 mm out and 0.5 mm up: it stops
+    // where its upper edge reaches the block's outer corner, 0.5 cos t - 2.5 sin t = 0.25 (mm), and rests there:
+    // the corner's force times its arm (2.5 cos t + 0.5 sin t mm) holds the spring's torque.
+    {
+        const double mm = 1e-3, k = 1e-6, free = 1.0;
+        Model model;
+        Body arm;
+        arm.name = "Arm";
+        arm.mass = 0.2 * 7850 * 1e-9;   // 2 x 0.5 x 0.2 mm of steel
+        arm.centroid = {2 * mm, 0, 0};
+        arm.inertia = {arm.mass * 0.25 * mm * mm / 12.0, arm.mass * 4 * mm * mm / 12.0, arm.mass * 4.25 * mm * mm / 12.0, 0, 0, 0};
+        model.bodies = {arm};
+        model.joints = {{"Staff", JointType::Revolute, 0, -1, {0, 0, 0}, {0, 0, 1}, {}}};
+        model.torsions = {{"Spring", 0, k, free, 0.0}};
+        Touch touch;
+        touch.name = "Corner";
+        touch.body0 = 0;
+        touch.body1 = -1;
+        touch.outline0 = {{{1 * mm, -0.25 * mm, 0}, {3 * mm, -0.25 * mm, 0}, {3 * mm, 0.25 * mm, 0}, {1 * mm, 0.25 * mm, 0}}};
+        touch.outline1 = {{{2 * mm, 0.5 * mm, 0}, {2.5 * mm, 0.5 * mm, 0}, {2.5 * mm, 1 * mm, 0}, {2 * mm, 1 * mm, 0}}};
+        model.touches = {touch};
+        Multibody mb(model);
+        const double dt = mb.StableStep();
+        while (mb.Time() < 0.05)
+            mb.Step(dt);
+        double stop = 0.0;   // 0.5 cos t - 2.5 sin t = 0.25
+        for (int i = 0; i < 60; ++i)
+            stop -= (0.5 * std::cos(stop) - 2.5 * std::sin(stop) - 0.25) / (-0.5 * std::sin(stop) - 2.5 * std::cos(stop));
+        const double force = k * (free - stop) / ((2.5 * std::cos(stop) + 0.5 * std::sin(stop)) * mm);
+        std::printf("touch: arm stops at %.5f rad (corner at %.5f rad), force %.3e N (expected %.3e N), step %.1e s\n", mb.Coordinate(0), stop,
+                    mb.TouchForce(0), force, dt);
+        CHECK(std::abs(mb.Coordinate(0) - stop) < 2e-3);
+        CHECK(std::abs(mb.TouchForce(0) - force) < 0.03 * force);
+        CHECK(std::abs(mb.Rate(0)) < 0.5);
+    }
+
+    // A watch's fork (7.3e-11 kg m^2) thrown by a torsion spring (1e-6 N m, relaxed at 1 rad) at its banking, a stop
+    // at 3.3 deg: it must not pass the banking by more than a fraction of a degree, nor bounce back with more
+    // energy than it brought.
+    {
+        Model model;
+        Body fork;
+        fork.name = "Fork";
+        fork.mass = 1.3e-5;
+        fork.centroid = {0.002, 0, 0};
+        fork.inertia = {1e-12, 2e-11, 7.3e-11 - 1.3e-5 * 4e-6, 0, 0, 0};
+        model.bodies = {fork};
+        model.joints = {{"Staff", JointType::Revolute, 0, -1, {0, 0, 0}, {0, 0, 1}, {}, std::nullopt, 0.0576}};
+        model.torsions = {{"Push", 0, 1e-6, 1.0, 0.0}};
+        Multibody mb(model);
+        const double dt = std::min(1e-4, mb.StableStep());
+        double furthest = 0.0, back = 1e9;
+        while (mb.Time() < 0.05)
+        {
+            mb.Step(dt);
+            furthest = std::max(furthest, mb.Coordinate(0));
+            if (mb.Time() > 0.01)
+                back = std::min(back, mb.Coordinate(0));
+        }
+        std::printf("banking: fork reaches %.3f deg (banking 3.3), afterwards no lower than %.3f deg, step %.1e s\n", furthest * 57.29578, back * 57.29578, dt);
+        CHECK(furthest < 0.0576 + 0.01 && back > 0.0);
     }
 
     // A body with no joint is free: 6 degrees of freedom.

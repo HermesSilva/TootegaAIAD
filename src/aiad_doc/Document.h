@@ -16,6 +16,7 @@
 #include "Json.h"
 #include "Kernel.h"
 
+#include <pxr/usd/sdf/layer.h>
 #include <pxr/usd/usd/stage.h>
 
 #include <array>
@@ -44,9 +45,10 @@ struct Material
     double density = 1000.0;         // [kg/m^3]
     std::array<double, 3> colour{0.7, 0.7, 0.7};
     double metallic = 0.0, roughness = 0.5, emission = 0.0;
-    // Physics beyond the mass (0 = not given): springs need the shear modulus, magnets the remanence,
-    // magnetic circuits the relative permeability.
+    // Physics beyond the mass (0 = not given): coil springs need the shear modulus, spiral springs the elastic
+    // (Young's) modulus, magnets the remanence, magnetic circuits the relative permeability.
     double shearModulus = 0.0;           // [Pa]
+    double elasticModulus = 0.0;         // [Pa]
     double remanence = 0.0;              // [T]
     double relativePermeability = 0.0;
 };
@@ -65,6 +67,9 @@ struct JointInfo
                                      //   torque only: "free_speed" (DC-motor curve), "duration" [s]
     Json limits;                     // null, or [lower, upper]: stops of the coordinate (rad or m), each a
                                      //   number, formula or null (no stop on that side)
+    Json start;                      // null, or where the coordinate starts instead of the drawn position: a number or
+                                     //   formula (rad or m), or {"local_time": period [s], "offset": rad} (rotation): from
+                                     //   the computer's local date and time when the simulation starts (a watch's hands)
 };
 
 // An element of the machine besides bodies and joints, tied to them and to the drawn parts:
@@ -174,22 +179,33 @@ public:
     const kernel::Solid* Shape(const pxr::SdfPath& part) const;
     uint64_t ShapeRevision(const pxr::SdfPath& part) const;
     const kernel::Mesh* DisplayMesh(const pxr::SdfPath& part) const;   // 0.05 mm chord, 8 deg
+    // The outline of a part on a plane (part frame): closed loops, the material on the left of each seen from
+    // `normal`. Measured on a fine tessellation (chord 1/5000 of the part's size, at least 1 um): profiles that
+    // touch (an escapement) are read from any solid, drawn or imported.
+    std::vector<std::vector<kernel::Vec3>> SectionOutline(const pxr::SdfPath& part, const kernel::Vec3& point, const kernel::Vec3& normal) const;
     bool Bounds(const pxr::SdfPath& part, kernel::Vec3& minimum, kernel::Vec3& maximum) const;   // part frame
     // Volume of the part beyond the plane through `point` (part frame) on the side `normal` points to (exact cut).
     double VolumeBeyond(const pxr::SdfPath& part, const kernel::Vec3& point, const kernel::Vec3& normal) const;
     bool Mass(const pxr::SdfPath& part, kernel::MassProperties& out, std::string& error) const;
-    bool Regenerate(const pxr::SdfPath& part, std::string& error);
+   bool Regenerate(const pxr::SdfPath& part, std::string& error);
     // Every part; returns the failures (part name -> message).
     std::map<std::string, std::string> RegenerateAll();
 
     // Called after every successful change (scene refresh, simulation rebuild).
     std::function<void()> OnChanged;
+    // Called before the document is written (by the user or the agent): the app stores its view in it then.
+    std::function<void()> OnSaving;
+    // The last view of the document (camera, as the app writes it; JSON, empty when never saved): kept with the
+    // document but not a change of the drawing (no undo, no unsaved-changes mark).
+    std::string View() const;
+    void SetView(const std::string& view);
 
 private:
     Document() = default;
     PartInfo ReadPart(const pxr::UsdPrim& prim) const;
     void WritePart(pxr::UsdPrim& prim, const PartInfo& part);
     bool BuildGeometry(const pxr::SdfPath& path, const PartInfo& part, std::string& error);
+    bool WriteShape(const pxr::SdfPath& path, const std::string& material, const kernel::Solid& solid, std::string& error);
     void WriteMaterialPrims();
     void WriteParameters(const std::vector<Parameter>& parameters);
     void Changed();
@@ -205,13 +221,20 @@ private:
     {
         kernel::Solid solid;
         uint64_t revision = 0;
-        mutable std::shared_ptr<kernel::Mesh> mesh;
+        mutable std::shared_ptr<kernel::Mesh> mesh, fineMesh;
         mutable std::optional<kernel::MassProperties> unitMass;   // density 1 (scaled by the material's)
         mutable std::optional<std::pair<kernel::Vec3, kernel::Vec3>> bounds;
         mutable std::map<std::array<double, 6>, double> cuts;
+        uint64_t key = 0;   // fingerprint of the stored solid: the derived values saved with it are its own
     };
     void SetShape(const pxr::SdfPath& path, kernel::Solid solid);
+    // Mass and bounds are kept with the part in the file (attribute aiad:derived, with the fingerprint of its solid):
+    // the exact mass of an imported part costs seconds (SMLib rebuilds its trim curves every time).
+    void LoadDerived(const pxr::SdfPath& part);
+    void StoreDerived(const pxr::SdfPath& part) const;
     std::map<pxr::SdfPath, ShapeEntry> m_shapes;
+    pxr::SdfLayerRefPtr m_carry;   // a moved or renamed part's stored geometry, while it is recreated (UpdatePart)
+    pxr::SdfPath m_carryFrom;
     uint64_t m_shapeCounter = 0;
     uint64_t m_revision = 0;
     // Parameters parsed and evaluated once per change of the parameter table (the panels and the study

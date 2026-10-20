@@ -117,6 +117,9 @@ bool Tessellate(const Solid& solid, double chordTolerance, double angleDeg, Mesh
 // plane) and the cap that closes the cut (planar faces, holes included, normal = `normal`). Display
 // only: the exact geometry is not changed.
 void SectionMesh(const Mesh& mesh, const Vec3& point, const Vec3& normal, Mesh& kept, Mesh& cap);
+// The outline of a tessellated part on a plane: closed loops, outer ones counter-clockwise and holes
+// clockwise seen from `normal` (the material is on the left of every loop).
+std::vector<std::vector<Vec3>> SectionLoops(const Mesh& mesh, const Vec3& point, const Vec3& normal);
 double MeshArea(const Mesh& mesh);
 
 // BrepArray prim <-> solids (the document stores the exact geometry, not meshes).

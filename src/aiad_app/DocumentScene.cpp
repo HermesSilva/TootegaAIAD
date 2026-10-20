@@ -147,6 +147,11 @@ bool DocumentScene::Pending() const
     return std::any_of(m_parts.begin(), m_parts.end(), [](const ScenePart& p) { return p.dirty; });
 }
 
+size_t DocumentScene::PendingCount() const
+{
+    return size_t(std::count_if(m_parts.begin(), m_parts.end(), [](const ScenePart& p) { return p.dirty; }));
+}
+
 bool DocumentScene::Update(double budgetMs)
 {
     const auto start = std::chrono::steady_clock::now();
@@ -159,9 +164,12 @@ bool DocumentScene::Update(double budgetMs)
         if (!part.dirty)
             continue;
         WriteDisplay(part);
-        kernel::MassProperties mp;   // warm the mass cache: the study and the panels read it next
-        std::string error;
-        m_document.Mass(part.path, mp, error);
+        if (!m_document.BodyFixed(part.body))
+        {
+            kernel::MassProperties mp;   // warm the mass cache of moving parts: the study reads it next
+            std::string error;
+            m_document.Mass(part.path, mp, error);
+        }
         ApplySection(part);
         if (int(i) == m_highlight)
             BindLook(int(i), true);
@@ -175,7 +183,7 @@ void DocumentScene::WriteDisplay(ScenePart& part)
 {
     const UsdStageRefPtr& stage = m_document.Stage();
     // The exact geometry stays in the document; the view shows its tessellation.
-    for (const char* child : {"Shape", "Section"})
+    for (const char* child : {"Shape", "Imported", "Section"})
         if (UsdPrim p = stage->GetPrimAtPath(part.path.AppendChild(TfToken(child))))
             p.SetActive(false);
     for (const TfToken& t : {kDisplay, kDisplaySection, kDisplayFill})
@@ -346,6 +354,12 @@ PickResult DocumentScene::Pick(const GfVec3d& origin, const GfVec3d& direction) 
         }
     }
     return best;
+}
+
+GfMatrix4d DocumentScene::ModelToWorld() const
+{
+    UsdGeomXformCache cache;
+    return cache.GetLocalToWorldTransform(m_document.Stage()->GetPrimAtPath(m_document.Root()));
 }
 
 GfRange3d DocumentScene::WorldBounds() const

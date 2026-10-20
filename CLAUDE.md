@@ -158,6 +158,14 @@ GitLab). In every fork:
   `EIGEN_MATRIXBASE_PLUGIN`/`EIGEN_SPARSEMATRIX_PLUGIN`. **Never include Eigen directly**: use
   `src/aiad_sim/common/EigenConfig.h`, and compile with `/arch:AVX2` (project baseline). Otherwise the
   linker merges different versions of the Eigen templates (ODR) and the program crashes.
+- **Project Chrono 10 at run time:** `ChTimestepperEulerImplicitLinearized` asks the solver for a full analysis
+  every step, so `ChSolverSparseLU` redoes COLAMD every step even with the pattern locked. `SolverLU`
+  (`Multibody.cpp`) keeps the ordering, refactors with Eigen's pivots (KLU-style, repivots when a pivot falls
+  below 0.1 of its column, and every solution must have a normwise backward error <= 1e-14, else Eigen
+  repivots and the step is solved again; the componentwise error is meaningless here) and writes the matrix into its slots (Chrono's `SetElement` searches each row);
+  joints are `MateJoint` (`ChLinkMateGeneric`, leaner Jacobian; `ChLinkLock*` is ~2x costlier). LDLT,
+  AMD ordering and reusing a stale LU with iterative refinement fail or lose on this regularized,
+  ill-conditioned KKT system (measured 2026-10-19). Profile with a stack sampler before optimizing.
 - **Project Chrono 10:** build with `CMAKE_DISABLE_FIND_PACKAGE_Thrust=ON` (the multicore collision
   does not compile with the CUDA 13 CCCL 3 Thrust) and without OpenMP (`vcomp140.dll`, rule 4).
 - **libCEED:** built with `cl` only; C99 VLAs replaced by `CEED_VLA` (`_alloca` on MSVC).
@@ -168,6 +176,23 @@ GitLab). In every fork:
   return the padded GPU row pitch (host copy is tight). Readers use width x pixel size, never `GetStride()`.
   Motion vectors of moving instances (previous-frame transform per instance in `gTransformMatrixBuffer`):
   without them the denoiser smears every part that moves in a running simulation.
+- **SMLib mass properties change the brep:** after `SmApiBrepComputeMassProperties`, every tessellation of that
+  solid (and of its copies) comes out coarse or broken (a hairspring's section lost 7 points in 8, display meshes
+  with -485 % volume). `kernel::ComputeMass` therefore integrates a copy. Keep it that way.
+- **Imported (STEP) solids lack UV trim curves:** SMLib rebuilds them on every exact mass integration of a copy
+  (~10 s for a toothed wheel). Building them on the solid (`GetOrCreateUVTrimCurve`) does not survive save/load and
+  broke a mainspring's section; SMLib's analytic recognition (NURBS -> plane/cylinder) took minutes and 48 GB.
+  What works: mass and bounds saved with the part (`aiad:derived`, fingerprint = hash of the B-rep vertices), and
+  no mass for fixed bodies.
+- **SMLib booleans:** solids touching exactly along faces can make `SmApiBooleanUnion` read out of bounds (access
+  violation): `kernel::Boolean` catches it (SEH) and fails with the cause; features finer than ~0.15 mm fail too
+  (SMLib's model size/tolerance setting does not help).
+- **Document files:** `<name>.usda` (design, text) + `<name>.geom.usdc` (BrepArray prims, binary) by a payload on
+  the root prim (OpenUSD interface + payload); `Document::Open` flattens them into one layer for editing.
+- **Scales:** a watch's parts are ~1e-11 kg m^2. No absolute floors near that in the mechanism (inertia floor,
+  effective mass, coupling shafts are relative); automatic penalty stiffness for stops and touches comes from the
+  masses (`kAutoContactFrequency`), never a fixed N/m. Touches cut outlines from any solid (`Document::SectionOutline`,
+  fine tessellation), so imported parts work without sketches.
 - **Documents and the kernel:** models live in `models/*.usda` (built by `models/*.aiad.json` command
   scripts with `aiad-model build`); geometry only through `src/aiad_kernel` (the one SMLib user, C++17).
   Static OpenUSD reads `PXR_PLUGINPATH_NAME` at process start: tests call `PlugRegistry::RegisterPlugins`;
@@ -226,3 +251,7 @@ GitLab). In every fork:
   Record each spike's outcome in §6 of that document.
 - Shell: PowerShell 7 is the default; Git Bash only for POSIX needs; no WSL.
 - Ask before outward-facing actions (creating repositories, pushing to new remotes, publishing).
+- **Operating a model: MCP for everything** (owner, 2026-10-20). When working on the open drawing, read,
+  measure, change and verify it only through the `aiad` MCP tools. Never read the model's files (`.usda`,
+  `.usdc`, STEP sources) or run scripts/tools beside MCP to find out what the drawing contains. If MCP cannot
+  answer something, say so (it is a gap in the tools), do not work around it.

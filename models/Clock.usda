@@ -1,0 +1,4022 @@
+#usda 1.0
+(
+    defaultPrim = "ETA_6497_1"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "ETA_6497_1" (
+    prepend payload = @./Clock.geom.usdc@
+)
+{
+    custom string aiad:materials = '''{
+ "Blued steel": {
+  "colour": [
+   0.04,
+   0.09,
+   0.38
+  ],
+  "density": 7850.0,
+  "emission": 0.0,
+  "metallic": 1.0,
+  "roughness": 0.22
+ },
+ "Dial lacquer white": {
+  "colour": [
+   0.93,
+   0.92,
+   0.88
+  ],
+  "density": 8500.0,
+  "emission": 0.0,
+  "metallic": 0.0,
+  "roughness": 0.35
+ },
+ "Dial print black": {
+  "colour": [
+   0.02,
+   0.02,
+   0.025
+  ],
+  "density": 1200.0,
+  "emission": 0.0,
+  "metallic": 0.0,
+  "roughness": 0.5
+ },
+ "Gear pitch reference": {
+  "colour": [
+   0.85,
+   0.65,
+   0.3
+  ],
+  "density": 0.0,
+  "emission": 0.0,
+  "metallic": 1.0,
+  "roughness": 0.3
+ },
+ "Imported 3E4343": {
+  "colour": [
+   0.24228112399578094,
+   0.2622506618499756,
+   0.2622506618499756
+  ],
+  "density": 7850.0,
+  "emission": 0.0,
+  "metallic": 0.0,
+  "roughness": 0.5
+ },
+ "Imported 60574E": {
+  "colour": [
+   0.3762621283531189,
+   0.34191441535949707,
+   0.3049873113632202
+  ],
+  "density": 7850.0,
+  "emission": 0.0,
+  "metallic": 0.0,
+  "roughness": 0.5
+ },
+ "Imported 908880": {
+  "colour": [
+   0.5647115111351013,
+   0.533276379108429,
+   0.5028864741325378
+  ],
+  "density": 7850.0,
+  "emission": 0.0,
+  "metallic": 0.0,
+  "roughness": 0.5
+ },
+ "Imported 97A3DA": {
+  "colour": [
+   0.5906188488006592,
+   0.637596845626831,
+   0.8549926280975342
+  ],
+  "density": 7850.0,
+  "emission": 0.0,
+  "metallic": 0.0,
+  "roughness": 0.5
+ },
+ "Imported A66704": {
+  "colour": [
+   0.6514056324958801,
+   0.4019777774810791,
+   0.015208514407277107
+  ],
+  "density": 7850.0,
+  "emission": 0.0,
+  "metallic": 0.0,
+  "roughness": 0.5
+ },
+ "Imported EB01FF": {
+  "colour": [
+   0.9215818643569946,
+   0.0043914420530200005,
+   1.0
+  ],
+  "density": 7850.0,
+  "emission": 0.0,
+  "metallic": 0.0,
+  "roughness": 0.5
+ },
+ "Imported FF03CA": {
+  "colour": [
+   1.0,
+   0.012983032502233982,
+   0.7912979125976563
+  ],
+  "density": 7850.0,
+  "emission": 0.0,
+  "metallic": 0.0,
+  "roughness": 0.5
+ },
+ "Imported FF9D36": {
+  "colour": [
+   1.0,
+   0.6172065734863281,
+   0.21223075687885284
+  ],
+  "density": 7850.0,
+  "emission": 0.0,
+  "metallic": 0.0,
+  "roughness": 0.5
+ },
+ "Mainspring steel": {
+  "colour": [
+   0.38,
+   0.34,
+   0.3
+  ],
+  "density": 7900.0,
+  "elastic_modulus": 200000000000.0,
+  "emission": 0.0,
+  "metallic": 1.0,
+  "roughness": 0.35,
+  "shear_modulus": 79000000000.0
+ },
+ "Nivarox": {
+  "colour": [
+   0.38,
+   0.34,
+   0.3
+  ],
+  "density": 8150.0,
+  "elastic_modulus": 190000000000.0,
+  "emission": 0.0,
+  "metallic": 1.0,
+  "roughness": 0.3,
+  "shear_modulus": 72000000000.0
+ }
+}'''
+    custom string aiad:parameters = '''[
+ {
+  "description": "Hour shown by the hands at the start of the simulation (drawn position)",
+  "max": 23.0,
+  "min": 0.0,
+  "name": "clock_h",
+  "unit": "h",
+  "value": 11
+ },
+ {
+  "description": "Minute shown by the hands at the start of the simulation (drawn position)",
+  "max": 59.0,
+  "min": 0.0,
+  "name": "clock_m",
+  "unit": "min",
+  "value": 25
+ },
+ {
+  "description": "Second shown by the seconds hand at the start of the simulation (drawn position)",
+  "max": 59.999,
+  "min": 0.0,
+  "name": "clock_s",
+  "unit": "s",
+  "value": 40
+ }
+]'''
+    custom string aiad:view = '{"distance":0.05,"fov":35.0,"pitch":-89.00000000000001,"target":[0.012029233896684454,0.0017416477498633442,-0.0007226848660090567],"yaw":2.3999999999999595}'
+    quatd xformOp:orient = (1, 0, 0, 0)
+    uniform token[] xformOpOrder = ["xformOp:orient"]
+
+    def Xform "P100_Main_Plate"
+    {
+        custom string aiad:body = "100 Main Plate"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P100_Main_Plate_1"
+        {
+            custom string aiad:derived = '{"area":8.15887746337964e-06,"bounds":[[-0.001,-0.001,-0.0011500021838050842],[0.001,0.001,-0.0007199999999999995]],"centroid":[-3.5122118761321286e-09,4.9328969914345965e-09,-0.0009203799384405036],"inertia":[3.0516502148238925e-16,3.0516368238810313e-16,5.845016258246792e-16,-1.2774878616462118e-21,1.9119579039380629e-22,-3.9168237863706195e-21],"key":"8e49873488313978","volume":9.362088665737217e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO1",
+  "op": "import",
+  "product": "100 Main Plate",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported FF03CA"
+            custom string aiad:name = "100 Main Plate [1]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P100_Main_Plate_2"
+        {
+            custom string aiad:derived = '{"area":3.4073084194860035e-06,"bounds":[[-0.0006,-0.010850000000000002,-0.0019900000000000004],[0.0006,-0.00965,-0.0016699999999999998]],"centroid":[1.8430731065669229e-09,-0.010249997829481041,-0.0018145186450645929],"inertia":[3.1586868774550876e-17,3.1586208772832436e-17,5.860057298367599e-17,-1.3830745605354203e-23,1.5041556236987503e-23,2.916646931324892e-22],"key":"db56acada6544bbd","volume":3.021827616873467e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO1",
+  "op": "import",
+  "product": "100 Main Plate",
+  "solid": 2
+ }
+]'''
+            custom string aiad:material = "Imported FF03CA"
+            custom string aiad:name = "100 Main Plate [2]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P100_Main_Plate_3"
+        {
+            custom string aiad:derived = '{"area":2.8226269255784846e-06,"bounds":[[0.00658439152004204,-0.0083054276100069,-0.00215],[0.00758439152004204,-0.007305427610006905,-0.0017999999999999995]],"centroid":[0.007084389408957385,-0.007805431637490176,-0.0019703453257638236],"inertia":[1.9424258806769177e-17,1.942305444298309e-17,3.3935172227555e-17,-2.3733504468583808e-23,-4.494877341106458e-26,-1.070168039624655e-22],"key":"5e2652a2dbacf0f3","volume":2.51553598246874e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO1",
+  "op": "import",
+  "product": "100 Main Plate",
+  "solid": 3
+ }
+]'''
+            custom string aiad:material = "Imported FF03CA"
+            custom string aiad:name = "100 Main Plate [3]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P100_Main_Plate_4"
+        {
+            custom string aiad:derived = '{"area":3.429847443378576e-06,"bounds":[[-0.00326226199830052,-0.006674084799770464,-0.001990000000000002],[-0.0020622619983005196,-0.005474084799770464,-0.0016699999999999998]],"centroid":[-0.0026622674552549195,-0.006074078351194366,-0.0018118500695579187],"inertia":[3.154932644057891e-17,3.155096530782367e-17,5.88005552697204e-17,1.4634817030197216e-22,-2.3395901556571253e-22,-3.0448153587796933e-22],"key":"be8dc7fc86b4ec30","volume":2.9829035936596095e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO1",
+  "op": "import",
+  "product": "100 Main Plate",
+  "solid": 4
+ }
+]'''
+            custom string aiad:material = "Imported FF03CA"
+            custom string aiad:name = "100 Main Plate [4]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P100_Main_Plate_5"
+        {
+            custom string aiad:derived = '{"area":3.4276926028173867e-06,"bounds":[[0.004097017701949547,-0.011246000252232467,-0.0019900000000000026],[0.00529701770194955,-0.010046000252232467,-0.0016699999999999998]],"centroid":[0.0046970104366765315,-0.010645993592853576,-0.001811531560674584],"inertia":[3.1753350383927434e-17,3.1755426611969666e-17,5.907904661631624e-17,3.917947749484121e-23,-2.967375925837418e-22,-3.202199804883016e-25],"key":"7afd768093deb1de","volume":3.085744558369905e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO1",
+  "op": "import",
+  "product": "100 Main Plate",
+  "solid": 5
+ }
+]'''
+            custom string aiad:material = "Imported FF03CA"
+            custom string aiad:name = "100 Main Plate [5]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P100_Main_Plate_6"
+        {
+            custom string aiad:derived = '{"area":6.841661203186455e-07,"bounds":[[0.015615410465301233,-0.00717685943047169,-0.0013500000000000005],[0.016400634689064813,-0.006564012940709978,-0.0012499999999999994]],"centroid":[0.015998226221620587,-0.006893013665681469,-0.001299999999999977],"inertia":[3.5419435293372677e-19,5.69334569743296e-19,9.068637624522473e-19,3.0374021708863383e-32,2.0899349162139614e-33,8.233899327672278e-20],"key":"049fac3877938ce7","volume":9.999096134865273e-12}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO1",
+  "op": "import",
+  "product": "100 Main Plate",
+  "solid": 6
+ }
+]'''
+            custom string aiad:material = "Imported 97A3DA"
+            custom string aiad:name = "100 Main Plate [6]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P100_Main_Plate_7"
+        {
+            custom string aiad:derived = '{"area":5.274847259027444e-07,"bounds":[[0.0158703076814119,-0.00661397436782156,-0.00135],[0.016616947353668,-0.0060278205949557,-0.00125]],"centroid":[0.016226958079308785,-0.006269911508777638,-0.0013],"inertia":[1.693940924401769e-19,2.633326660313218e-19,4.2042896986057976e-19,-2.0183238003618677e-35,-5.8774717541114375e-36,6.56889121026773e-20],"key":"269045d69f1d6094","volume":7.378673166551467e-12}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO1",
+  "op": "import",
+  "product": "100 Main Plate",
+  "solid": 7
+ }
+]'''
+            custom string aiad:material = "Imported 97A3DA"
+            custom string aiad:name = "100 Main Plate [7]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P100_Main_Plate_8"
+        {
+            custom string aiad:derived = '{"area":6.815954452255792e-07,"bounds":[[0.0160117993028775,-0.0060046287929129884,-0.00135000000000007],[0.01679589006055206,-0.0053899392416198715,-0.0012499999999999996]],"centroid":[0.016414048995029473,-0.005678132351962161,-0.0013000000000001556],"inertia":[3.4648216983259276e-19,5.718188923187409e-19,9.017286568211624e-19,1.9571360280173853e-31,6.831032771498477e-34,8.119454242421421e-20],"key":"5910192a8d2492c7","volume":9.943443198102694e-12}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO1",
+  "op": "import",
+  "product": "100 Main Plate",
+  "solid": 8
+ }
+]'''
+            custom string aiad:material = "Imported 97A3DA"
+            custom string aiad:name = "100 Main Plate [8]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P100_Main_Plate_9"
+        {
+            custom string aiad:derived = '{"area":3.8329145031327953e-07,"bounds":[[0.0161611614757841,-0.0053582805492833445,-0.0013500000000000007],[0.0169482546541378,-0.00474230446315529,-0.0012499999999999992]],"centroid":[0.016508891903875566,-0.00506892520647766,-0.0012999999999999932],"inertia":[1.534754989750094e-19,2.870365113566569e-19,4.314088507409185e-19,-8.32776621851348e-33,3.1249717980451954e-32,1.4401118436257537e-19],"key":"1d01f29d06e06bdc","volume":5.4618957544487086e-12}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO1",
+  "op": "import",
+  "product": "100 Main Plate",
+  "solid": 9
+ }
+]'''
+            custom string aiad:material = "Imported 97A3DA"
+            custom string aiad:name = "100 Main Plate [9]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P100_Main_Plate_10"
+        {
+            custom string aiad:derived = '{"area":7.717239848552118e-08,"bounds":[[0.0167918594286105,-0.00477099885533436,-0.00135],[0.0169109095429397,-0.00452979172880997,-0.00125]],"centroid":[0.016851384485775098,-0.004650395292072165,-0.0012999999999999997],"inertia":[5.290864730935901e-21,1.525041743997467e-21,5.104477906223593e-21,-5.289724578700294e-38,5.877471754111438e-39,-1.4820461369980305e-21],"key":"0e8c2400d1e7280f","volume":1.0268571412258647e-12}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO1",
+  "op": "import",
+  "product": "100 Main Plate",
+  "solid": 10
+ }
+]'''
+            custom string aiad:material = "Imported 97A3DA"
+            custom string aiad:name = "100 Main Plate [10]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P100_Main_Plate_11"
+        {
+            custom string aiad:derived = '{"area":2.9554804646848035e-07,"bounds":[[0.016580126049368992,-0.00425432571148883,-0.00135],[0.0173252946850397,-0.00395795995310468,-0.0012499999999999998]],"centroid":[0.016882319914108223,-0.004109314860457709,-0.0013000000000000004],"inertia":[2.6908176212662624e-20,2.199866187357469e-19,2.3965484511774557e-19,2.298091455857572e-36,-1.4341031080031908e-36,4.794181360135208e-20],"key":"619dca41c7f7d14c","volume":4.343969898398396e-12}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO1",
+  "op": "import",
+  "product": "100 Main Plate",
+  "solid": 11
+ }
+]'''
+            custom string aiad:material = "Imported 97A3DA"
+            custom string aiad:name = "100 Main Plate [11]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P100_Main_Plate_12"
+        {
+            custom string aiad:derived = '{"area":0.0027954201402008187,"bounds":[[-0.018600000000000002,-0.018600000000000002,-0.002250000000000005],[0.018600000000000002,0.018600000000000002,1.3877787807814457e-17]],"centroid":[0.0004226234922826916,-0.000545308666015989,-0.0012682510808440935],"inertia":[1.2190750113300244e-10,1.251133044121369e-10,2.4597420052097854e-10,-1.023967138838236e-12,-5.09710034915833e-13,-1.4424094032978819e-11],"key":"d0fee8e1a0932b2a","volume":1.256391671643338e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO1",
+  "op": "import",
+  "product": "100 Main Plate",
+  "solid": 12
+ }
+]'''
+            custom string aiad:material = "Imported 3E4343"
+            custom string aiad:name = "100 Main Plate [12]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Seconds_subdial_ring"
+        {
+            custom string aiad:derived = '{"area":6.112144153468465e-05,"bounds":[[-0.0044,-0.01465,-0.002800000000000001],[0.0044,-0.00585,-0.0027199999999999998]],"centroid":[-3.059724512246766e-08,-0.01024999941088644,-0.002760002235424962],"inertia":[1.6963325818938716e-14,1.696383583582637e-14,3.392410992224499e-14,7.859226286536142e-20,-3.027303944263064e-20,-1.6135714098621203e-19],"key":"ea625eaf60e1f49e","volume":2.2921095643951435e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 8e-05,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "circle": {
+    "center": [
+     0,
+     -0.01025
+    ],
+    "radius": 0.0044
+   }
+  },
+  "start": -0.0028
+ },
+ {
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "base": [
+   0,
+   -0.01025,
+   -0.0035
+  ],
+  "height": 0.002,
+  "mode": "cut",
+  "op": "cylinder",
+  "radius": 0.0032
+ }
+]'''
+            custom string aiad:material = "Dial lacquer white"
+            custom string aiad:name = "Seconds subdial ring"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Seconds_subdial_ticks"
+        {
+            custom string aiad:derived = '{"area":7.257600000000006e-06,"bounds":[[-0.0043,-0.01455,-0.00284],[0.0043,-0.005950000000000001,-0.0028]],"centroid":[3.595069229522077e-18,-0.01025,-0.00282],"inertia":[7.393236479999972e-16,7.393236479999987e-16,1.4786227199999957e-15,-9.208352546601471e-34,3.611118645726067e-35,1.1339875512552045e-30],"key":"9f8e7560d7f92b8f","volume":9.215999999999976e-11}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 4e-05,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "rect": {
+    "max": [
+     0.0043,
+     -0.01022
+    ],
+    "min": [
+     0.0039,
+     -0.01028
+    ]
+   }
+  },
+  "start": -0.00284
+ },
+ {
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "axis_point": [
+   0,
+   -0.01025,
+   0
+  ],
+  "count": 60,
+  "op": "pattern_polar",
+  "step_angle": 6
+ },
+ {
+  "distance": 4e-05,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "rect": {
+    "max": [
+     0.0043,
+     -0.01019
+    ],
+    "min": [
+     0.0035,
+     -0.01031
+    ]
+   }
+  },
+  "start": -0.00284
+ },
+ {
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "axis_point": [
+   0,
+   -0.01025,
+   0
+  ],
+  "count": 12,
+  "op": "pattern_polar",
+  "step_angle": 30
+ }
+]'''
+            custom string aiad:material = "Dial print black"
+            custom string aiad:name = "Seconds subdial ticks"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Dial_chapter_ring"
+        {
+            custom string aiad:derived = '{"area":0.00035055290417826336,"bounds":[[-0.0174,-0.017400000000000002,-0.0030000000000000005],[0.0174,0.0174,-0.00292]],"centroid":[5.016678227069051e-06,7.0903203871049364e-06,-0.002959998642613887],"inertia":[1.8479915026705814e-12,1.843128683170727e-12,3.691056041962901e-12,-1.7143601112090987e-16,-6.688410175008004e-17,-1.5032414235047746e-15],"key":"388bc5faffe97f2f","volume":1.3360470764438077e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "XZ",
+  "profile": {
+   "rect": {
+    "max": [
+     0.0174,
+     -0.00292
+    ],
+    "min": [
+     0.0158,
+     -0.003
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Dial lacquer white"
+            custom string aiad:name = "Dial chapter ring"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Dial_minute_ticks"
+        {
+            custom string aiad:derived = '{"area":5.088000000000037e-06,"bounds":[[-0.0173,-0.0173,-0.00304],[0.0173,0.0173,-0.003]],"centroid":[1.5256789035492865e-17,-1.6297647174073383e-18,-0.00302],"inertia":[8.421811680000053e-15,8.421811680000051e-15,1.6843608000000102e-14,5.296307347064899e-34,-8.642610625437721e-33,-7.346267179870672e-30],"key":"6cf101ebb6c70f0f","volume":5.760000000000035e-11}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 4e-05,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "rect": {
+    "max": [
+     0.0173,
+     2.5e-05
+    ],
+    "min": [
+     0.0169,
+     -2.5e-05
+    ]
+   }
+  },
+  "start": -0.00304
+ },
+ {
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "axis_point": [
+   0,
+   0,
+   0
+  ],
+  "count": 60,
+  "op": "pattern_polar",
+  "step_angle": 6
+ },
+ {
+  "distance": 4e-05,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "rect": {
+    "max": [
+     0.0173,
+     5e-05
+    ],
+    "min": [
+     0.0169,
+     -5e-05
+    ]
+   }
+  },
+  "start": -0.00304
+ },
+ {
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "axis_point": [
+   0,
+   0,
+   0
+  ],
+  "count": 12,
+  "op": "pattern_polar",
+  "step_angle": 30
+ }
+]'''
+            custom string aiad:material = "Dial print black"
+            custom string aiad:name = "Dial minute ticks"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Dial_track_inner_line"
+        {
+            custom string aiad:derived = '{"area":1.9168874330942533e-05,"bounds":[[-0.0169,-0.0169,-0.00304],[0.0169,0.0169,-0.0029999999999999996]],"centroid":[-0.0009394723353068441,0.003581613832785477,-0.0027637194924967747],"inertia":[7.259250544271921e-14,4.976443071950613e-14,1.2170700919031767e-13,-9.757156287349472e-16,3.136435088930162e-16,-2.2828564948148654e-14],"key":"1d3d90c579ac85b3","volume":4.065232765889492e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "XZ",
+  "profile": {
+   "rect": {
+    "max": [
+     0.0169,
+     -0.003
+    ],
+    "min": [
+     0.01685,
+     -0.00304
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Dial print black"
+            custom string aiad:name = "Dial track inner line"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Dial_track_outer_line"
+        {
+            custom string aiad:derived = '{"area":1.9675248500564693e-05,"bounds":[[-0.017350000000000004,-0.01735,-0.0030400000000000006],[0.01735,0.017350000000000004,-0.0029999999999999996]],"centroid":[-0.0014890863870235826,0.003925760152320553,-0.002745421515203119],"inertia":[8.189006988637694e-14,5.88244478785492e-14,1.4000393751117185e-13,-1.0888513901582945e-15,4.855268110218545e-16,-2.3492284625313557e-14],"key":"9136a9758b8ec7f7","volume":4.36684721925239e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "XZ",
+  "profile": {
+   "rect": {
+    "max": [
+     0.01735,
+     -0.003
+    ],
+    "min": [
+     0.0173,
+     -0.00304
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Dial print black"
+            custom string aiad:name = "Dial track outer line"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Dial_hour_markers"
+        {
+            custom string aiad:derived = '{"area":5.819200000000006e-06,"bounds":[[-0.0167,-0.0167,-0.00306],[0.0167,0.0167,-0.0029999999999999996]],"centroid":[0.0005782958199356901,-1.3494944822485436e-17,-0.0030299999999999997],"inertia":[1.6844680415500063e-14,1.8035793179649577e-14,3.4880395223149644e-14,-1.1943774920738967e-32,-3.851859888774472e-33,-2.7309686611411004e-29],"key":"848ec3b5593f7353","volume":1.3062000000000048e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 6e-05,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "rect": {
+    "max": [
+     0.0167,
+     0.000125
+    ],
+    "min": [
+     0.016,
+     -0.000125
+    ]
+   }
+  },
+  "start": -0.00306
+ },
+ {
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "axis_point": [
+   0,
+   0,
+   0
+  ],
+  "count": 11,
+  "op": "pattern_polar",
+  "step_angle": 30
+ },
+ {
+  "angle": 30,
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "op": "rotate",
+  "pivot": [
+   0,
+   0,
+   0
+  ]
+ },
+ {
+  "distance": 6e-05,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "rect": {
+    "max": [
+     0.0167,
+     0.00026
+    ],
+    "min": [
+     0.016,
+     8e-05
+    ]
+   }
+  },
+  "start": -0.00306
+ },
+ {
+  "distance": 6e-05,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "rect": {
+    "max": [
+     0.0167,
+     -8e-05
+    ],
+    "min": [
+     0.016,
+     -0.00026
+    ]
+   }
+  },
+  "start": -0.00306
+ }
+]'''
+            custom string aiad:material = "Blued steel"
+            custom string aiad:name = "Dial hour markers"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Dial_inner_blued_line"
+        {
+            custom string aiad:derived = '{"area":1.8073205686803393e-05,"bounds":[[-0.01585,-0.01585,-0.0030400000000000006],[0.01585,0.01585,-0.0029999999999999996]],"centroid":[0.004866278760409777,0.00436484316915609,-0.002969535114764642],"inertia":[5.816192840583431e-14,2.3202014646696957e-14,8.117110834954371e-14,-1.5136499816571763e-15,-1.754757308719479e-15,-1.8014124377223673e-14],"key":"6028863ed59857f3","volume":2.382741856334576e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "XZ",
+  "profile": {
+   "rect": {
+    "max": [
+     0.01585,
+     -0.003
+    ],
+    "min": [
+     0.0158,
+     -0.00304
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Blued steel"
+            custom string aiad:name = "Dial inner blued line"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+    }
+
+    def Xform "P240_Driver_Cannon_Pinion"
+    {
+        custom string aiad:body = "240 Driver Cannon Pinion"
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P240_Driver_Cannon_Pinion"
+        {
+            custom string aiad:derived = '{"area":3.211601931997647e-05,"bounds":[[-0.0015993031723052127,-0.0015993031723052136,-0.00406],[0.0015993031723052136,0.0015993031723052131,-0.0014099999999999994]],"centroid":[2.934356798496213e-08,4.855447611782773e-08,-0.002315494514131575],"inertia":[3.740679880807178e-15,3.740902400187677e-15,2.3634171045308678e-15,-5.538930021655805e-20,-6.189653468560425e-20,-2.19606070544516e-20],"key":"1fc1712b726a2a27","volume":3.8613151946230044e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO2",
+  "op": "import",
+  "product": "240 Driver Cannon Pinion",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "240 Driver Cannon Pinion"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Minute_hand"
+        {
+            custom string aiad:derived = '{"area":3.9634969581880035e-05,"bounds":[[-0.015114800275511053,-0.0009,-0.004060000000000003],[0.0009,0.007402716708717045,-0.0036999999999999993]],"centroid":[-0.004552244473418705,0.0022202759444687674,-0.0039765402505413236],"inertia":[8.78001848560576e-15,3.571376837968453e-14,4.446888183207583e-14,1.1712672671826514e-16,-2.401757702445581e-16,1.7236809327556616e-14],"key":"ab3e96f1b7ee34c8","volume":2.2535161237947146e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 0.00012,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "hull": {
+    "circles": [
+     {
+      "center": [
+       0,
+       0
+      ],
+      "radius": 0.0009
+     },
+     {
+      "center": [
+       0.0035,
+       0
+      ],
+      "radius": 0.00055
+     },
+     {
+      "center": [
+       0.01675,
+       0
+      ],
+      "radius": 6e-05
+     }
+    ]
+   }
+  },
+  "start": -0.00406
+ },
+ {
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "base": [
+   0,
+   0,
+   -0.00406
+  ],
+  "height": 0.00036,
+  "op": "cylinder",
+  "radius": 0.00085
+ },
+ {
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "base": [
+   0,
+   0,
+   -0.005
+  ],
+  "height": 0.002,
+  "mode": "cut",
+  "op": "cylinder",
+  "radius": 0.000577
+ },
+ {
+  "angle": "(clock_m + clock_s / 60) * 6",
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "op": "rotate",
+  "pivot": [
+   0,
+   0,
+   0
+  ]
+ }
+]'''
+            custom string aiad:material = "Blued steel"
+            custom string aiad:name = "Minute hand"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+    }
+
+    def Xform "P250_Hour_Wheel"
+    {
+        custom string aiad:body = "250 Hour Wheel"
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P250_Hour_Wheel"
+        {
+            custom string aiad:derived = '{"area":0.0001288085399446814,"bounds":[[-0.00426457966047816,-0.004264579660478164,-0.0035500000000000006],[0.00426457966047816,0.004264579660478161,-0.0018999999999999991]],"centroid":[1.6641580266022168e-07,-1.5835967431658357e-07,-0.002156023225709294],"inertia":[5.984559891556285e-14,5.988668094891052e-14,1.1640780784626179e-13,2.212769352643631e-19,-3.9344873537744767e-19,-1.4342771770107515e-18],"key":"bd9775fadd13f836","volume":1.6151251325469794e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO3",
+  "op": "import",
+  "product": "250 Hour Wheel",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "250 Hour Wheel"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Hour_wheel_teeth_gear"
+        {
+            custom string aiad:derived = '{"area":0.00012366661718892722,"bounds":[[-0.0043642877297795125,-0.0043642877297795125,-0.0022000000000000006],[0.004364287729779512,0.004364287729779512,-0.0018999999999999998]],"centroid":[-7.920377872149173e-07,-7.946340281148942e-07,-0.0020500000000001025],"inertia":[6.98466404667259e-14,6.984664053280567e-14,1.3945112207135618e-13,1.598307187732891e-21,1.5983150098929064e-21,1.5363661102021815e-19],"key":"b1d6f12cf9e72ae3","volume":1.6143928545026777e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 0.0003,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "gear": {
+    "center": [
+     0,
+     0
+    ],
+    "module": "2*sqrt(0.0046095*0.0046095+0.0023972*0.0023972)/50",
+    "teeth": 40
+   }
+  },
+  "start": -0.0022
+ }
+]'''
+            custom string aiad:material = "Gear pitch reference"
+            custom string aiad:name = "Hour wheel teeth (gear)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Hour_hand"
+        {
+            custom string aiad:derived = '{"area":4.2699736666512024e-05,"bounds":[[-0.0013999999999999996,-0.00346473555434368,-0.0035500000000000015],[0.010992132695176623,0.0013999999999999996,-0.003149999999999999]],"centroid":[0.002893586691871071,-0.0008938714209580227,-0.0034375120286143],"inertia":[3.76476821673396e-15,2.6585035134342123e-14,3.0290920593271926e-14,-1.237672082019437e-16,4.006008661266094e-16,7.793185886238178e-15],"key":"a60b36d7d97f2119","volume":2.923985548899795e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 0.00013,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "hull": {
+    "circles": [
+     {
+      "center": [
+       0,
+       0
+      ],
+      "radius": 0.0014
+     },
+     {
+      "center": [
+       0.0058,
+       0
+      ],
+      "radius": 0.0007
+     },
+     {
+      "center": [
+       0.0114,
+       0
+      ],
+      "radius": 0.0001
+     }
+    ]
+   }
+  },
+  "start": -0.00355
+ },
+ {
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "base": [
+   0,
+   0,
+   -0.00355
+  ],
+  "height": 0.0004,
+  "op": "cylinder",
+  "radius": 0.00135
+ },
+ {
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "base": [
+   0,
+   0,
+   -0.004
+  ],
+  "height": 0.002,
+  "mode": "cut",
+  "op": "cylinder",
+  "radius": 0.001002
+ },
+ {
+  "angle": "(mod(clock_h, 12) + clock_m / 60 + clock_s / 3600) * 30",
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "op": "rotate",
+  "pivot": [
+   0,
+   0,
+   0
+  ]
+ }
+]'''
+            custom string aiad:material = "Blued steel"
+            custom string aiad:name = "Hour hand"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+    }
+
+    def Xform "P450_Setting_Wheel"
+    {
+        custom string aiad:body = "450 Setting Wheel"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P450_Setting_Wheel"
+        {
+            custom string aiad:derived = '{"area":2.898912449196417e-05,"bounds":[[-0.001919667284784211,0.00825120494490737,-0.0018000000000000013],[0.0018935489412387448,0.012074161590057636,-0.0012499999999999955]],"centroid":[-1.2739830418610987e-07,0.010159387937654115,-0.0015250000000001465],"inertia":[2.6654088348516597e-15,2.6649173356792203e-15,5.164903466379442e-15,-2.715903267642028e-29,3.0580178546875286e-28,-3.898846759218525e-19],"key":"93012e63c01ea821","volume":3.281111487301256e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO4",
+  "op": "import",
+  "product": "450 Setting Wheel",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 3E4343"
+            custom string aiad:name = "450 Setting Wheel"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P453_Intermediate_Setting_Wheel"
+    {
+        custom string aiad:body = "453 Intermediate Setting Wheel"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P453_Intermediate_Setting_Wheel"
+        {
+            custom string aiad:derived = '{"area":2.898912401741092e-05,"bounds":[[0.0006514964336619858,0.0057847329794396,-0.0018500000000000007],[0.00447449613418907,0.009597775127792243,-0.0012999999999999952]],"centroid":[0.002559781538074253,0.007677961406339154,-0.0015749999999999976],"inertia":[2.665074082286463e-15,2.665251797710632e-15,5.164903182425142e-15,4.9071149175044777e-29,1.7700562267374417e-28,4.520236042214313e-19],"key":"344d13ea38d711e0","volume":3.2811113567990124e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO5",
+  "op": "import",
+  "product": "453 Intermediate Setting Wheel",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 3E4343"
+            custom string aiad:name = "453 Intermediate Setting Wheel"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P260_Minute_wheel"
+    {
+        custom string aiad:body = "260 Minute wheel"
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P260_Minute_wheel"
+        {
+            custom string aiad:derived = '{"area":0.00012134967976729518,"bounds":[[0.000518239225833887,-0.001694340420042341,-0.0023000000000000043],[0.008700941435751444,0.006488361789875213,-0.0013999999999999954]],"centroid":[0.004609489823349108,0.00239721007572917,-0.0016428386358484546],"inertia":[6.515412473374756e-14,6.516296674291384e-14,1.2942788048963293e-13,-9.538109531099319e-20,-7.437123593873664e-20,-4.712156752559826e-18],"key":"0460ed13e3ad0580","volume":1.8085679880900455e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO6",
+  "op": "import",
+  "product": "260 Minute wheel",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "260 Minute wheel"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Minute_wheel_teeth_gear"
+        {
+            custom string aiad:derived = '{"area":0.00011710721404658929,"bounds":[[0.0004963320007038332,-0.0017159679992961665,-0.0018500000000000005],[0.008722667999296168,0.006510367999296167,-0.0013999999999999998]],"centroid":[0.004609501245571185,0.002397198754428817,-0.0016250000000000038],"inertia":[8.101948437204606e-14,8.101948437204587e-14,1.6132202965444264e-13,3.0317102550007567e-21,3.0317102597531332e-21,1.7086319761673874e-19],"key":"e54487b0ee36beb3","volume":2.12426396933151e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 0.00045,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "gear": {
+    "center": [
+     0.0046095,
+     0.0023972
+    ],
+    "module": "2*sqrt(0.0046095*0.0046095+0.0023972*0.0023972)/48",
+    "teeth": 36
+   }
+  },
+  "start": -0.00185
+ }
+]'''
+            custom string aiad:material = "Gear pitch reference"
+            custom string aiad:name = "Minute wheel teeth (gear)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Minute_pinion_gear"
+        {
+            custom string aiad:derived = '{"area":1.2522114585007e-05,"bounds":[[0.0033625606486344245,0.001193848033414434,-0.0023000000000000004],[0.005856439351365574,0.0036005519665855655,-0.0018499999999999999]],"centroid":[0.004609501744425891,0.0023971968852736516,-0.0020749999643695565],"inertia":[4.51569092086357e-16,4.515691045515418e-16,8.543038180849404e-16,5.050996889788883e-22,2.4333191941889917e-22,6.493419671733095e-21],"key":"201b1c0dab1231e2","volume":1.4469445489360635e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 0.00045,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "gear": {
+    "center": [
+     0.0046095,
+     0.0023972
+    ],
+    "module": "2*sqrt(0.0046095*0.0046095+0.0023972*0.0023972)/50",
+    "teeth": 10
+   }
+  },
+  "start": -0.0023
+ }
+]'''
+            custom string aiad:material = "Gear pitch reference"
+            custom string aiad:name = "Minute pinion (gear)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+    }
+
+    def Xform "P435_Yoke"
+    {
+        custom string aiad:body = "435 Yoke"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P435_Yoke"
+        {
+            custom string aiad:derived = '{"area":4.427952685164699e-05,"bounds":[[-0.0029160672430068833,0.011973170918686464,-0.0017500000000000003],[0.010015392153258671,0.014873170918686464,-0.0013499999999999994]],"centroid":[0.004605065456151953,0.01330446926079783,-0.001550000000000029],"inertia":[2.2271403240270277e-15,8.664456461510931e-14,8.870929013049009e-14,-1.6729708229602686e-28,-1.0454996231805616e-27,3.78880391614682e-16],"key":"62bd022b968e9bac","volume":6.09055532423407e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO7",
+  "op": "import",
+  "product": "435 Yoke",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 60574E"
+            custom string aiad:name = "435 Yoke"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P445_Setting_Lever_Jumper"
+    {
+        custom string aiad:body = "445 Setting Lever Jumper"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P445_Setting_Lever_Jumper"
+        {
+            custom string aiad:derived = '{"area":0.00020234922123472482,"bounds":[[-0.006167687314289678,0.0025216920716441783,-0.0022500000000000024],[0.010896126463883812,0.016227340965620212,-0.0018499999999999999]],"centroid":[0.004264997363626905,0.009464193672674993,-0.0020492784816229905],"inertia":[3.255386026721066e-13,4.460927284081074e-13,7.707216893507855e-13,2.1543868649952036e-17,-2.0431549128787413e-18,8.871472592955168e-14],"key":"c2f124d8c9100bec","volume":3.419394379152153e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO8",
+  "op": "import",
+  "product": "445 Setting Lever Jumper",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 60574E"
+            custom string aiad:name = "445 Setting Lever Jumper"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P443_Setting_Lever"
+    {
+        custom string aiad:body = "443 Setting Lever"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P443_Setting_Lever"
+        {
+            custom string aiad:derived = '{"area":3.2203888615057896e-05,"bounds":[[-0.005701989850359004,0.013434398516414042,-0.0023000000000000026],[0.0002847755226659582,0.017914930276561904,-0.0009000000000000018]],"centroid":[-0.00320182208700234,0.015761309508871738,-0.0015999986796734682],"inertia":[5.461148805945281e-15,9.84763811924091e-15,1.506319841483403e-14,-9.257914310704735e-17,-3.1542700603356307e-16,-3.648825950825105e-15],"key":"589f939beda72528","volume":4.756535333661454e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO9",
+  "op": "import",
+  "product": "443 Setting Lever",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 60574E"
+            custom string aiad:name = "443 Setting Lever"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P440_Yoke_Spring_Compressed"
+    {
+        custom string aiad:body = "440 Yoke Spring Compressed"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P440_Yoke_Spring_Compressed"
+        {
+            custom string aiad:derived = '{"area":1.6568295702763438e-05,"bounds":[[0.00263385881856274,0.008282963334749661,-0.0016500000000000004],[0.010424760265624906,0.0119757272331055,-0.00135]],"centroid":[0.006862351202525469,0.010481261889493929,-0.0014999959101686176],"inertia":[1.766135348577537e-15,6.63017520229076e-15,8.382453223779948e-15,2.9270174418988332e-21,-1.3169091023850052e-20,1.2813746644605545e-15],"key":"d7dab6e07d509791","volume":1.2321075988620462e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO10",
+  "op": "import",
+  "product": "440 Yoke Spring Compressed",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "440 Yoke Spring Compressed"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P5445_Screw_for_combined_setting_lever"
+    {
+        custom string aiad:body = "5445 Screw for combined setting lever"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P5445_Screw_for_combined_setting_lever"
+        {
+            custom string aiad:derived = '{"area":7.541586664604377e-06,"bounds":[[0.00501681002615552,0.00771774636660636,-0.002250000000001771],[0.006463560289959631,0.00916774636660636,-0.0006700000000017707]],"centroid":[0.005740186962137396,0.008442728302065586,-0.0015651350972085433],"inertia":[3.0581557385806075e-16,2.985924959302957e-16,1.3212747226476875e-16,-6.0317674855943385e-21,5.333897657377024e-22,5.257558458948577e-19],"key":"0ea3527fefe0c525","volume":1.0303603436982925e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO11",
+  "op": "import",
+  "product": "5445 Screw for combined setting lever",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "5445 Screw for combined setting lever"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P5443_Screw_for_setting_lever"
+    {
+        custom string aiad:body = "5443 Screw for setting lever"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P5443_Screw_for_setting_lever"
+        {
+            custom string aiad:derived = '{"area":2.0637565966996975e-05,"bounds":[[-0.0027123879713199803,0.01635116742604484,-0.0022],[-0.00121238797131998,0.017851167426044843,0.0019500000000000001]],"centroid":[-0.001962392084604531,0.017101165810644962,7.777534208801475e-06],"inertia":[5.9443493167618685e-15,5.929269489872328e-15,9.426678167800169e-16,6.980436804047071e-21,-1.4152008603655875e-20,-2.7541283006022835e-19],"key":"10f2af14781e20e5","volume":4.694838190804861e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO12",
+  "op": "import",
+  "product": "5443 Screw for setting lever",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "5443 Screw for setting lever"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P201_Centre_wheel"
+    {
+        custom string aiad:body = "201 Centre wheel"
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P201_Centre_wheel_1"
+        {
+            custom string aiad:derived = '{"area":3.5491834480248814e-05,"bounds":[[-0.0014969856165972018,-0.0014907478998311234,-0.0005099999999999984],[0.001496985616597203,0.0014907478998311225,0.0008900000000000016]],"centroid":[6.524749213137725e-11,-2.79409506199315e-10,0.00019000000000000226],"inertia":[4.208910973058228e-15,4.2089103926334606e-15,6.1008802413603936e-15,-3.4204515817743294e-31,4.695417204410204e-30,-6.319229376507329e-22],"key":"dd3ab62c0444ec26","volume":7.092676911218266e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO13",
+  "op": "import",
+  "product": "201 Centre wheel",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "201 Centre wheel [1]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P201_Centre_wheel_2"
+        {
+            custom string aiad:derived = '{"area":0.0001386099682289518,"bounds":[[-0.00599944992766147,-0.00599944992766147,0.0008900000000000008],[0.00599944992766147,0.00599944992766147,0.0011300000000000034]],"centroid":[9.517582647077248e-08,-4.043871230337107e-07,0.001010000000000001],"inertia":[1.0648013918480057e-13,1.0647415879070489e-13,2.1284038455733988e-13,9.306093491274784e-30,-3.044510056087812e-30,-5.6736381318366504e-18],"key":"535257a871f81b2a","volume":1.186598105884047e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO13",
+  "op": "import",
+  "product": "201 Centre wheel",
+  "solid": 2
+ }
+]'''
+            custom string aiad:material = "Imported FF9D36"
+            custom string aiad:name = "201 Centre wheel [2]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P201_Centre_wheel_3"
+        {
+            custom string aiad:derived = '{"area":4.010797895772053e-06,"bounds":[[-0.0006,-0.0005999999999999997,0.00113],[0.0005999999999999998,0.0005999999999999998,0.0020000000000000018]],"centroid":[-2.3218169199994823e-09,-2.2537814360460194e-09,0.0014604765767276737],"inertia":[4.2472982157465115e-17,4.247053215570958e-17,3.46564165948214e-17,-1.3789594450480655e-22,-6.02884348908997e-23,5.325939176860435e-22],"key":"5dc1209cc3e5abf2","volume":3.6696255563427155e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO13",
+  "op": "import",
+  "product": "201 Centre wheel",
+  "solid": 3
+ }
+]'''
+            custom string aiad:material = "Imported 60574E"
+            custom string aiad:name = "201 Centre wheel [3]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P201_Centre_wheel_4"
+        {
+            custom string aiad:derived = '{"area":1.0917085934973344e-05,"bounds":[[-0.0007499999999999998,-0.0007499999999999997,-0.00352],[0.0007499999999999997,0.0007499999999999997,-0.0005099999999999987]],"centroid":[-2.963847976478598e-09,-2.3257040021796416e-09,-0.0015896759366363993],"inertia":[1.3948040657164874e-15,1.394777715006035e-15,2.2350194556334813e-16,1.7785132492478152e-21,2.833614487244039e-21,1.1017749733091224e-20],"key":"744d33a15702df0c","volume":1.7311390839590617e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO13",
+  "op": "import",
+  "product": "201 Centre wheel",
+  "solid": 4
+ }
+]'''
+            custom string aiad:material = "Imported 60574E"
+            custom string aiad:name = "201 Centre wheel [4]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Centre_pinion_gear"
+        {
+            custom string aiad:derived = '{"area":4.46817243240901e-05,"bounds":[[-0.0017647089082520652,-0.0017473320640649412,-0.0005100000000000001],[0.0017647089082520652,0.0017473320640649405,0.0008900000000000002]],"centroid":[1.2911231519289473e-09,-2.174591003598979e-09,0.00019000002242241913],"inertia":[8.676716306834585e-15,8.676715868697094e-15,1.3831200797761897e-14,8.176542267126854e-21,4.614145144745926e-21,5.040713311407683e-20],"key":"2be1fcf769867993","volume":1.0782340952356719e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 0.0014,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "gear": {
+    "center": [
+     0,
+     0
+    ],
+    "module": "2*sqrt(0.0084*0.0084+0.0045*0.0045)/108",
+    "teeth": 18
+   }
+  },
+  "start": -0.00051
+ }
+]'''
+            custom string aiad:material = "Gear pitch reference"
+            custom string aiad:name = "Centre pinion (gear)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Centre_wheel_teeth_gear"
+        {
+            custom string aiad:derived = '{"area":0.00022848321323695145,"bounds":[[-0.005941106428593645,-0.005941106428593646,0.0008899999999999997],[0.005941106428593646,0.005941106428593645,0.0011300000000000004]],"centroid":[1.801706066721648e-09,-1.8017060660296899e-09,0.001010000000000005],"inertia":[2.128058479684155e-13,2.128058479684157e-13,4.2536879030963415e-13,2.7574409338854956e-21,2.757440930946334e-21,4.2303173051256827e-19],"key":"0cf6c951b769a5d3","volume":2.5302669499644303e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 0.00024,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "gear": {
+    "center": [
+     0,
+     0
+    ],
+    "module": "2*sqrt(0.0026623*0.0026623+0.0060741*0.0060741)/96",
+    "teeth": 84
+   }
+  },
+  "start": 0.00089
+ }
+]'''
+            custom string aiad:material = "Gear pitch reference"
+            custom string aiad:name = "Centre wheel teeth (gear)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Cannon_pinion_teeth_gear"
+        {
+            custom string aiad:derived = '{"area":1.84699167632892e-05,"bounds":[[-0.0015153776839512195,-0.0015153776839512195,-0.0019000000000000006],[0.0015153776839512195,0.0015153776839512195,-0.0014099999999999998]],"centroid":[1.6703510894246949e-09,-1.6703510901876052e-09,-0.001655000000000002],"inertia":[1.1571093468492056e-15,1.157109346849203e-15,2.214888695501831e-15,5.040503990835995e-22,5.040503993021926e-22,9.727371140888943e-21],"key":"93a13920ab3e1930","volume":2.482215698373512e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 0.00049,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "gear": {
+    "center": [
+     0,
+     0
+    ],
+    "module": "2*sqrt(0.0046095*0.0046095+0.0023972*0.0023972)/48",
+    "teeth": 12
+   }
+  },
+  "start": -0.0019
+ }
+]'''
+            custom string aiad:material = "Gear pitch reference"
+            custom string aiad:name = "Cannon pinion teeth (gear)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+    }
+
+    def Xform "P220_Second_wheel"
+    {
+        custom string aiad:body = "220 Second wheel"
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P220_Second_wheel_1"
+        {
+            custom string aiad:derived = '{"area":1.357158727268914e-05,"bounds":[[-0.0007427577737184653,-0.0109927577737185,-0.0014500000000000003],[0.0007427577737184641,-0.00950724222628154,-0.00014999999999999953]],"centroid":[1.1335418257374418e-08,-0.010250016055502553,-0.0007999999999999997],"inertia":[3.4794841828768437e-16,3.4793638125445775e-16,2.92729599058014e-16,-2.1685971169249467e-31,1.6813368420023235e-31,3.4526079290051736e-21],"key":"2d14fbfa9b8dfffb","volume":1.4313202384051881e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO14",
+  "op": "import",
+  "product": "220 Second wheel",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "220 Second wheel [1]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P220_Second_wheel_2"
+        {
+            custom string aiad:derived = '{"area":8.531710136961113e-05,"bounds":[[-0.004314535987794533,-0.014564535987794537,-0.00015],[0.0043145359877945315,-0.00593546401220547,0.00015000000000000047]],"centroid":[2.8505927224691555e-07,-0.010250302107873819,8.327252833064165e-15],"inertia":[3.916509850160426e-14,3.915808546837309e-14,7.820748656980712e-14,-4.568524613728206e-25,2.7666853555159924e-25,1.7834946453163664e-18],"key":"937aa1dfd31edce7","volume":7.713160011342525e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO14",
+  "op": "import",
+  "product": "220 Second wheel",
+  "solid": 2
+ }
+]'''
+            custom string aiad:material = "Imported FF9D36"
+            custom string aiad:name = "220 Second wheel [2]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P220_Second_wheel_3"
+        {
+            custom string aiad:derived = '{"area":2.806362657017189e-06,"bounds":[[-0.0002800000000000009,-0.010530000000000006,0.00015],[0.00027999999999999916,-0.009970000000000005,0.0017600000000002058]],"centroid":[-1.5395024696056383e-09,-0.010250000339977507,0.0007847305538248895],"inertia":[5.041508369093944e-17,5.0415169839250346e-17,1.1260698664123558e-17,-1.8300484992842525e-23,1.2224373418175635e-22,-3.627065154599478e-22],"key":"bf866ae6a71776d6","volume":3.066474292509612e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO14",
+  "op": "import",
+  "product": "220 Second wheel",
+  "solid": 3
+ }
+]'''
+            custom string aiad:material = "Imported 60574E"
+            custom string aiad:name = "220 Second wheel [3]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P220_Second_wheel_4"
+        {
+            custom string aiad:derived = '{"area":1.9216108372857e-06,"bounds":[[-0.0002800000000000009,-0.010530000000000006,-0.00299],[0.00027999999999999916,-0.009970000000000005,-0.00145]],"centroid":[3.5401143931996463e-09,-0.010250001247149325,-0.0020070813234897514],"inertia":[2.864212655856765e-17,2.864201460056074e-17,2.641553270031307e-18,3.455139837215967e-23,-8.589354925593543e-23,1.5140446479198268e-22],"key":"d0074bd79017019d","volume":1.3044121799925906e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO14",
+  "op": "import",
+  "product": "220 Second wheel",
+  "solid": 4
+ }
+]'''
+            custom string aiad:material = "Imported 60574E"
+            custom string aiad:name = "220 Second wheel [4]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Second_pinion_gear"
+        {
+            custom string aiad:derived = '{"area":6.6122059647181095e-06,"bounds":[[-0.0007332569784009751,-0.010983256978400975,-0.0008000000000000004],[0.0007332569784009751,-0.009516743021599026,-0.0002999999999999999]],"centroid":[1.2267318840229198e-09,-0.010250001226731885,-0.0005499999999999999],"inertia":[7.198176242161304e-17,7.1981762421613e-17,1.1993581587077084e-16,8.403471571148471e-23,8.403471573001125e-23,7.848809709496364e-22],"key":"f85240975b044f34","volume":5.766650153389223e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 0.0005,
+  "op": "extrude",
+  "plane": {
+   "origin": [
+    0,
+    -0.01025,
+    0
+   ],
+   "x": [
+    1,
+    0,
+    0
+   ],
+   "y": [
+    0,
+    1,
+    0
+   ]
+  },
+  "profile": {
+   "sprocket": {
+    "root_radius": "sqrt(0.0026623*0.0026623+0.0041759*0.0041759)/96*(12-2.5)",
+    "teeth": 12,
+    "tip_radius": "sqrt(0.0026623*0.0026623+0.0041759*0.0041759)/96*(12+2.5)"
+   }
+  },
+  "start": -0.0008
+ }
+]'''
+            custom string aiad:material = "Gear pitch reference"
+            custom string aiad:name = "Second pinion (gear)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Second_wheel_teeth_gear"
+        {
+            custom string aiad:derived = '{"area":0.00012709298051442528,"bounds":[[-0.004312500785652822,-0.014562500785652825,-0.00015000000000000001],[0.004312500785652823,-0.005937499214347179,0.00015000000000000001]],"centroid":[1.3106864962010854e-09,-0.010250001310686494,-4.75641778671109e-18],"inertia":[7.393122220018908e-14,7.393122220018902e-14,1.4761247242363741e-13,1.6514477455233377e-21,1.6514477487996816e-21,1.47126016098978e-19],"key":"fce5a2aa199f68f3","volume":1.666479844938439e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 0.0003,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "gear": {
+    "center": [
+     0,
+     -0.01025
+    ],
+    "module": "2*sqrt(0.004697*0.004697+0.000396*0.000396)/94",
+    "teeth": 84
+   }
+  },
+  "start": -0.00015
+ }
+]'''
+            custom string aiad:material = "Gear pitch reference"
+            custom string aiad:name = "Second wheel teeth (gear)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Seconds_hand"
+        {
+            custom string aiad:derived = '{"area":6.491083291327267e-06,"bounds":[[-0.0019600000000000017,-0.013600896534380867,-0.002990000000000001],[0.0007800000000000005,-0.009030769515458675,-0.002749999999999999]],"centroid":[-0.0003713184787193818,-0.010893143334175535,-0.0029244308866993836],"inertia":[3.192866203943556e-16,1.1244668322164955e-16,4.302641812820161e-16,-2.825622457733105e-18,-1.6313596871388687e-18,-1.7912861690546563e-16],"key":"09062238f763166c","volume":2.826048895157083e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 0.0001,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "hull": {
+    "circles": [
+     {
+      "center": [
+       -0.0012,
+       0
+      ],
+      "radius": 0.00018
+     },
+     {
+      "center": [
+       0,
+       0
+      ],
+      "radius": 0.0004
+     },
+     {
+      "center": [
+       0.0038,
+       0
+      ],
+      "radius": 6e-05
+     }
+    ]
+   }
+  },
+  "start": -0.00299
+ },
+ {
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "base": [
+   0,
+   0,
+   -0.00299
+  ],
+  "height": 0.00024,
+  "op": "cylinder",
+  "radius": 0.00032
+ },
+ {
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "base": [
+   0,
+   0,
+   -0.004
+  ],
+  "height": 0.002,
+  "mode": "cut",
+  "op": "cylinder",
+  "radius": 0.000138
+ },
+ {
+  "angle": "clock_s * 6",
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "op": "rotate",
+  "pivot": [
+   0,
+   0,
+   0
+  ]
+ },
+ {
+  "offset": [
+   0,
+   -0.01025,
+   0
+  ],
+  "op": "translate"
+ }
+]'''
+            custom string aiad:material = "Blued steel"
+            custom string aiad:name = "Seconds hand"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+    }
+
+    def Xform "P210_Third_wheel"
+    {
+        custom string aiad:body = "210 Third wheel"
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P210_Third_wheel_1"
+        {
+            custom string aiad:derived = '{"area":8.012601594322253e-06,"bounds":[[-0.00341104387187454,-0.006822866673344483,0.0006099999999999915],[-0.0019134801247264984,-0.00532530292619644,0.001209999999999992]],"centroid":[-0.002662256970995282,-0.006074087159001986,0.0009099999999999913],"inertia":[8.004136190625032e-17,8.003794082100301e-17,1.2931025553783686e-16,-1.3334750091821157e-21,-6.257778534730432e-22,-2.0588799590281157e-21],"key":"2a1df34c21dc05ff","volume":5.128174531569413e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO15",
+  "op": "import",
+  "product": "210 Third wheel",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "210 Third wheel [1]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P210_Third_wheel_2"
+        {
+            custom string aiad:derived = '{"area":6.340792556706413e-06,"bounds":[[-0.0029422619983005185,-0.006354084799770464,-0.002100000000000213],[-0.002382261998300518,-0.005794084799770463,0.0018699999999999912]],"centroid":[-0.002662263086490106,-0.006074084295010037,-0.00015195364096081597],"inertia":[6.946541587264724e-16,6.946558014381951e-16,2.878323702272009e-17,7.4977717024996e-22,-1.1489775310103225e-21,1.0112704215085553e-21],"key":"a9ae9fba110957fa","volume":7.784305586546607e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO15",
+  "op": "import",
+  "product": "210 Third wheel",
+  "solid": 2
+ }
+]'''
+            custom string aiad:material = "Imported 60574E"
+            custom string aiad:name = "210 Third wheel [2]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P210_Third_wheel_3"
+        {
+            custom string aiad:derived = '{"area":8.573967885330168e-05,"bounds":[[-0.006977045167147312,-0.0103888679686173,-0.0006900000000000091],[0.00165252117054628,-0.0017593016309236688,-0.000390000000000008]],"centroid":[-0.0026622438876333547,-0.006074069302854511,-0.0005400013808219237],"inertia":[3.912733216671635e-14,3.9124056088572466e-14,7.814064342390837e-14,-2.0754193240373177e-19,-1.0956185046982676e-19,-1.5078302604382815e-18],"key":"cbce7610509f2df8","volume":7.3829884603274636e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO15",
+  "op": "import",
+  "product": "210 Third wheel",
+  "solid": 3
+ }
+]'''
+            custom string aiad:material = "Imported FF9D36"
+            custom string aiad:name = "210 Third wheel [3]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P210_Third_wheel_4"
+        {
+            custom string aiad:derived = '{"area":5.38626405940594e-06,"bounds":[[-0.00341104387187454,-0.006822866673344483,-0.0006900000000000085],[-0.0019134801247264984,-0.00532530292619644,-0.0003400000000000085]],"centroid":[-0.0026622569709952807,-0.006074087159001982,-0.000515000000000008],"inertia":[4.077024567536225e-17,4.076825008020357e-17,7.543098233775924e-17,-4.537519127777586e-22,-2.129382973161691e-22,-1.2009904987605347e-21],"key":"65fa559e9f6a47c9","volume":2.991435143415471e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO15",
+  "op": "import",
+  "product": "210 Third wheel",
+  "solid": 4
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "210 Third wheel [4]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Third_pinion_gear"
+        {
+            custom string aiad:derived = '{"area":1.0643426419906384e-05,"bounds":[[-0.003629456860468734,-0.007041256860468734,0.0006099999999999999],[-0.0016951431395312664,-0.005106943139531267,0.0012100000000000001]],"centroid":[-0.0026622989314298777,-0.006074101068570097,0.0009099999999999991],"inertia":[2.621415489706792e-16,2.6214154897067676e-16,4.499986333334663e-16,1.9693722447546017e-22,1.9693722569948494e-22,1.980993838864694e-21],"key":"31bbf989a8dfd377","volume":1.2380744101315123e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 0.0006,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "gear": {
+    "center": [
+     -0.0026623,
+     -0.0060741
+    ],
+    "module": "2*sqrt(0.0026623*0.0026623+0.0060741*0.0060741)/96",
+    "teeth": 12
+   }
+  },
+  "start": 0.00061
+ }
+]'''
+            custom string aiad:material = "Gear pitch reference"
+            custom string aiad:name = "Third pinion (gear)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Third_wheel_teeth_gear"
+        {
+            custom string aiad:derived = '{"area":0.00013403362320050003,"bounds":[[-0.007098799344477619,-0.010510599344477619,-0.0006900000000000001],[0.0017741993444776196,-0.0016376006555223798,-0.00038999999999999994]],"centroid":[-0.002662298651928451,-0.006074101348071556,-0.000540000000000005],"inertia":[8.280038456505629e-14,8.280038456505596e-14,1.653362154583471e-13,1.7976346210862585e-21,1.797634627947456e-21,1.647540825582883e-19],"key":"c40a4e73f423d47b","volume":1.7636911451007678e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 0.0003,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "gear": {
+    "center": [
+     -0.0026623,
+     -0.0060741
+    ],
+    "module": "2*sqrt(0.0026623*0.0026623+0.0041759*0.0041759)/96",
+    "teeth": 84
+   }
+  },
+  "start": -0.00069
+ }
+]'''
+            custom string aiad:material = "Gear pitch reference"
+            custom string aiad:name = "Third wheel teeth (gear)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+    }
+
+    def Xform "P401_Winding_stem"
+    {
+        custom string aiad:body = "401 Winding stem"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P401_Winding_stem"
+        {
+            custom string aiad:derived = '{"area":0.00014097813547958154,"bounds":[[-0.0006999999999999999,0.008591516388941336,-0.0010999999999999998],[0.0007000000000000001,0.03656151638894134,0.0003000000000000001]],"centroid":[1.4059562058318198e-06,0.02327375550178793,-0.0003987048984758182],"inertia":[1.2703778659128865e-12,3.565964537368922e-15,1.2703538774317042e-12,4.227479138039755e-17,9.141139126867195e-18,6.317107413934197e-18],"key":"ff2e76cc42a88dd2","volume":2.3396483899274543e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO16",
+  "op": "import",
+  "product": "401 Winding stem",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "401 Winding stem"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P410_Sliding_pinion"
+    {
+        custom string aiad:body = "410 Sliding pinion"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P410_Sliding_pinion"
+        {
+            custom string aiad:derived = '{"area":3.301581407851358e-05,"bounds":[[-0.001739942553845961,0.014641445167199509,-0.002105995819565639],[0.0017358642618413567,0.0158942695560393,0.0013499136063739093]],"centroid":[-1.659077993419077e-08,0.01538672715590559,-0.00040000592548757404],"inertia":[3.7326193300697625e-15,6.51746550159798e-15,3.732916671251548e-15,-1.8184467101974863e-20,-2.8371774847377956e-19,-5.2459075580951585e-20],"key":"1457b4423dbcc301","volume":4.952464337454266e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO17",
+  "op": "import",
+  "product": "410 Sliding pinion",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 60574E"
+            custom string aiad:name = "410 Sliding pinion"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P407_Winding_pinion"
+    {
+        custom string aiad:body = "407 Winding pinion"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P407_Winding_pinion"
+        {
+            custom string aiad:derived = '{"area":4.094955895809677e-05,"bounds":[[-0.0012500000000000005,0.012322885913389111,-0.0016500001639605947],[0.0012500000000000005,0.014875758790229465,0.0008500001639605953]],"centroid":[-3.2715463737377515e-08,0.013759934869953383,-0.00039999810703752705],"inertia":[4.7347540800750806e-15,4.2465648421111464e-15,4.733618421563218e-15,-1.0837783496453436e-19,8.448360628817934e-19,1.0629191963215716e-19],"key":"9728c19c2afcfc7d","volume":5.123187212716083e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO18",
+  "op": "import",
+  "product": "407 Winding pinion",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 60574E"
+            custom string aiad:name = "407 Winding pinion"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P705_Escape_wheel"
+    {
+        custom string aiad:body = "705 Escape wheel"
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P705_Escape_wheel"
+        {
+            custom string aiad:derived = '{"area":3.928358954525058e-05,"bounds":[[-1219519.8021979528,-4275.539847563267,-0.002100000041536987],[1027212.9425799861,192164.29270840646,684814.5550532355]],"centroid":[0.00474734254487091,-0.010738888959342682,-0.0008366534018149316],"inertia":[3.790196837577017e-15,3.789845650665237e-15,5.5805407160626765e-15,-4.9603750398671937e-20,2.9482476759448666e-20,4.455220643167272e-19],"key":"21e302313eb93514","volume":2.076492331205551e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO19",
+  "op": "import",
+  "product": "705 Escape wheel",
+  "solid": 1
+ },
+ {
+  "offset": [
+   -2.5735873623904958e-05,
+   -3.062131298318857e-05,
+   0
+  ],
+  "op": "translate"
+ },
+ {
+  "angle": 1.5,
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "op": "rotate",
+  "pivot": [
+   0.0070844,
+   -0.0078054,
+   0
+  ]
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "705 Escape wheel"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Escape_pinion_gear"
+        {
+            custom string aiad:derived = '{"area":4.981637604595285e-06,"bounds":[[0.004134543785197436,-0.011365622924832152,-0.0002500000000000001],[0.005359957934124558,-0.010111988975514465,0.0002500000000000001]],"centroid":[0.004747252093254103,-0.010738807721804005,-2.7251271730133007e-11],"inertia":[3.4664764587385864e-17,3.466478911836891e-17,5.366978116757647e-17,7.481336756771046e-23,5.210095361143303e-23,5.131100920929097e-22],"key":"f784cc31dcd69483","volume":3.7583454091628223e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 0.0005,
+  "op": "extrude",
+  "plane": {
+   "origin": [
+    0.004697,
+    -0.010646,
+    0
+   ],
+   "x": [
+    1,
+    0,
+    0
+   ],
+   "y": [
+    0,
+    1,
+    0
+   ]
+  },
+  "profile": {
+   "sprocket": {
+    "root_radius": "sqrt(0.004697*0.004697+0.000396*0.000396)/94*(10-2.5)",
+    "teeth": 10,
+    "tip_radius": "sqrt(0.004697*0.004697+0.000396*0.000396)/94*(10+2.5)"
+   }
+  },
+  "start": -0.00025
+ },
+ {
+  "offset": [
+   -2.5735873623904958e-05,
+   -3.062131298318857e-05,
+   0
+  ],
+  "op": "translate"
+ },
+ {
+  "angle": 1.5,
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "op": "rotate",
+  "pivot": [
+   0.0070844,
+   -0.0078054,
+   0
+  ]
+ }
+]'''
+            custom string aiad:material = "Gear pitch reference"
+            custom string aiad:name = "Escape pinion (gear)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+    }
+
+    def Xform "P710_Pallet_fork"
+    {
+        custom string aiad:body = "710 Pallet fork"
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P710_Pallet_fork_1"
+        {
+            custom string aiad:derived = '{"area":2.465226977119073e-06,"bounds":[[0.00747418612558225,-0.0100009854669614,-0.00155],[0.00883986081724356,-0.00963816249851436,-0.00105]],"centroid":[0.00818284476592871,-0.009820807234804463,-0.0013000000000000008],"inertia":[6.1339682440729155e-18,3.391882435746816e-17,3.136651046970921e-17,-3.3406524452565525e-33,7.823824892212497e-33,6.64912635355109e-19],"key":"00201ea039190c8b","volume":2.0847077116396474e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO20",
+  "op": "import",
+  "product": "710 Pallet fork",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported EB01FF"
+            custom string aiad:name = "710 Pallet fork [1]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P710_Pallet_fork_2"
+        {
+            custom string aiad:derived = '{"area":2.1031499052120682e-05,"bounds":[[0.00532243185192767,-0.0102414550627589,-0.0023000000000000004],[0.0107113328253176,-0.00433478427649512,-0.000299999999999999]],"centroid":[0.007897308339335982,-0.007178427271013494,-0.001217842884711314],"inertia":[3.389894574417664e-15,2.774475489403745e-15,6.043139736893344e-15,1.7459937568260667e-18,-8.754127245385313e-18,-9.496671987224469e-16],"key":"40b8dfb33a4021cf","volume":1.6886224551346495e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO20",
+  "op": "import",
+  "product": "710 Pallet fork",
+  "solid": 2
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "710 Pallet fork [2]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P710_Pallet_fork_3"
+        {
+            custom string aiad:derived = '{"area":2.4867986317628403e-06,"bounds":[[0.00523580695001308,-0.00749780628200448,-0.00155],[0.00614478578351565,-0.00615302089268247,-0.00105]],"centroid":[0.005677853309383555,-0.006802825002553888,-0.0012999999999999989],"inertia":[2.779400731889179e-17,1.3156120525302555e-17,3.21590350947972e-17,-8.360492917841824e-33,-3.340471830079525e-33,-1.2242103882824217e-17],"key":"8a9d60ec0fad3a5f","volume":2.1098622598553129e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO20",
+  "op": "import",
+  "product": "710 Pallet fork",
+  "solid": 3
+ }
+]'''
+            custom string aiad:material = "Imported EB01FF"
+            custom string aiad:name = "710 Pallet fork [3]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P125_Pallet_bridge"
+    {
+        custom string aiad:body = "125 Pallet bridge"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P125_Pallet_bridge_1"
+        {
+            custom string aiad:derived = '{"area":0.00018377748325581857,"bounds":[[0.004613072276612135,-0.009572364750074497,-0.0010000000000000165],[0.016112858106513417,0.001845395304027612,-0.0004]],"centroid":[0.0101743106542664,-0.003252365577072543,-0.0006883416900452794],"inertia":[3.8768915065871734e-13,3.311692069022414e-13,7.167109246544745e-13,1.7160098770391414e-15,-5.811454460297628e-16,1.1104774805296343e-14],"key":"0be4f6fdb7401d4d","volume":3.771770327030052e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO21",
+  "op": "import",
+  "product": "125 Pallet bridge",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "125 Pallet bridge [1]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P125_Pallet_bridge_2"
+        {
+            custom string aiad:derived = '{"area":2.6213872723327726e-06,"bounds":[[0.006584391520042037,-0.0083054276100069,-0.0007999999999999944],[0.00758439152004204,-0.0073054276100069015,-0.000499999999999994]],"centroid":[0.007084389402123308,-0.007805429636691352,-0.0006545457951845564],"inertia":[1.6119196459695444e-17,1.6118307605330807e-17,2.911634621987684e-17,4.791998744484075e-23,1.7595602793208428e-24,-7.8487181840267e-23],"key":"420ffe1b9303debd","volume":2.1863362190614319e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO21",
+  "op": "import",
+  "product": "125 Pallet bridge",
+  "solid": 2
+ }
+]'''
+            custom string aiad:material = "Imported EB01FF"
+            custom string aiad:name = "125 Pallet bridge [2]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P5125_Screw_for_pallet_bridge"
+    {
+        custom string aiad:body = "5125 Screw for pallet bridge"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P5125_Screw_for_pallet_bridge"
+        {
+            custom string aiad:derived = '{"area":1.29525580331486e-05,"bounds":[[0.01216283385897829,-0.008277138632553109,-0.00205],[0.014162833858978291,-0.006277138632553107,-0.00029999999999999987]],"centroid":[0.0131628336142832,-0.0072771366872220605,-0.0009335275170175051],"inertia":[8.601868283996918e-16,8.308791324348314e-16,6.265737334744695e-16,-2.335886747319466e-22,5.741167285518378e-22,-1.5696576221417358e-17],"key":"2679cf5d2dc5855e","volume":2.02151188117855e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO22",
+  "op": "import",
+  "product": "5125 Screw for pallet bridge",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "5125 Screw for pallet bridge"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P5125_Screw_for_pallet_bridge_2"
+    {
+        custom string aiad:body = "5125 Screw for pallet bridge (2)"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P5125_Screw_for_pallet_bridge_2"
+        {
+            custom string aiad:derived = '{"area":1.2952130227933726e-05,"bounds":[[0.005982987389984985,-0.0030832550329608073,-0.00205],[0.007982987389984986,-0.0010832550329608072,-0.00029999999999999987]],"centroid":[0.006983004124107961,-0.002083275689875639,-0.0009334957628609342],"inertia":[8.519119760193735e-16,8.391956790602434e-16,6.266378188992167e-16,1.0820579982374508e-20,-7.646347825912869e-21,2.052712842669706e-17],"key":"a8bca1b649ee0890","volume":2.0216430745409427e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO23",
+  "op": "import",
+  "product": "5125 Screw for pallet bridge",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "5125 Screw for pallet bridge (2)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P721_Balance"
+    {
+        custom string aiad:body = "721 Balance"
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P721_Balance_1"
+        {
+            custom string aiad:derived = '{"area":7.516769648157802e-07,"bounds":[[0.010110516905123395,-0.004902363191059499,-0.0013000000000000004],[0.01059782304135034,-0.00458433498971839,1234566.9986999999]],"centroid":[0.010354171433895751,-0.004743348929922237,-0.0010999999999999998],"inertia":[9.462494074455128e-19,1.3564682559107452e-18,1.0188758272927728e-18,6.018531076210112e-36,6.018531076210112e-36,6.941024756110684e-20],"key":"e139bee87227e403","volume":4.814406885238069e-11}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO24",
+  "op": "import",
+  "product": "721 Balance",
+  "solid": 1
+ },
+ {
+  "offset": [
+   0.00016086396618344474,
+   0.00019137080337327205,
+   0
+  ],
+  "op": "translate"
+ }
+]'''
+            custom string aiad:material = "Imported EB01FF"
+            custom string aiad:name = "721 Balance [1]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P721_Balance_2"
+        {
+            custom string aiad:derived = '{"area":7.899339932823208e-05,"bounds":[[0.007251807707155728,-0.007044982297014975,0.0002999999999999999],[0.013915462847457425,-0.0005010186539932214,0.00055]],"centroid":[0.010577597795781856,-0.003781465228847013,0.00042499999864291577],"inertia":[3.2286049948831633e-15,3.3687049399486775e-15,6.586208317998738e-15,-2.9868340726119567e-23,2.804453511063348e-23,2.1478219698988243e-17],"key":"fa35da3df81f4a7f","volume":1.065755215979865e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 0.00025,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "spiral": {
+    "center": [
+     0.0103629,
+     -0.0039045
+    ],
+    "inner_radius": 0.000904,
+    "pitch": 0.0002395,
+    "rotation": 243.7,
+    "thickness": 3.026e-05,
+    "turns": 10.42
+   }
+  },
+  "start": 0.0003
+ },
+ {
+  "offset": [
+   0.00016086396618344474,
+   0.00019137080337327205,
+   0
+  ],
+  "op": "translate"
+ }
+]'''
+            custom string aiad:material = "Nivarox"
+            custom string aiad:name = "721 Balance [2]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P721_Balance_3"
+        {
+            custom string aiad:derived = '{"area":9.572843267143512e-06,"bounds":[[0.009523722072696868,-1233612.9135464074,-1234566.9997],[441349.1500370144,1152981.6148030697,0.0010500000789761543]],"centroid":[0.01052777677201959,-0.0036885743915395,0.00027429251391372753],"inertia":[3.2124699901401374e-16,2.602283952368704e-16,5.194472595760183e-16,-4.5646070914407995e-18,-7.502166459335796e-19,-1.032276551291683e-17],"key":"17cdffa9ee5d2c13","volume":1.2282649347242207e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO24",
+  "op": "import",
+  "product": "721 Balance",
+  "solid": 3
+ },
+ {
+  "offset": [
+   0.00016086396618344474,
+   0.00019137080337327205,
+   0
+  ],
+  "op": "translate"
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "721 Balance [3]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P721_Balance_4"
+        {
+            custom string aiad:derived = '{"area":2.2969713720536197e-05,"bounds":[[0.009148722072696866,-0.005088233892599114,-0.002050000010058284],[0.011898722072696866,-0.0023382338925991134,1234566.9990999997]],"centroid":[0.010525029719560331,-0.0037052781597287357,-0.0008019227337854899],"inertia":[1.3396759186350196e-15,1.3575753757670362e-15,1.9592559695490675e-15,1.4828598413939974e-17,2.4423953881361973e-18,3.0247941675341272e-18],"key":"211cf4067ec7333f","volume":3.119694342325401e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO24",
+  "op": "import",
+  "product": "721 Balance",
+  "solid": 4
+ },
+ {
+  "offset": [
+   0.00016086396618344474,
+   0.00019137080337327205,
+   0
+  ],
+  "op": "translate"
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "721 Balance [4]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P721_Balance_5"
+        {
+            custom string aiad:derived = '{"area":0.00012020243292728351,"bounds":[[-1199669.2621049753,-197459.90360429173,-1234566.99995],[1199669.2831524215,197459.8961778288,5.0000002374872565e-05]],"centroid":[0.010523771679057988,-0.0037131460344080104,-0.0001250000000000136],"inertia":[1.959366193540087e-13,1.9595737548052717e-13,3.9161751671573526e-13,-1.5338414225891048e-28,3.4183561694522376e-28,-2.529720067778056e-18],"key":"c28e80fe33f3fb01","volume":1.4483959221486927e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO24",
+  "op": "import",
+  "product": "721 Balance",
+  "solid": 5
+ },
+ {
+  "offset": [
+   0.00016086396618344474,
+   0.00019137080337327205,
+   0
+  ],
+  "op": "translate"
+ }
+]'''
+            custom string aiad:material = "Imported FF9D36"
+            custom string aiad:name = "721 Balance [5]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P121_Balancing_bridge"
+    {
+        custom string aiad:body = "121 Balancing bridge"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P121_Balancing_bridge"
+        {
+            custom string aiad:derived = '{"area":0.00023591613644570692,"bounds":[[0.008212858106513418,-0.006054604695972389,-0.0006000000000000001],[0.01815,0.01150177337337336,0.0012500000000000005]],"centroid":[0.014179730228699066,0.003824271450995625,0.0006823304894216757],"inertia":[1.1240011586124102e-12,3.254327062084482e-13,1.4292564061469232e-12,2.9580803599831454e-14,1.3884992924441849e-14,-1.1633339246708976e-13],"key":"be0e3d2273917eb3","volume":7.360373611874574e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO25",
+  "op": "import",
+  "product": "121 Balancing bridge",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 3E4343"
+            custom string aiad:name = "121 Balancing bridge"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P5121_Screw_for_balance_bridge"
+    {
+        custom string aiad:body = "5121 Screw for balance bridge"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P5121_Screw_for_balance_bridge"
+        {
+            custom string aiad:derived = '{"area":2.153385237509592e-05,"bounds":[[0.014274716589324249,0.0019813514358062185,-0.0015000000000000002],[0.01677471658932425,0.00448135143580622,0.0011000000000000003]],"centroid":[0.01552474176016747,0.003231349330942168,0.0003169086325519017],"inertia":[3.2067283770507708e-15,3.3556747574050238e-15,2.319502773509359e-15,-8.617183588038678e-22,-4.1372866407292895e-20,7.137120938181065e-21],"key":"d2c0c71db18fefc6","volume":4.177161398917631e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO26",
+  "op": "import",
+  "product": "5121 Screw for balance bridge",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 60574E"
+            custom string aiad:name = "5121 Screw for balance bridge"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P110_Train_wheel_bridge"
+    {
+        custom string aiad:body = "110 Train wheel bridge"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P110_Train_wheel_bridge_1"
+        {
+            custom string aiad:derived = '{"area":8.777505738107846e-06,"bounds":[[-0.00366226199830052,-0.007074084799770461,0.00132],[-0.0016622619983005173,-0.005074084799770461,0.0017700000000000025]],"centroid":[-0.0026622609807381127,-0.006074075170043046,0.00152336351390432],"inertia":[3.344547739482659e-16,3.3445316470243823e-16,6.355526891079637e-16,-7.524282309400617e-22,-8.007809028674147e-22,1.521363548458422e-21],"key":"ec18d6a240a5901e","volume":1.1123430015076209e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO27",
+  "op": "import",
+  "product": "110 Train wheel bridge",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported EB01FF"
+            custom string aiad:name = "110 Train wheel bridge [1]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P110_Train_wheel_bridge_2"
+        {
+            custom string aiad:derived = '{"area":0.0005324324042463675,"bounds":[[-0.0122199468123774,-0.018150000000000003,-1.214306433183765e-17],[0.01229,-0.00359,0.0019600000000000004]],"centroid":[-0.0008604043593132102,-0.012795679562713965,0.0012229897220290028],"inertia":[2.1433568922505274e-12,8.649166744724587e-12,1.0661086826489547e-11,-8.55851382675662e-14,-9.788570569971593e-15,6.59622853044952e-13],"key":"5517cdee4f2936c1","volume":2.2033444824234344e-07}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO27",
+  "op": "import",
+  "product": "110 Train wheel bridge",
+  "solid": 2
+ }
+]'''
+            custom string aiad:material = "Imported 3E4343"
+            custom string aiad:name = "110 Train wheel bridge [2]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P110_Train_wheel_bridge_3"
+        {
+            custom string aiad:derived = '{"area":8.3131424088146e-06,"bounds":[[-0.0010000000000000015,-0.011250000000000001,0.0013399999999999987],[0.000999999999999999,-0.00925,0.001690000000000001]],"centroid":[1.0262359125219787e-10,-0.010249998022834866,0.0014971880872120481],"inertia":[2.616335342773327e-16,2.6164328551170143e-16,5.063652883356324e-16,-8.029937262259162e-22,-2.8398309463870463e-22,-4.90259665609064e-22],"key":"29a576f5a78aa210","volume":9.445821949950227e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO27",
+  "op": "import",
+  "product": "110 Train wheel bridge",
+  "solid": 3
+ }
+]'''
+            custom string aiad:material = "Imported EB01FF"
+            custom string aiad:name = "110 Train wheel bridge [3]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P110_Train_wheel_bridge_4"
+        {
+            custom string aiad:derived = '{"area":6.927971572544794e-06,"bounds":[[0.00379701770194955,-0.011546000252232465,0.00132],[0.005597017701949551,-0.009746000252232465,0.0016700004006520405]],"centroid":[0.004697019272763646,-0.010646004129303832,0.001472484994295272],"inertia":[1.6868662651015494e-16,1.6868635434707935e-16,3.2461780595844385e-16,3.0987163288031173e-22,-2.5115334448642105e-22,1.1628520005706711e-21],"key":"2a3a0fda01d8afec","volume":7.491774306700402e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO27",
+  "op": "import",
+  "product": "110 Train wheel bridge",
+  "solid": 4
+ }
+]'''
+            custom string aiad:material = "Imported EB01FF"
+            custom string aiad:name = "110 Train wheel bridge [4]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P5110_Screw_for_train_wheel_bridge"
+    {
+        custom string aiad:body = "5110 Screw for train wheel bridge"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P5110_Screw_for_train_wheel_bridge"
+        {
+            custom string aiad:derived = '{"area":2.650550530456626e-05,"bounds":[[0.006019383833439946,-0.01595036207757275,-0.002],[0.008519383833439946,-0.0134503620775727,0.0016000000000000003]],"centroid":[0.007269387367189695,-0.01470035908524737,0.00029396155880860467],"inertia":[8.431187671869104e-15,8.58023391040946e-15,2.7286490081222078e-15,-1.8573782930097867e-21,-1.5966205808884595e-20,1.150948480244757e-20],"key":"58cd3651b9756326","volume":5.992265146402844e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO28",
+  "op": "import",
+  "product": "5110 Screw for train wheel bridge",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "5110 Screw for train wheel bridge"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P5110_Screw_for_train_wheel_bridge_2"
+    {
+        custom string aiad:body = "5110 Screw for train wheel bridge (2)"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P5110_Screw_for_train_wheel_bridge_2"
+        {
+            custom string aiad:derived = '{"area":2.6505505304566613e-05,"bounds":[[-0.009709801910555566,-0.014269281065139056,-0.0020000000000000005],[-0.007209801910555564,-0.011769281065139053,0.0016000000000000005]],"centroid":[-0.008459797614483185,-0.013019282792900844,0.00029396155880862326],"inertia":[8.54775049377604e-15,8.463671088502746e-15,2.7286490081221656e-15,1.3251757059777994e-20,-9.097280948193144e-21,6.153339613941468e-17],"key":"a9f556e70db0bd03","volume":5.992265146402943e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO29",
+  "op": "import",
+  "product": "5110 Screw for train wheel bridge",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "5110 Screw for train wheel bridge (2)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "Incabloc_over"
+    {
+        custom string aiad:body = "Incabloc over"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "Incabloc_over_1"
+        {
+            custom string aiad:derived = '{"area":3.1921681477584556e-06,"bounds":[[0.00974737304274037,-0.004520089759745439,0.0012499999999999992],[0.010978343170286474,-0.003289119632199337,0.001500000000000003]],"centroid":[0.010362859624932578,-0.0039046047971961584,0.0013649700042483004],"inertia":[2.6281608321610976e-17,2.6281691952862287e-17,5.01326209229749e-17,-2.4246679449396036e-23,-2.2928890934424496e-23,5.870328050645583e-22],"key":"9150e70b345664b7","volume":2.728944284050357e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO30",
+  "op": "import",
+  "product": "Incabloc over",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported EB01FF"
+            custom string aiad:name = "Incabloc over [1]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Incabloc_over_2"
+        {
+            custom string aiad:derived = '{"area":2.0828275808537235e-06,"bounds":[[0.009848620888547384,-0.004418841913938426,0.00100544417600656],[0.01087709532447946,-0.00339036747800635,0.0012]],"centroid":[0.010362860943886283,-0.003904606506650126,0.001095805834923521],"inertia":[7.892006677832234e-18,7.892161121504841e-18,1.5306159994893143e-17,2.039324729593362e-24,-2.434981105600281e-23,7.587167697901498e-23],"key":"039089b8761087c4","volume":1.0953913764479418e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO30",
+  "op": "import",
+  "product": "Incabloc over",
+  "solid": 2
+ }
+]'''
+            custom string aiad:material = "Imported EB01FF"
+            custom string aiad:name = "Incabloc over [2]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Incabloc_over_3"
+        {
+            custom string aiad:derived = '{"area":3.750724298202168e-05,"bounds":[[0.008302858106513421,-0.005964604695972389,0.000669999999999999],[0.012422858106513423,-0.0018446046959723873,0.0017200000000000002]],"centroid":[0.010233352601655692,-0.0038001802747633946,0.001252170663263407],"inertia":[5.670941453471563e-15,5.1881605504179955e-15,9.865890682243296e-15,-6.425340560974225e-17,7.966692612601528e-17,-1.1129369943510138e-15],"key":"7a0a734c72f52e5b","volume":5.2706469630626464e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO30",
+  "op": "import",
+  "product": "Incabloc over",
+  "solid": 3
+ }
+]'''
+            custom string aiad:material = "Imported 3E4343"
+            custom string aiad:name = "Incabloc over [3]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Incabloc_over_4"
+        {
+            custom string aiad:derived = '{"area":4.8268280445561e-06,"bounds":[[0.00903464057012291,-0.00525093431487097,0.001419999999999999],[0.0118428293967444,-0.002717447916099,0.00152]],"centroid":[0.010544366913971797,-0.0040509692108909165,0.0014699999999999995],"inertia":[7.230942184166943e-17,8.871998837595856e-17,1.6074801109099198e-16,1.1644939424557669e-32,-2.0389349241815693e-33,3.782845853742226e-17],"key":"84e855fa2dfc4a02","volume":1.688394759816444e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO30",
+  "op": "import",
+  "product": "Incabloc over",
+  "solid": 4
+ }
+]'''
+            custom string aiad:material = "Imported FF9D36"
+            custom string aiad:name = "Incabloc over [4]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "Incabloc_under"
+    {
+        custom string aiad:body = "Incabloc under"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "Incabloc_under_1"
+        {
+            custom string aiad:derived = '{"area":1.7335061425109508e-05,"bounds":[[0.009112858106513421,-0.005154604695972385,-0.00225],[0.01161285810651342,-0.002654604695972385,-0.0013999999999999985]],"centroid":[0.010362831806671734,-0.0039046058747357094,-0.0018473538591313049],"inertia":[1.1098953800062148e-15,1.109909718877689e-15,2.0738477766365653e-15,-2.1808970180238096e-21,3.1386142534788758e-21,1.856032586517811e-20],"key":"6a517f0e4d5c3944","volume":2.1549227140713678e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO31",
+  "op": "import",
+  "product": "Incabloc under",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "Incabloc under [1]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Incabloc_under_2"
+        {
+            custom string aiad:derived = '{"area":2.7151298600141564e-06,"bounds":[[0.00936379396636814,-0.00490998604431974,-0.0021875],[0.0114754473689146,-0.00301870009139921,-0.002112499999999998]],"centroid":[0.010499814172916101,-0.004013369883659985,-0.0021499999999999987],"inertia":[1.7026650012936905e-17,2.1187207996091502e-17,3.8147079303138935e-17,-3.0132353155371195e-35,3.3538987200861993e-36,8.947210694268436e-18],"key":"81d285b47a068295","volume":7.12306196154322e-11}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO31",
+  "op": "import",
+  "product": "Incabloc under",
+  "solid": 2
+ }
+]'''
+            custom string aiad:material = "Imported FF9D36"
+            custom string aiad:name = "Incabloc under [2]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Incabloc_under_3"
+        {
+            custom string aiad:derived = '{"area":1.909807640255376e-06,"bounds":[[0.009913463452750671,-0.004353999349735134,-0.00196603785102916],[0.01081225276027617,-0.0034552100422096353,-0.001703031240847588]],"centroid":[0.010362860748771593,-0.003904607305250816,-0.0018278746858990046],"inertia":[7.166226785255918e-18,7.166285354932498e-18,1.3314200385743078e-17,2.9359178746514073e-24,8.511045039053323e-24,1.9155277380357555e-22],"key":"a5652bf4c3ce463c","volume":1.2164537345750406e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO31",
+  "op": "import",
+  "product": "Incabloc under",
+  "solid": 3
+ }
+]'''
+            custom string aiad:material = "Imported EB01FF"
+            custom string aiad:name = "Incabloc under [3]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Incabloc_under_4"
+        {
+            custom string aiad:derived = '{"area":4.565642667935129e-06,"bounds":[[0.00955774915777342,-0.004709713644712385,-0.0021489666568433],[0.01116796705525342,-0.003099495747232385,-0.0019999999999999983]],"centroid":[0.010362859990855455,-0.0039046055829986223,-0.002060877777877341],"inertia":[3.650750161157984e-17,3.650795182182421e-17,7.23790293174027e-17,-5.302648296185687e-23,5.905414118257377e-23,9.60005962534098e-22],"key":"3bc06419f10c7a90","volume":2.3872119560363704e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO31",
+  "op": "import",
+  "product": "Incabloc under",
+  "solid": 4
+ }
+]'''
+            custom string aiad:material = "Imported EB01FF"
+            custom string aiad:name = "Incabloc under [4]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P303_Two_piece_regulator_with_pointer"
+    {
+        custom string aiad:body = "303 Two piece regulator with pointer"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P303_Two_piece_regulator_with_pointer_1"
+        {
+            custom string aiad:derived = '{"area":2.534204759199101e-05,"bounds":[[0.007962858106513423,-0.0063046046959723875,0.0012499999999999998],[0.0139877053359342,0.00189527157899714,0.0015700000000000006]],"centroid":[0.010890134250267558,-0.003048386701068718,0.0014788075226271605],"inertia":[4.523830479087272e-15,2.9345253759945663e-15,7.444127416351205e-15,-3.7036670861254814e-17,-2.2815324049902616e-17,-1.5770646192408774e-15],"key":"4a82082871c2b92a","volume":1.0846256838835288e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO32",
+  "op": "import",
+  "product": "303 Twopiece regulator with pointer",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "303 Twopiece regulator with pointer [1]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P303_Two_piece_regulator_with_pointer_2"
+        {
+            custom string aiad:derived = '{"area":1.9132051322884398e-05,"bounds":[[0.00719401907890896,-0.00853498656622075,0.0013699999999999975],[0.012962858106513422,-0.001309106470768779,0.0014700000000000008]],"centroid":[0.00965622129287212,-0.005052051383304637,0.0014200000000000003],"inertia":[2.63135614873696e-15,2.235025820186109e-15,4.86506348356805e-15,3.204902314792735e-31,-3.9668702516060784e-32,-3.9314567255248615e-16],"key":"199c9f30d65e8d72","volume":7.910912130140956e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO32",
+  "op": "import",
+  "product": "303 Twopiece regulator with pointer",
+  "solid": 2
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "303 Twopiece regulator with pointer [2]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P303_Two_piece_regulator_with_pointer_3"
+        {
+            custom string aiad:derived = '{"area":2.144682949699116e-05,"bounds":[[0.0077628581065134206,-0.00792878828756922,0.0012699999999999999],[0.012962858106513424,-0.001304604695972387,0.0013700000000000019]],"centroid":[0.010645262321478869,-0.00442737064428055,0.0013200000000000002],"inertia":[3.228208216719705e-15,2.412828988572913e-15,5.639543228226891e-15,3.782725428614889e-31,-1.9722248675269956e-31,6.216848949468599e-16],"key":"13b0e4fec9ad58eb","volume":8.96386239435902e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO32",
+  "op": "import",
+  "product": "303 Twopiece regulator with pointer",
+  "solid": 3
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "303 Twopiece regulator with pointer [3]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P303_Two_piece_regulator_with_pointer_4"
+        {
+            custom string aiad:derived = '{"area":2.918261230475802e-06,"bounds":[[0.011673189876371951,-0.00780874273180788,0.00017000000000000064],[0.012806578022767186,-0.0069515166483039605,0.001470000000000001]],"centroid":[0.012239893751656575,-0.007380118116647446,0.0011074622637278395],"inertia":[2.3083869821881053e-17,2.5862989064652666e-17,1.0064523419631245e-17,-3.462192522077832e-22,-3.500001336497275e-22,-1.8793327930752963e-18],"key":"97cc8762b4c03cfb","volume":1.7827832943514972e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO32",
+  "op": "import",
+  "product": "303 Twopiece regulator with pointer",
+  "solid": 4
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "303 Twopiece regulator with pointer [4]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P303_Two_piece_regulator_with_pointer_5"
+        {
+            custom string aiad:derived = '{"area":2.867937906189918e-06,"bounds":[[0.00772006208557467,-0.007731245093623196,0.00027],[0.008818230698659689,-0.006813016989007118,0.0015700000000000009]],"centroid":[0.008269156626728266,-0.0072721209668123584,0.0012273424576141319],"inertia":[2.0906537986219964e-17,2.2766184162802057e-17,1.0034257892395247e-17,1.2312271122261772e-21,-6.388764051906703e-22,2.135437313400842e-18],"key":"3e7d3bdac4aef632","volume":1.7350085589974258e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO32",
+  "op": "import",
+  "product": "303 Twopiece regulator with pointer",
+  "solid": 5
+ }
+]'''
+            custom string aiad:material = "Imported A66704"
+            custom string aiad:name = "303 Twopiece regulator with pointer [5]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P180_Movement_barrel_complete"
+    {
+        custom string aiad:body = "180 Movement barrel complete"
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P180_Movement_barrel_complete_1"
+        {
+            custom string aiad:derived = '{"area":0.0005500276294650669,"bounds":[[-0.0165943973809125,-0.0036935273719474237,-0.0010500000000000002],[-0.00020560261908752868,0.012693527371947427,0.0004500000000000003]],"centroid":[-0.008406684620750622,0.004634519706327174,9.522871509459941e-05],"inertia":[1.2970405252277715e-12,1.3582212660163082e-12,2.635509204073e-12,3.3361526722454574e-15,-1.633160519003454e-16,-2.955212680597678e-15],"key":"e8ef116f98ae62d3","volume":6.271373990833927e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO33",
+  "op": "import",
+  "product": "180 Movement barrel complete",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "180 Movement barrel complete [1]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P180_Movement_barrel_complete_2"
+        {
+            custom string aiad:derived = '{"area":0.0003705585619537341,"bounds":[[-0.01600000000000001,-0.003099999999999999,-0.0013000000000000004],[-0.0008000000000000037,0.012100000000000003,-0.0007499999999999999]],"centroid":[-0.008400015424739787,0.004500011105806309,-0.0009995610660275002],"inertia":[5.685440014812947e-13,5.685734448231092e-13,1.1359403154522515e-12,2.02128277598333e-20,-6.523577221914651e-20,1.2920984395111729e-17],"key":"7867772098b00392","volume":4.624759824449918e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO33",
+  "op": "import",
+  "product": "180 Movement barrel complete",
+  "solid": 2
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "180 Movement barrel complete [2]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P180_Movement_barrel_complete_3"
+        {
+            custom string aiad:derived = '{"area":5.175043019823624e-05,"bounds":[[-0.010150000000000006,0.0027262411613579625,-0.0022],[-0.006650000000000004,0.006250000000000001,0.0017000000000000003]],"centroid":[-0.008380949541633636,0.004521041180224475,-0.0002711295704349871],"inertia":[1.954109910782959e-14,1.960322990121375e-14,1.810518666833747e-14,1.3292985758435387e-17,1.0219411718665722e-17,3.5604634224759193e-16],"key":"40cbda7315281e31","volume":1.6751190980558642e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO33",
+  "op": "import",
+  "product": "180 Movement barrel complete",
+  "solid": 3
+ }
+]'''
+            custom string aiad:material = "Imported 60574E"
+            custom string aiad:name = "180 Movement barrel complete [3]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P180_Movement_barrel_complete_4"
+        {
+            custom string aiad:derived = '{"area":0.0006067761577593756,"bounds":[[-0.014991602161861224,-0.0028277847586731775,-0.0007000000000000154],[-0.0020084345984439822,0.010991507225031564,0.00015000000000000018]],"centroid":[-0.008048221773140869,0.004444469035755938,-0.00020751406036889243],"inertia":[3.138449970787608e-13,1.162033213421197e-13,4.273171854105707e-13,-3.0665954518240466e-15,3.625945470450774e-15,-3.233513384867309e-14],"key":"a5a1d9a0d7f60c35","volume":2.3292872196544216e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO33",
+  "op": "import",
+  "product": "180 Movement barrel complete",
+  "solid": 4
+ }
+]'''
+            custom string aiad:material = "Mainspring steel"
+            custom string aiad:name = "180 Movement barrel complete [4]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Barrel_teeth_gear"
+        {
+            custom string aiad:derived = '{"area":0.0004452106977591941,"bounds":[[-0.0165176609779595,-0.0036148807616686283,-5.000000000000002e-05],[-0.0002823390220405,0.012614880761668626,0.00045000000000000015]],"centroid":[-0.00839999759062791,0.004499997739409281,0.00019999999999765808],"inertia":[1.5564815338158615e-12,1.556481534696753e-12,3.1088486821338525e-12,2.812868408369497e-20,2.994631741091408e-20,2.9220652159867426e-18],"key":"9f28d2a36044f90d","volume":9.874527309023786e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 0.0005,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "gear": {
+    "center": [
+     -0.0084,
+     0.0045
+    ],
+    "module": "2*sqrt(0.0084*0.0084+0.0045*0.0045)/108",
+    "teeth": 90
+   }
+  },
+  "start": -5e-05
+ }
+]'''
+            custom string aiad:material = "Gear pitch reference"
+            custom string aiad:name = "Barrel teeth (gear)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+    }
+
+    def Xform "P105_Barrel_bridge"
+    {
+        custom string aiad:body = "105 Barrel bridge"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P105_Barrel_bridge_1"
+        {
+            custom string aiad:derived = '{"area":1.283972403071743e-05,"bounds":[[-0.0012500000000000002,-0.0012500000000000005,0.0013199999999999987],[0.0012500000000000002,0.00125,0.00177]],"centroid":[5.544495498827029e-09,-3.7910052672269195e-10,0.0015303787458624124],"inertia":[8.257537941470105e-16,8.2576188014455e-16,1.5923886416969405e-15,1.277639985543335e-21,2.0147600852579085e-21,2.452147346780831e-21],"key":"feb4a71df06d668b","volume":1.887432889509951e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO34",
+  "op": "import",
+  "product": "105 Barrel bridge",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported EB01FF"
+            custom string aiad:name = "105 Barrel bridge [1]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P105_Barrel_bridge_2"
+        {
+            custom string aiad:derived = '{"area":0.0013299405392908296,"bounds":[[-0.01815,-0.009800000000000001,-4.85722573273506e-17],[0.010350000000000003,0.018150037034741728,0.0019500000000000006]],"centroid":[-0.003902171583387558,0.0063528991254973915,0.0009559630542666291],"inertia":[3.29075278518476e-11,4.502152998776244e-11,7.759326547839049e-11,1.257767603780862e-13,-3.746316276598505e-14,-2.0058937250002005e-11],"key":"9466f34961aace46","volume":6.04159103831766e-07}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO34",
+  "op": "import",
+  "product": "105 Barrel bridge",
+  "solid": 2
+ }
+]'''
+            custom string aiad:material = "Imported 3E4343"
+            custom string aiad:name = "105 Barrel bridge [2]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "P105_Barrel_bridge_3"
+        {
+            custom string aiad:derived = '{"area":7.708524436144244e-06,"bounds":[[-0.014323767010772186,-0.004708527755883036,0.0003499999999999998],[-0.009870019627881674,-0.00024132627626435713,0.0014524769214550105]],"centroid":[-0.011982758718854312,-0.0023752640712455613,0.0010820497377079911],"inertia":[8.065452067111716e-16,7.689012845450946e-16,1.5641599665335978e-15,-1.8191782499185078e-17,-5.939610215309003e-18,-5.5054747006454436e-17],"key":"a18d9b1f8b7df663","volume":3.8232650530227227e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO34",
+  "op": "import",
+  "product": "105 Barrel bridge",
+  "solid": 3
+ }
+]'''
+            custom string aiad:material = "Imported 3E4343"
+            custom string aiad:name = "105 Barrel bridge [3]"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P5105_Screw_for_barrel_bridge"
+    {
+        custom string aiad:body = "5105 Screw for barrel bridge"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P5105_Screw_for_barrel_bridge"
+        {
+            custom string aiad:derived = '{"area":2.6704405532710305e-05,"bounds":[[-0.013076914096413681,-0.009202962194790915,-0.0012000000000000001],[-0.01057691409641368,-0.006702962194790913,0.0018]],"centroid":[-0.011826914453090183,-0.007952965692906372,0.0007828208691114496],"inertia":[6.263654602875231e-15,6.097483520720787e-15,3.953390195987538e-15,1.5557913972296843e-20,4.985045253692207e-21,-9.278500307823825e-17],"key":"89aa2b06d747c2ef","volume":6.62545766655759e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO35",
+  "op": "import",
+  "product": "5105 Screw for barrel bridge",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "5105 Screw for barrel bridge"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P5105_Screw_for_barrel_bridge_2"
+    {
+        custom string aiad:body = "5105 Screw for barrel bridge (2)"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P5105_Screw_for_barrel_bridge_2"
+        {
+            custom string aiad:derived = '{"area":2.6703776487870572e-05,"bounds":[[0.007155846880813419,0.010151043748277216,-0.0012000000000000003],[0.00965584688081342,0.012651043748277219,0.0018000000000000002]],"centroid":[0.0084058520894498,0.011401023390044555,0.0007828335770685192],"inertia":[6.290752535188749e-15,6.070627165186685e-15,3.9535079632431896e-15,7.453148562382034e-20,-1.5847774485378658e-20,5.837978212807732e-17],"key":"58ac994ec46b3131","volume":6.625643949529188e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO36",
+  "op": "import",
+  "product": "5105 Screw for barrel bridge",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "5105 Screw for barrel bridge (2)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P5105_Screw_for_barrel_bridge_3"
+    {
+        custom string aiad:body = "5105 Screw for barrel bridge (3)"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P5105_Screw_for_barrel_bridge_3"
+        {
+            custom string aiad:derived = '{"area":2.6703449205874095e-05,"bounds":[[-0.008009960108371935,0.013417783133916148,-0.0012000000000000003],[-0.005509960108371933,0.01591778313391615,0.0018000000000000004]],"centroid":[-0.006759958740498439,0.014667786475242925,0.0007828242908360356],"inertia":[6.183996990369381e-15,6.177086134981243e-15,3.953398791632935e-15,-7.796506957704115e-21,-8.535061647480868e-21,-1.2449792059265464e-16],"key":"2303179c173f386c","volume":6.625448126711435e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO37",
+  "op": "import",
+  "product": "5105 Screw for barrel bridge",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "5105 Screw for barrel bridge (3)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P422_Crown_wheel_ring"
+    {
+        custom string aiad:body = "422 Crown wheel ring"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P422_Crown_wheel_ring"
+        {
+            custom string aiad:derived = '{"area":5.718803815386209e-06,"bounds":[[-0.0008000000000000008,0.010300000000000002,0.00115],[0.0007999999999999992,0.011900000000000003,0.0016000000000000007]],"centroid":[-1.5588366064752517e-08,0.011099979434736798,0.0013749999999999904],"inertia":[1.0566523834212696e-16,1.056536104777066e-16,1.97955033976313e-16,-2.5478448730026033e-32,1.554782016076811e-31,-6.845094295796703e-21],"key":"f103d8e384ad8c77","volume":3.9596488425246033e-10}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO38",
+  "op": "import",
+  "product": "422 Crown wheel ring",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "422 Crown wheel ring"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P420_Crown_wheel"
+    {
+        custom string aiad:body = "420 Crown wheel"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P420_Crown_wheel"
+        {
+            custom string aiad:derived = '{"area":0.00014760103740927658,"bounds":[[-0.00448253837572171,0.00661544127856647,0.001149999999999999],[0.004477547762697251,0.0155714907942692,0.0018500000000000003]],"centroid":[-5.8397056118212614e-09,0.011100007679349244,0.0014861751864126442],"inertia":[1.5488288169070013e-13,1.5488572625428696e-13,3.071251006360194e-13,-7.279540956820905e-20,2.0970446909100132e-19,1.0918474781151309e-18],"key":"ddd671e6102df606","volume":3.356071148908659e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO39",
+  "op": "import",
+  "product": "420 Crown wheel",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "420 Crown wheel"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P415_Ratchet_wheel"
+    {
+        custom string aiad:body = "415 Ratchet wheel"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P415_Ratchet_wheel"
+        {
+            custom string aiad:derived = '{"area":0.00032686244519929114,"bounds":[[-0.015260702993784847,-0.0023607029937848436,0.0011999999999999988],[-0.001539297006215157,0.011360702993784848,0.0019000000000000002]],"centroid":[-0.008400041543579859,0.0045000214645266575,0.001544939241413749],"inertia":[9.495696430822366e-13,9.495997477161093e-13,1.8920807149265785e-12,-2.297677073438473e-19,6.870642325334741e-19,1.0278699614466207e-17],"key":"b6bc79c2b521efc9","volume":8.871841762518564e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO40",
+  "op": "import",
+  "product": "415 Ratchet wheel",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 908880"
+            custom string aiad:name = "415 Ratchet wheel"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P425_Click"
+    {
+        custom string aiad:body = "425 Click"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P425_Click"
+        {
+            custom string aiad:derived = '{"area":3.805645385243334e-05,"bounds":[[-0.014984377632707681,-0.005550000000000001,0.0011499999999999995],[-0.0103123867571286,-0.000708643167846175,0.0017000000000000001]],"centroid":[-0.012707567085947226,-0.0033195064673085944,0.001425000000000015],"inertia":[1.200663455250947e-14,9.335350583145809e-15,2.0971407202425195e-14,-1.5436730148244124e-29,1.4494126022408477e-28,3.494103239927001e-15],"key":"e8974c529591d6e7","volume":7.350306113654461e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO41",
+  "op": "import",
+  "product": "425 Click",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 60574E"
+            custom string aiad:name = "425 Click"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P5415_Screw_for_ratchet_wheel"
+    {
+        custom string aiad:body = "5415 Screw for ratchet wheel"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P5415_Screw_for_ratchet_wheel"
+        {
+            custom string aiad:derived = '{"area":2.0066696056693797e-05,"bounds":[[-0.009850000000000003,0.00305,-0.0002500000000000002],[-0.0069500000000000004,0.00595,0.002001866112879271]],"centroid":[-0.008400002713330312,0.004500000886399687,0.001437280553662174],"inertia":[1.5920230868099964e-15,1.6753346661178809e-15,1.4753094706353908e-15,-1.2955104495623697e-21,3.080384569654458e-21,7.755646802828854e-21],"key":"ef6288b9ac2fe71d","volume":2.214974787798112e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO42",
+  "op": "import",
+  "product": "5415 Screw for ratchet wheel",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 60574E"
+            custom string aiad:name = "5415 Screw for ratchet wheel"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P5420_Screw_for_crown_wheel"
+    {
+        custom string aiad:body = "5420 Screw for crown wheel"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P5420_Screw_for_crown_wheel"
+        {
+            custom string aiad:derived = '{"area":1.8888354379837537e-05,"bounds":[[-0.00145,0.009650000000000002,9.999999999999963e-05],[0.0014499999999999997,0.012550000000000004,0.00185186611287927]],"centroid":[1.4296204433746133e-09,0.01109999595265497,0.0014407522709402366],"inertia":[1.1281516239354503e-15,1.1716194635225434e-15,1.4599378734502019e-15,8.084977745299002e-22,3.4001518153917356e-23,3.558084685110566e-17],"key":"3ffad532e137d8f6","volume":1.994199985848253e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO43",
+  "op": "import",
+  "product": "5420 Screw for crown wheel",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 60574E"
+            custom string aiad:name = "5420 Screw for crown wheel"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def Xform "P5425_Screw_for_click"
+    {
+        custom string aiad:body = "5425 Screw for click"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "P5425_Screw_for_click"
+        {
+            custom string aiad:derived = '{"area":1.3693112167978769e-05,"bounds":[[-0.0136,-0.00415,0.0008999999999999998],[-0.011099999999999999,-0.00165,0.002038335082005762]],"centroid":[-0.01234999998115133,-0.002900000276285391,0.0017556440817515398],"inertia":[4.691958769446818e-16,5.197471318956128e-16,7.840972873039362e-16,6.181156184712324e-23,1.8980058869247522e-22,3.9971795025357966e-21],"key":"09052664715cd2fb","volume":1.3392794266814487e-09}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "file": "ETA 6497-1 Movement Corrected.STEP",
+  "format": "STEP",
+  "occurrence": "NAUO44",
+  "op": "import",
+  "product": "5425 Screw for click",
+  "solid": 1
+ }
+]'''
+            custom string aiad:material = "Imported 60574E"
+            custom string aiad:name = "5425 Screw for click"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+    }
+
+    def "Looks"
+    {
+        def Material "Imported_FF03CA"
+        {
+            token outputs:surface.connect = </ETA_6497_1/Looks/Imported_FF03CA/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (1, 0.0129830325, 0.7912979)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "Imported_97A3DA"
+        {
+            token outputs:surface.connect = </ETA_6497_1/Looks/Imported_97A3DA/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.59061885, 0.63759685, 0.8549926)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "Imported_3E4343"
+        {
+            token outputs:surface.connect = </ETA_6497_1/Looks/Imported_3E4343/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.24228112, 0.26225066, 0.26225066)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "Imported_908880"
+        {
+            token outputs:surface.connect = </ETA_6497_1/Looks/Imported_908880/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.5647115, 0.5332764, 0.5028865)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "Imported_60574E"
+        {
+            token outputs:surface.connect = </ETA_6497_1/Looks/Imported_60574E/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.37626213, 0.34191442, 0.3049873)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "Imported_FF9D36"
+        {
+            token outputs:surface.connect = </ETA_6497_1/Looks/Imported_FF9D36/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (1, 0.6172066, 0.21223076)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "Imported_EB01FF"
+        {
+            token outputs:surface.connect = </ETA_6497_1/Looks/Imported_EB01FF/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.92158186, 0.004391442, 1)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "Imported_A66704"
+        {
+            token outputs:surface.connect = </ETA_6497_1/Looks/Imported_A66704/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.65140563, 0.40197778, 0.015208514)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "Gear_pitch_reference"
+        {
+            token outputs:surface.connect = </ETA_6497_1/Looks/Gear_pitch_reference/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.85, 0.65, 0.3)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.3
+                token outputs:surface
+            }
+        }
+
+        def Material "Nivarox"
+        {
+            token outputs:surface.connect = </ETA_6497_1/Looks/Nivarox/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.38, 0.34, 0.3)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.3
+                token outputs:surface
+            }
+        }
+
+        def Material "Mainspring_steel"
+        {
+            token outputs:surface.connect = </ETA_6497_1/Looks/Mainspring_steel/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.38, 0.34, 0.3)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.35
+                token outputs:surface
+            }
+        }
+
+        def Material "Blued_steel"
+        {
+            token outputs:surface.connect = </ETA_6497_1/Looks/Blued_steel/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.04, 0.09, 0.38)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.22
+                token outputs:surface
+            }
+        }
+
+        def Material "Dial_lacquer_white"
+        {
+            token outputs:surface.connect = </ETA_6497_1/Looks/Dial_lacquer_white/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.93, 0.92, 0.88)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.35
+                token outputs:surface
+            }
+        }
+
+        def Material "Dial_print_black"
+        {
+            token outputs:surface.connect = </ETA_6497_1/Looks/Dial_print_black/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.02, 0.02, 0.025)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+    }
+
+    def Scope "Joints"
+    {
+        def PhysicsRevoluteJoint "Barrel_arbor"
+        {
+            custom string aiad:axis = "[0,0,1]"
+            custom string aiad:body0 = "180 Movement barrel complete"
+            custom string aiad:body1 = ""
+            custom string aiad:limits = ""
+            custom string aiad:motor = ""
+            custom string aiad:name = "Barrel arbor"
+            custom string aiad:point = "[-0.0084,0.0045,0]"
+            custom string aiad:type = "revolute"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </ETA_6497_1/P180_Movement_barrel_complete>
+            point3f physics:localPos0 = (-0.0084, 0.0045, 0)
+            point3f physics:localPos1 = (-0.0084, 0.0045, 0)
+            quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+            quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+            float physics:lowerLimit = -inf
+            float physics:upperLimit = inf
+        }
+
+        def PhysicsRevoluteJoint "Third_wheel_arbor"
+        {
+            custom string aiad:axis = "[0,0,1]"
+            custom string aiad:body0 = "210 Third wheel"
+            custom string aiad:body1 = ""
+            custom string aiad:limits = ""
+            custom string aiad:motor = ""
+            custom string aiad:name = "Third wheel arbor"
+            custom string aiad:point = "[-0.0026623,-0.0060741,0]"
+            custom string aiad:type = "revolute"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </ETA_6497_1/P210_Third_wheel>
+            point3f physics:localPos0 = (-0.0026623, -0.0060741, 0)
+            point3f physics:localPos1 = (-0.0026623, -0.0060741, 0)
+            quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+            quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+            float physics:lowerLimit = -inf
+            float physics:upperLimit = inf
+        }
+
+        def PhysicsFixedJoint "Cannon_pinion_on_centre_arbor"
+        {
+            custom string aiad:axis = "[0,0,1]"
+            custom string aiad:body0 = "240 Driver Cannon Pinion"
+            custom string aiad:body1 = "201 Centre wheel"
+            custom string aiad:limits = ""
+            custom string aiad:motor = ""
+            custom string aiad:name = "Cannon pinion on centre arbor"
+            custom string aiad:point = "[0,0,-0.0023]"
+            custom string aiad:type = "fixed"
+            rel physics:body0 = </ETA_6497_1/P240_Driver_Cannon_Pinion>
+            rel physics:body1 = </ETA_6497_1/P201_Centre_wheel>
+            point3f physics:localPos0 = (0, 0, -0.0023)
+            point3f physics:localPos1 = (0, 0, -0.0023)
+            quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+            quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+        }
+
+        def PhysicsRevoluteJoint "Minute_wheel_stud"
+        {
+            custom string aiad:axis = "[0,0,1]"
+            custom string aiad:body0 = "260 Minute wheel"
+            custom string aiad:body1 = ""
+            custom string aiad:limits = ""
+            custom string aiad:motor = ""
+            custom string aiad:name = "Minute wheel stud"
+            custom string aiad:point = "[0.0046095,0.0023972,-0.00164]"
+            custom string aiad:type = "revolute"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </ETA_6497_1/P260_Minute_wheel>
+            point3f physics:localPos0 = (0.0046095, 0.0023972, -0.00164)
+            point3f physics:localPos1 = (0.0046095, 0.0023972, -0.00164)
+            quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+            quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+            float physics:lowerLimit = -inf
+            float physics:upperLimit = inf
+        }
+
+        def PhysicsRevoluteJoint "Escape_wheel_arbor"
+        {
+            custom string aiad:axis = "[0,0,1]"
+            custom string aiad:body0 = "705 Escape wheel"
+            custom string aiad:body1 = ""
+            custom string aiad:limits = ""
+            custom string aiad:motor = ""
+            custom string aiad:name = "Escape wheel arbor"
+            custom string aiad:point = "[0.0047472508596609975,-0.010738805950173307,0]"
+            custom string aiad:type = "revolute"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </ETA_6497_1/P705_Escape_wheel>
+            point3f physics:localPos0 = (0.004747251, -0.010738806, 0)
+            point3f physics:localPos1 = (0.004747251, -0.010738806, 0)
+            quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+            quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+            float physics:lowerLimit = -inf
+            float physics:upperLimit = inf
+        }
+
+        def PhysicsRevoluteJoint "Balance_staff"
+        {
+            custom string aiad:axis = "[0,0,1]"
+            custom string aiad:body0 = "721 Balance"
+            custom string aiad:body1 = ""
+            custom string aiad:limits = ""
+            custom string aiad:motor = ""
+            custom string aiad:name = "Balance staff"
+            custom string aiad:point = "[0.010523763966183444,-0.003713129196626728,0]"
+            custom string aiad:type = "revolute"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </ETA_6497_1/P721_Balance>
+            point3f physics:localPos0 = (0.010523764, -0.003713129, 0)
+            point3f physics:localPos1 = (0.010523764, -0.003713129, 0)
+            quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+            quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+            float physics:lowerLimit = -inf
+            float physics:upperLimit = inf
+        }
+
+        def PhysicsRevoluteJoint "Pallet_staff"
+        {
+            custom string aiad:axis = "[0,0,1]"
+            custom string aiad:body0 = "710 Pallet fork"
+            custom string aiad:body1 = ""
+            custom string aiad:limits = "[0.0,0.234]"
+            custom string aiad:motor = ""
+            custom string aiad:name = "Pallet staff"
+            custom string aiad:point = "[0.0070844,-0.0078054,0]"
+            custom string aiad:type = "revolute"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </ETA_6497_1/P710_Pallet_fork>
+            point3f physics:localPos0 = (0.0070844, -0.0078054, 0)
+            point3f physics:localPos1 = (0.0070844, -0.0078054, 0)
+            quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+            quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+            float physics:lowerLimit = 0
+            float physics:upperLimit = 13.407212
+        }
+
+        def PhysicsRevoluteJoint "Second_wheel_arbor"
+        {
+            custom string aiad:axis = "[0,0,1]"
+            custom string aiad:body0 = "220 Second wheel"
+            custom string aiad:body1 = ""
+            custom string aiad:limits = ""
+            custom string aiad:motor = ""
+            custom string aiad:name = "Second wheel arbor"
+            custom string aiad:point = "[0,-0.01025,0]"
+            custom string aiad:start = '{"local_time":60,"offset":"-clock_s * 6 * pi / 180"}'
+            custom string aiad:type = "revolute"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </ETA_6497_1/P220_Second_wheel>
+            point3f physics:localPos0 = (0, -0.01025, 0)
+            point3f physics:localPos1 = (0, -0.01025, 0)
+            quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+            quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+            float physics:lowerLimit = -inf
+            float physics:upperLimit = inf
+        }
+
+        def PhysicsRevoluteJoint "Centre_wheel_arbor"
+        {
+            custom string aiad:axis = "[0,0,1]"
+            custom string aiad:body0 = "201 Centre wheel"
+            custom string aiad:body1 = ""
+            custom string aiad:limits = ""
+            custom string aiad:motor = ""
+            custom string aiad:name = "Centre wheel arbor"
+            custom string aiad:point = "[0,0,0]"
+            custom string aiad:start = '{"local_time":3600,"offset":"-(clock_m + clock_s / 60) * 6 * pi / 180"}'
+            custom string aiad:type = "revolute"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </ETA_6497_1/P201_Centre_wheel>
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+            quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+            float physics:lowerLimit = -inf
+            float physics:upperLimit = inf
+        }
+
+        def PhysicsRevoluteJoint "Hour_wheel"
+        {
+            custom string aiad:axis = "[0,0,1]"
+            custom string aiad:body0 = "250 Hour Wheel"
+            custom string aiad:body1 = ""
+            custom string aiad:limits = ""
+            custom string aiad:motor = ""
+            custom string aiad:name = "Hour wheel"
+            custom string aiad:point = "[0,0,-0.00216]"
+            custom string aiad:start = '{"local_time":43200,"offset":"-(mod(clock_h, 12) + clock_m / 60 + clock_s / 3600) * 30 * pi / 180"}'
+            custom string aiad:type = "revolute"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </ETA_6497_1/P250_Hour_Wheel>
+            point3f physics:localPos0 = (0, 0, -0.00216)
+            point3f physics:localPos1 = (0, 0, -0.00216)
+            quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+            quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+            float physics:lowerLimit = -inf
+            float physics:upperLimit = inf
+        }
+    }
+
+    def Scope "Elements"
+    {
+        def Scope "Barrel_centre_pinion"
+        {
+            custom string aiad:definition = '{"joint0":"Barrel arbor","joint1":"Centre wheel arbor","part0":"Barrel teeth (gear)","part1":"Centre pinion (gear)"}'
+            custom string aiad:name = "Barrel - centre pinion"
+            custom string aiad:type = "gear"
+        }
+
+        def Scope "Centre_wheel_third_pinion"
+        {
+            custom string aiad:definition = '{"joint0":"Centre wheel arbor","joint1":"Third wheel arbor","part0":"Centre wheel teeth (gear)","part1":"Third pinion (gear)"}'
+            custom string aiad:name = "Centre wheel - third pinion"
+            custom string aiad:type = "gear"
+        }
+
+        def Scope "Third_wheel_second_pinion"
+        {
+            custom string aiad:definition = '{"joint0":"Third wheel arbor","joint1":"Second wheel arbor","part0":"Third wheel teeth (gear)","part1":"Second pinion (gear)"}'
+            custom string aiad:name = "Third wheel - second pinion"
+            custom string aiad:type = "gear"
+        }
+
+        def Scope "Second_wheel_escape_pinion"
+        {
+            custom string aiad:definition = '{"joint0":"Second wheel arbor","joint1":"Escape wheel arbor","part0":"Second wheel teeth (gear)","part1":"Escape pinion (gear)"}'
+            custom string aiad:name = "Second wheel - escape pinion"
+            custom string aiad:type = "gear"
+        }
+
+        def Scope "Cannon_pinion_minute_wheel"
+        {
+            custom string aiad:definition = '{"joint0":"Centre wheel arbor","joint1":"Minute wheel stud","part0":"Cannon pinion teeth (gear)","part1":"Minute wheel teeth (gear)"}'
+            custom string aiad:name = "Cannon pinion - minute wheel"
+            custom string aiad:type = "gear"
+        }
+
+        def Scope "Minute_pinion_hour_wheel"
+        {
+            custom string aiad:definition = '{"joint0":"Minute wheel stud","joint1":"Hour wheel","part0":"Minute pinion (gear)","part1":"Hour wheel teeth (gear)"}'
+            custom string aiad:name = "Minute pinion - hour wheel"
+            custom string aiad:type = "gear"
+        }
+
+        def Scope "Hairspring"
+        {
+            custom string aiad:definition = '{"free":-0.532,"joint":"Balance staff","part":"721 Balance [2]"}'
+            custom string aiad:name = "Hairspring"
+            custom string aiad:type = "torsion"
+        }
+
+        def Scope "Mainspring"
+        {
+            custom string aiad:definition = '{"free":-37.7,"joint":"Barrel arbor","part":"180 Movement barrel complete [4]"}'
+            custom string aiad:name = "Mainspring"
+            custom string aiad:type = "torsion"
+        }
+
+        def Scope "Entry_pallet"
+        {
+            custom string aiad:definition = '{"part0":"705 Escape wheel","part1":"710 Pallet fork [3]"}'
+            custom string aiad:name = "Entry pallet"
+            custom string aiad:type = "touch"
+        }
+
+        def Scope "Exit_pallet"
+        {
+            custom string aiad:definition = '{"part0":"705 Escape wheel","part1":"710 Pallet fork [1]"}'
+            custom string aiad:name = "Exit pallet"
+            custom string aiad:type = "touch"
+        }
+
+        def Scope "Impulse_pin"
+        {
+            custom string aiad:definition = '{"part0":"710 Pallet fork [2]","part1":"721 Balance [1]"}'
+            custom string aiad:name = "Impulse pin"
+            custom string aiad:type = "touch"
+        }
+
+        def Scope "Guard_pin"
+        {
+            custom string aiad:definition = '{"at":-0.0015,"part0":"710 Pallet fork [2]","part1":"721 Balance [4]"}'
+            custom string aiad:name = "Guard pin"
+            custom string aiad:type = "touch"
+        }
+    }
+
+    def Xform "P303_Twopiece_regulator_with_pointer"
+    {
+        custom string aiad:body = "303 Twopiece regulator with pointer"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+    }
+}
+

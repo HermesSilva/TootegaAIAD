@@ -32,11 +32,13 @@ their documents:
 | Done | Open |
 |------|------|
 | Parametric OpenUSD document: design parameters + formulas, materials, rigid bodies, B-rep parts with feature history, joints (UsdPhysics) and machine elements | edges/silhouettes in the viewport |
-| Generic machine simulation: Chrono mechanism + gear/belt/rack couplings, cam and rocker contacts, springs, stops, loads, timed motors | hollow pipes (exhaust/intake) |
+| Generic machine simulation: Chrono mechanism + gear/belt/rack couplings, cam and rocker contacts, coil and spiral springs, outlines that touch (escapements), stops, loads, timed motors; oscillations reported (amplitude, frequency, beats per hour) | hollow pipes (exhaust/intake) |
+| Watch scale: an imported ETA 6497 movement (STEP) ticks: escapement, balance at 18,000 vph and about 158° of amplitude, the train turning; its regulator is set by hand and changes the rate (±2.3 min/day); its hands can start at the computer's local time | the keyless works (winding stem: pull out and turn the crown) are not drawn as a mechanism yet; the drawn gear train turns the hands 600 / 411.6 times too fast (the 6497's train is 600 : 1 from the escape wheel to the centre wheel) |
+| Parts set by hand (adjusters): recognised from the drawing (a joint with a range that nothing drives), held while the machine runs, moved with a lever or slider on the part | hand-driven inputs while running (a crown, a crank) |
 | Domain elements tied to the drawing: 0D Otto cycle chamber (bore, chamber volume and valves measured on the parts), 2D magneto (MFEM on the drawn magnet and core) → spark | valve–piston clash check; bevel/crossed gears |
 | The simulator's critique with a fix for every problem; everything it measured is listed | turbine and flow studies as document entities (next) |
 | Hydra/Aurora viewport with path tracing, selection, highlight, section view, 6-DOF animation of any body; per-object motion vectors, so the denoiser keeps moving parts sharp | live cost estimate during a turn |
-| A UI that never waits: the live simulation on its own thread, the view updated in slices, agent commands computed off the UI thread, the magneto field table on every core | simulation speed: one step depends on the last, so a machine runs on one core (about 0.45x real time for the OHC engine, 0.18x for the OHV one on this 22-core desktop) |
+| A UI that never waits: the live simulation on its own thread, the view updated in slices, agent commands computed off the UI thread, the magneto field table on every core | simulation speed: one step depends on the last, so a machine runs on one core (real time is reached: about 1.75x for the OHC engine, 1.0x for the OHV one on this 22-core desktop) |
 | AI layer at Cockpit level: hub, tabbed sessions, permissions, questions, plans, usage/cost | |
 | MCP server (`aiad-mcp.exe`) with the catalogue generated from the Command Bus + a skill for the agent | |
 
@@ -53,13 +55,20 @@ It opens with no document.
 - **Example engines:** `models\Engine_SingleCylinder.usda` (OHC) and
   `models\Engine_SingleCylinder_Pushrod.usda` (OHV), next to the executable.
 - **Saved layout:** panel layout, window placement and where the AI chat opens are kept in
-  `<exe folder>\.aiad\aiadconfig.json`.
+  `<exe folder>\.aiad\aiadconfig.json` (`build-dist.ps1` keeps it, and the agent's sessions in
+  `models\.aiad`, when it rebuilds `Dist\`).
+- **Saved view:** the camera (orientation, centre, zoom) is saved with the document and found again when it
+  is opened.
+- **Loading:** a bar shows the parts being displayed with the time left, then the machine being measured.
+  An imported movement (the ETA 6497, 101 parts) opens in about 16 s.
+- **Closing:** it never hangs; if the shutdown takes more than 5 s, `aiad_hang.dmp` (every thread's stack) is
+  written next to the executable and the process ends.
 - **AI:** it works in the folder of the open document.
 
 | Window | What it does |
 |--------|--------------|
-| **Viewport** | path-traced model. **Space + left drag** (or Alt + left, or middle + right) rotates; middle button pans; wheel zooms; click selects a part |
-| **Specification Tree** / **Properties** | bodies and parts, joints, elements; material, mass, volume, features and parameters of the selected part |
+| **Viewport** | path-traced model. Click selects a part; **left drag** (or the middle button) pans; **Alt + left**, **Space + left** or middle + right rotates; wheel zooms. A selected part that is set by hand shows its control on it: a lever (it turns) or a slider (it slides) |
+| **Specification Tree** / **Properties** | bodies and parts, joints, elements; material, mass, volume, features and parameters of the selected part; **Set by hand** for an adjuster |
 | **Study** | the simulator's findings (each with its fix), or the machine summary and what was measured on the drawing; design parameters (values or formulas) |
 | **Simulation** | runs the machine live at the chosen time scale (shows the speed reached when the computer cannot keep up): every joint (position and speed), chambers (pressure, volume, combustions), magnetos |
 | **Plots** | any channel (joint speed or position, chamber pressure and volume, spark voltage, contact and spring forces) against time or a joint's angle; p-V loops |
@@ -92,9 +101,19 @@ aiad.exe --ui-test <png>             real window: MCP -> bridge -> Command Bus, 
 - **The magneto field table** (91 MFEM solves) uses every core: about 17 s instead of about 70 s, and it is
   cached.
 - **Kernel calls stay on the UI thread.** The geometry kernel (SMLib) is not thread-safe. A change that
-  regenerates many parts still costs about half a second.
+  regenerates many parts still costs about half a second. SMLib rebuilds the trim curves of imported spline
+  faces on every exact mass integration (about 10 s for a toothed wheel), so the mass and bounds of each part
+  are saved with it (`aiad:derived`, keyed by a fingerprint of its solid), and fixed bodies need no mass.
+- **Kernel failures do not take the app down.** SMLib can read out of bounds when two solids touch exactly
+  along faces (marks flush with a ring); the boolean catches it and the command fails with the cause and the
+  fix (overlap the solids, or keep them apart). Features finer than about 0.15 mm also fail in SMLib.
 - **The mechanism solver:** sparse LU on a regularized system, so redundant constraints are allowed (a
-  planar linkage made of spatial joints). It is several times faster than QR.
+  planar linkage made of spatial joints). Eigen chooses the ordering and the pivots; the next steps
+  refactor numerically with the same pivots (as KLU does), until a pivot gets small. The system matrix is
+  written straight into its slots, and joints are Chrono mate joints with a leaner Jacobian update.
+- **Where a step goes** (sampling profile, OHV engine, about 20 µs per 20 µs step): LU refactor and solve
+  36%, Chrono's per-step bookkeeping 29%, joint updates 20%, contacts/springs/stops 6%, gas 5%. Before
+  this work, Eigen's supernodal LU took 64% of a 113 µs step, mostly symbolic work redone every step.
 
 ### A machine is a drawing
 
@@ -103,10 +122,13 @@ Everything in the viewport is a part of the document, created by commands; there
 | In the document | What the simulator takes from the drawing |
 |-----------------|-------------------------------------------|
 | Bodies (one may be fixed: the ground) | mass, centre of mass and inertia tensor from the parts × material density |
-| Joints (`revolute`, `prismatic`, `cylindrical`, `spherical`, `planar`, `fixed`), with motors and stops | point and axis as formulas over the parameters |
+| Joints (`revolute`, `prismatic`, `cylindrical`, `spherical`, `planar`, `fixed`), with motors and stops | point and axis as formulas over the parameters; `start`: where it starts, a value or `{"local_time": period}` from the computer's date and time when the run starts (a watch's hands: 60, 3600, 43200 s); gears take the positions as they start |
+| Adjusters: a joint with a range (`limits`) that nothing drives | set by hand (`aiad_adjust`, or the lever/slider on the part), held there while the machine runs: a regulator, an idle screw, a lever |
 | `gear`, `belt`, `rack` | teeth and pitch radii of the drawn wheels (sketch tools `gear`, `sprocket`) |
 | `contact` | the drawn profile (cam lobe, rocker pad) on a follower's flat face |
 | `spring` | wire, coil, turns and shear modulus of the drawn coil |
+| `torsion` | the strip of a drawn spiral (hairspring, mainspring: sketch tool `spiral` or imported), measured on its section, and its elastic modulus; a `holder` (a regulator's index pins) leaves only the strip up to it working, from where the holder is set |
+| `touch` | the outlines of two parts cut from their solids (drawn or imported) where they share a height: escape wheel and pallets, impulse pin and fork, guard pin and roller |
 | `load` | friction, brake or propeller torque on a joint |
 | `chamber` | bore, chamber volume and valve sizes measured on the parts |
 | `magneto` | magnet, pole shoes and core geometry; the field is computed with MFEM |
@@ -115,9 +137,16 @@ The example engines are command scripts:
 
 ```powershell
 Dist\aiad-model.exe build models\Engine_SingleCylinder.aiad.json models\Engine_SingleCylinder.usda
-Dist\aiad-model.exe info  models\Engine_SingleCylinder.usda     # parts, masses per body, regeneration errors
+Dist\aiad-model.exe apply models\Clock.usda models\Clock_regulator.aiad.json models\Clock_reg.usda   # a script on a document
+Dist\aiad-model.exe info  models\Engine_SingleCylinder.usda     # parts, masses and centres, regeneration errors
+Dist\aiad-model.exe outline models\Clock.usda 0.0004 "721 Balance [2]"   # a part's section, as the simulator cuts it
 Dist\aiad.exe --simulate models\Engine_SingleCylinder.usda 3     # runs it 3 s and reports
 ```
+
+A document on disk follows OpenUSD's interface + payload pattern: `<name>.usda` is the design in text
+(parts and features, bodies, joints, elements, parameters, the saved view), and `<name>.geom.usdc` holds the
+exact geometry (B-rep) in binary, brought in by a payload. The ETA 6497 movement takes 0.16 MB + 8.6 MB instead
+of 27 MB of text. Older single-file documents open as they are and are split on the next save.
 
 ### AI and MCP
 
@@ -131,6 +160,7 @@ Dist\aiad.exe --simulate models\Engine_SingleCylinder.usda 3     # runs it 3 s a
   - joints, elements;
   - the simulator's critique (`aiad_mechanism_check`), runs (`aiad_mechanism_run`, background jobs with
     `aiad_sim_run`);
+  - adjusters (`aiad_adjust`);
   - visibility, selection, camera, viewport snapshot;
   - save, undo/redo.
 - The AI is just another operator: everything it does shows up in the history, goes through permissions

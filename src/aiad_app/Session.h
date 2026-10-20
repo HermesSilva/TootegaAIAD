@@ -258,6 +258,20 @@ struct Session
 
     double Time() const { return machine ? simTime.load() : 0.0; }
 
+    // Moves an adjuster (a joint of the study) to `value` in the machine, the view following, without deriving the study
+    // again: while the user drags its control. The drawing changes (aiad_adjust) when the control is let go.
+    void PreviewAdjust(int joint, double value)
+    {
+        if (joint < 0 || joint >= int(study.machine.mechanism.joints.size()))
+            return;
+        sim::mb::Joint& j = study.machine.mechanism.joints[size_t(joint)];
+        j.start = value;
+        j.lower = j.upper = value;
+        const bool wasRunning = running;
+        Restart();
+        running = wasRunning && machine != nullptr;
+    }
+
     // Every moving body: p = rest origin + M p_body. Rigid bodies follow the solver (about their centre
     // of mass); spring bodies are stretched between the spring's ends.
     std::vector<BodyMotion> Motion() const

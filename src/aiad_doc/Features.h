@@ -25,6 +25,8 @@
 //   {"hull": {"circles":[{"center":[u,v], "radius":r, "from":a, "to":b}, ...]}}   convex hull (arcs + tangents)
 //   {"cam": {"base_radius":r, "lift":h, "open":a, "close":b}}   flat-follower cam, sin^2 lift law, crank angles of
 //                                                                the 720 cycle; follower on -u, cam turns +n at half speed
+//   {"spiral": {"center":[u,v], "inner_radius":r, "pitch":p, "turns":n, "thickness":t, "rotation":a}}   a strip wound
+//                                                                as an Archimedean spiral (hairspring, mainspring)
 #pragma once
 
 #include "Expression.h"
@@ -39,6 +41,10 @@ namespace aiad::doc
 {
 
 kernel::Solid BuildPart(const Json& features, const NameLookup& lookup, std::string& error);
+
+// The rigid moves ("rotate", "translate") of features[from..] applied to a solid: an imported part (its first
+// feature "import") moved into place.
+bool MovePart(const Json& features, size_t from, const NameLookup& lookup, kernel::Solid& solid, std::string& error);
 
 // The closed outline of a sketch, densely sampled (measurements on the drawing, e.g. cam lift).
 bool SketchOutline(const Json& sketch, const NameLookup& lookup, std::vector<std::array<double, 2>>& points, std::string& error);

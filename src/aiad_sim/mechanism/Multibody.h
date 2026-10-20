@@ -66,7 +66,15 @@ struct Joint
     Motor motor;
     std::optional<double> lower, upper;   // stops on the coordinate (rad or m): a seat, an end stop
     JointLoad load;
+    // Where the coordinate starts instead of the drawn position (rad or m): `start`, plus, when clockPeriod != 0 (a rotation),
+    // the computer's local date and time when the mechanism is built: 2 pi x (local seconds since 1970-01-01 00:00 mod
+    // |clockPeriod|) / clockPeriod (negative: the other way). A watch's hands: 60, 3600, 43200 s. The body moves there with
+    // what is fixed to it; couplings (gears) take the positions as they start, so a hand set to the time drags no train.
+    double start = 0.0, clockPeriod = 0.0;
 };
+
+// Local seconds since 1970-01-01 00:00 (the computer's time zone and summer time) now.
+double LocalClockSeconds();
 
 // rate(joint1) = ratio * rate(joint0): meshing gears (ratio -z0/z1), belts and chains (+z0/z1), rack and
 // pinion (pitch radius, m/rad). Joints are revolute/cylindrical (rotation) or prismatic (sliding).
@@ -102,6 +110,39 @@ struct Contact
     double stiffness = 1.0e7, damping = -1.0;
 };
 
+// A spiral (or any torsion) spring on a joint (a hairspring, a mainspring): torque about (force along) the
+// axis on body0, k (free - coordinate) - c rate, the reaction on body1. A mainspring wound n turns from where
+// it is drawn: free = n 2 pi.
+struct TorsionSpring
+{
+    std::string name;
+    int joint = -1;
+    double stiffness = 0.0;   // [N m/rad] ([N/m] on a prismatic joint)
+    double free = 0.0;        // the coordinate where it is relaxed [rad] ([m])
+    double damping = 0.0;     // [N m s/rad]
+};
+
+// Two drawn parts that touch by their outlines in the plane their bodies move in (escape wheel teeth on a
+// pallet stone, an impulse pin in a fork, a ratchet and its click): closed loops (model frame at rest, the
+// material on the left of each seen from `normal`). Unilateral penalty contact where one outline enters the
+// other, at the deepest point of each touching patch, along the normal of the edge it entered.
+struct Touch
+{
+    std::string name;
+    int body0 = -1, body1 = -1;
+    std::vector<std::vector<Vec3>> outline0, outline1;
+    Vec3 normal{0.0, 0.0, 1.0};
+    double stiffness = 0.0;   // [N/m]; 0 = automatic: the heavier side bouncing at kAutoContactFrequency, at most what
+                              // keeps the lighter one stable at a 1 us step
+    double damping = -1.0;    // < 0 = automatic
+};
+
+// Automatic penalty stiffness of joint stops and touches: the side that strikes (a stop's body; the heavier side of a
+// touch) bouncing at this frequency, at most the model's stop stiffness: an engine's valve seat (1e7 N/m under 50 g),
+// a watch's fork on its banking. Their stiffness and damping are implicit (any lighter side stays stable); the step
+// follows the striking side (0.4 / omega, ~28 us), whose impacts then keep their energy within the damping.
+constexpr double kAutoContactFrequency = 2250.0;   // [Hz]
+
 struct Model
 {
     std::vector<Body> bodies;
@@ -109,8 +150,10 @@ struct Model
     std::vector<Coupling> couplings;
     std::vector<Spring> springs;
     std::vector<Contact> contacts;
+    std::vector<TorsionSpring> torsions;
+    std::vector<Touch> touches;
     Vec3 gravity{0.0, 0.0, 0.0};
-    double stopStiffness = 1.0e7;            // joint stops: sliding [N/m]
+    double stopStiffness = 1.0e7;            // joint stops, at most: sliding [N/m]
     double stopRotationalStiffness = 1.0e5;  // ... rotation [N m/rad]
 };
 
@@ -147,6 +190,7 @@ public:
     void ApplyJointLoad(int joint, double value);
     // Last force of a contact (0 when apart) and of a spring (positive = compressed) [N], spring length [m].
     double ContactForce(int contact) const;
+    double TouchForce(int touch) const;   // sum over its touching patches [N]
     double SpringForce(int spring) const;
     double SpringLength(int spring) const;
     // World position of a point of a body given at rest (model frame).

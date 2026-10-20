@@ -157,6 +157,24 @@ LONG WINAPI WriteCrashDump(EXCEPTION_POINTERS* info)
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
+// Closing must never hang: once the window is closed, a watchdog gives the shutdown (threads, the agent's CLI, the
+// renderer) a few seconds, then writes aiad_hang.dmp (every thread's stack, to find what waited) and ends the process.
+void StartShutdownWatchdog()
+{
+    std::thread([] {
+        Sleep(5000);
+        const std::filesystem::path dump = ExeDir() / "aiad_hang.dmp";
+        HANDLE file = CreateFileW(dump.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (file != INVALID_HANDLE_VALUE)
+        {
+            MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), file, MINIDUMP_TYPE(MiniDumpWithThreadInfo), nullptr, nullptr, nullptr);
+            CloseHandle(file);
+        }
+        std::fprintf(stderr, "shutdown took more than 5 s: %s written, process ended\n", dump.string().c_str());
+        TerminateProcess(GetCurrentProcess(), 0);
+    }).detach();
+}
+
 // Folder next to the executable if present (deployed layout), otherwise the development folder.
 std::string Resource(const char* relative, const char* development)
 {
@@ -416,6 +434,41 @@ void SpecificationTree(Session& session, int& selected)
     ImGui::End();
 }
 
+// ---- Adjusters: parts set by hand (a regulator, a screw, a lever), moved with a control on the part ----
+
+// The adjuster that moves `body`, if any.
+const app::MechanismStudy::Adjuster* AdjusterOf(const Session& session, const std::string& body)
+{
+    for (const app::MechanismStudy::Adjuster& a : session.study.adjusters)
+        if (a.body == body)
+            return &a;
+    return nullptr;
+}
+
+// Being dragged (the view or the Properties panel): the adjuster's joint and where it is now.
+struct AdjustDrag
+{
+    int joint = -1;
+    double value = 0.0;
+};
+AdjustDrag g_adjustDrag;
+
+// While dragged the machine shows it at once; let go, the drawing changes (one undoable aiad_adjust).
+void AdjustTo(Session& session, const app::MechanismStudy::Adjuster& a, double value, bool release)
+{
+    value = std::clamp(value, a.lower, a.upper);
+    if (!release)
+    {
+        if (g_adjustDrag.joint != a.joint || g_adjustDrag.value != value)
+            session.PreviewAdjust(a.joint, value);
+        g_adjustDrag = {a.joint, value};
+        return;
+    }
+    g_adjustDrag = {};
+    if (value != a.value)
+        UserCommand("aiad_adjust", {{"joint", a.name}, {"value", value}});
+}
+
 void Properties(Session& session, int selected)
 {
     ImGui::Begin("Properties");
@@ -451,6 +504,19 @@ void Properties(Session& session, int selected)
         if (!part.role.empty())
             row("Role in the study", "%s", part.role.c_str());
         ImGui::EndTable();
+    }
+    // Set by hand (an adjuster): the same control as on the part in the view.
+    if (const app::MechanismStudy::Adjuster* a = AdjusterOf(session, part.body))
+    {
+        ImGui::SeparatorText("Set by hand");
+        const double scale = a->rotation ? 180.0 / kPi : 1e3;
+        float value = float((g_adjustDrag.joint == a->joint ? g_adjustDrag.value : a->value) * scale);
+        ImGui::SetNextItemWidth(-1);
+        if (ImGui::SliderFloat("##adjust", &value, float(a->lower * scale), float(a->upper * scale), a->rotation ? "%.2f deg" : "%.3f mm"))
+            AdjustTo(session, *a, value / scale, false);
+        if (ImGui::IsItemDeactivatedAfterEdit())
+            AdjustTo(session, *a, value / scale, true);
+        ImGui::TextDisabled("%s: %s %s; held where it is set while the machine runs.", a->name.c_str(), a->body.c_str(), a->rotation ? "turns about its joint" : "slides along its joint");
     }
     // The part's drawing: its feature history (edit and press Apply: one undoable command).
     if (info)
@@ -526,8 +592,11 @@ void MachineSummary(const Session& session)
     ImGui::PopTextWrapPos();
     ImGui::SeparatorText("Bodies (mass from the parts and their materials)");
     for (const sim::mb::Body& b : model.bodies)
-        ImGui::BulletText("%s: %s%.3f kg, centre of mass (%.1f, %.1f, %.1f) mm", b.name.c_str(), b.fixed ? "fixed, " : "", b.mass, b.centroid[0] * 1e3,
-                          b.centroid[1] * 1e3, b.centroid[2] * 1e3);
+        if (b.fixed)
+            ImGui::BulletText("%s: fixed", b.name.c_str());
+        else
+            ImGui::BulletText("%s: %.3g kg, centre of mass (%.2f, %.2f, %.2f) mm", b.name.c_str(), b.mass, b.centroid[0] * 1e3, b.centroid[1] * 1e3,
+                              b.centroid[2] * 1e3);
 }
 
 void StudyPanel(Session& session)
@@ -697,8 +766,10 @@ void SimulationPanel(Session& session)
             ImGui::Text("Magneto %s: magnet %+.0f deg from the core, %d sparks, secondary %.1f kV at the last points opening",
                         session.study.machine.magnetos[g].name.c_str(), machine.Magneto(g).angleDeg, machine.Magneto(g).sparks, machine.Magneto(g).lastSecondaryKv);
     }
-    else if (session.scene)
+    else if (session.scene && session.NeedsTables())
         ImGui::TextDisabled("Computing the magneto field table (MFEM, first run of this geometry only)...");
+    else if (session.scene)
+        ImGui::TextDisabled("The machine is measured on the drawing once its parts are displayed...");
     ImGui::End();
 }
 
@@ -814,6 +885,96 @@ void Plots(Session& session)
 }
 
 // Axis triad in the lower-left corner of the viewport image.
+// The control on the part in the view, as in real life: a lever turning on an arc over its range (a joint that turns), or
+// a slider along its track (a joint that slides). True while the pointer is on it or dragging it (the view does not pan).
+bool AdjusterControl(Session& session, const OrbitCamera& camera, int selected, ImVec2 imageMin, ImVec2 imageMax)
+{
+    if (!session.scene || selected < 0 || selected >= int(session.scene->Parts().size()))
+        return false;
+    const app::ScenePart& part = session.scene->Parts()[size_t(selected)];
+    const app::MechanismStudy::Adjuster* a = AdjusterOf(session, part.body);
+    if (!a)
+        return false;
+    const sim::mb::Joint& joint = session.study.machine.mechanism.joints[size_t(a->joint)];
+    const GfVec3d point(joint.point[0], joint.point[1], joint.point[2]), axis = GfVec3d(joint.axis[0], joint.axis[1], joint.axis[2]).GetNormalized();
+    // Model point -> image point.
+    const pxr::GfMatrix4d toWorld = session.scene->ModelToWorld(), toCamera = camera.CameraToWorld().GetInverse();
+    const double w = imageMax.x - imageMin.x, h = imageMax.y - imageMin.y, t = std::tan(camera.fovDeg * kPi / 360.0);
+    auto project = [&](const GfVec3d& model, ImVec2& out) {
+        const GfVec3d c = toCamera.Transform(toWorld.Transform(model));
+        if (c[2] > -1e-9)
+            return false;
+        out = ImVec2(float(imageMin.x + (c[0] / (-c[2] * t * w / h) + 1.0) * 0.5 * w), float(imageMin.y + (1.0 - c[1] / (-c[2] * t)) * 0.5 * h));
+        return true;
+    };
+    // Where the part is at rest (model frame): its centre of mass.
+    kernel::MassProperties mp;
+    std::string error;
+    session.document->Mass(part.path, mp, error);
+    const kernel::Vec3 o = session.document->BodyOrigin(part.body);
+    const GfVec3d rest(o.x + mp.centroid.x, o.y + mp.centroid.y, o.z + mp.centroid.z);
+    const double shown = g_adjustDrag.joint == a->joint ? g_adjustDrag.value : a->value;
+    // The control's point at a setting: on the arc through the part (rotation), on the track through it (sliding).
+    GfVec3d radial = rest - point;
+    radial -= axis * pxr::GfDot(radial, axis);
+    const double reach = std::max(radial.GetLength(), 1e-4);
+    const GfVec3d e1 = radial.GetLength() > 1e-9 ? radial / radial.GetLength() : pxr::GfCross(axis, GfVec3d(1, 0, 0)).GetNormalized();
+    auto at = [&](double value) {
+        if (!a->rotation)
+            return rest + axis * value;
+        const pxr::GfRotation turn(axis, value * 180.0 / kPi);
+        return point + axis * pxr::GfDot(rest - point, axis) + turn.TransformDir(e1) * reach * 1.15;
+    };
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const ImU32 track = IM_COL32(255, 170, 40, 150), knobColour = IM_COL32(255, 150, 20, 255);
+    std::vector<ImVec2> path;
+    for (int i = 0; i <= 64; ++i)
+        if (ImVec2 p; project(at(a->lower + (a->upper - a->lower) * i / 64.0), p))
+            path.push_back(p);
+    if (path.size() < 2)
+        return false;
+    draw->AddPolyline(path.data(), int(path.size()), track, ImDrawFlags_None, 3.0f);
+    ImVec2 knob, pivot;
+    if (!project(at(shown), knob))
+        return false;
+    if (a->rotation && project(point + axis * pxr::GfDot(rest - point, axis), pivot))
+    {
+        draw->AddLine(pivot, knob, knobColour, 3.0f);   // the lever, from the pivot
+        draw->AddCircleFilled(pivot, 4.0f, knobColour);
+    }
+    draw->AddCircleFilled(knob, 9.0f, knobColour);
+    draw->AddCircle(knob, 9.0f, IM_COL32(40, 20, 0, 255), 0, 2.0f);
+    const std::string label = a->rotation ? std::format("{} {:+.2f} deg", a->name, shown * 180.0 / kPi) : std::format("{} {:+.3f} mm", a->name, shown * 1e3);
+    draw->AddText(ImVec2(knob.x + 12, knob.y - 8), IM_COL32(255, 200, 120, 255), label.c_str());
+
+    // Dragging: the setting whose control point is nearest the pointer.
+    const ImGuiIO& io = ImGui::GetIO();
+    const bool overKnob = std::hypot(io.MousePos.x - knob.x, io.MousePos.y - knob.y) < 14.0;
+    static bool dragging = false;
+    if (overKnob && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered())
+        dragging = true;
+    if (dragging)
+    {
+        double best = shown, nearest = 1e300;
+        for (int i = 0; i <= 400; ++i)
+        {
+            const double v = a->lower + (a->upper - a->lower) * i / 400.0;
+            if (ImVec2 p; project(at(v), p))
+                if (const double d = std::hypot(io.MousePos.x - p.x, io.MousePos.y - p.y); d < nearest)
+                    nearest = d, best = v;
+        }
+        const bool release = !ImGui::IsMouseDown(ImGuiMouseButton_Left);
+        AdjustTo(session, *a, best, release);
+        if (release)
+            dragging = false;
+        return true;
+    }
+    if (overKnob)
+        ImGui::SetTooltip("Drag to set %s (range %.4g .. %.4g %s)", a->name.c_str(), a->rotation ? a->lower * 180.0 / kPi : a->lower * 1e3,
+                          a->rotation ? a->upper * 180.0 / kPi : a->upper * 1e3, a->rotation ? "deg" : "mm");
+    return overKnob;
+}
+
 void DrawCompass(const OrbitCamera& camera, ImVec2 imageMin, ImVec2 imageMax)
 {
     GfVec3d right, up, back;
@@ -1274,6 +1435,13 @@ int main(int argc, char** argv)
     OrbitCamera camera;
     int selected = -1;
     bool sceneReady = false, fitPending = false, layoutBuilt = !firstRun;
+    // Loading a document: the view of its parts (slices), then the machine study; shown with a progress bar.
+    struct Loading
+    {
+        bool active = false, measuring = false;
+        double viewStarted = -1.0;   // when the parts' display started [s since start]
+        size_t parts = 0;            // parts to display then
+    } loading;
     RecentDocuments recent(uiTest ? std::filesystem::path() : AppDataDir() / "recent_documents.json");
     const auto start = std::chrono::steady_clock::now();
     double previousTime = 0.0;
@@ -1365,6 +1533,7 @@ int main(int argc, char** argv)
         session.Clear();
         selected = -1;
         sceneReady = false;
+        loading = Loading{};
         documentChanged = false;
         changeCount = savedChangeCount = 0;
         bus.ClearHistory();  // undo steps of the closed document must not run against the next one
@@ -1378,7 +1547,18 @@ int main(int argc, char** argv)
             documentChanged = true;
             ++changeCount;
         };
+        // The view is saved with the document (by the user or the agent) and found again when it is opened.
+        session.document->OnSaving = [&] {
+            session.document->SetView(Json{{"yaw", camera.yaw},
+                                           {"pitch", camera.pitch},
+                                           {"distance", camera.distance},
+                                           {"fov", camera.fovDeg},
+                                           {"target", {camera.target[0], camera.target[1], camera.target[2]}}}
+                                          .dump());
+        };
         session.studyStale = true;   // derived once its view is written (frame loop)
+        loading = Loading{};
+        loading.active = true;
         followDocumentFolder();
     };
     auto openDocument = [&](const std::string& path) {
@@ -1564,6 +1744,8 @@ int main(int argc, char** argv)
             viewport->SetStage(session.document->Stage());
             sceneReady = true;
             fitPending = true;
+            loading.viewStarted = now;
+            loading.parts = session.scene->PendingCount();
         }
         syncDocument();
         // A slice of the view (changed parts), then the machine study and its field tables.
@@ -1574,11 +1756,25 @@ int main(int argc, char** argv)
             if (fitPending)
             {
                 camera = OrbitCamera{};
-                camera.Fit(session.scene->WorldBounds());   // frame what is drawn, once it is
+                // The view it was saved with; else frame what is drawn, once it is.
+                const Json view = ParseJson(session.document->View());
+                if (view.is_object() && view.contains("target") && view["target"].is_array() && view["target"].size() == 3)
+                {
+                    camera.yaw = view.value("yaw", camera.yaw);
+                    camera.pitch = view.value("pitch", camera.pitch);
+                    camera.distance = view.value("distance", camera.distance);
+                    camera.fovDeg = view.value("fov", camera.fovDeg);
+                    camera.target = GfVec3d(view["target"][0].get<double>(), view["target"][1].get<double>(), view["target"][2].get<double>());
+                }
+                else
+                    camera.Fit(session.scene->WorldBounds());
                 fitPending = false;
             }
-            if (session.studyStale)
+            if (session.studyStale && loading.active && !loading.measuring)
+                loading.measuring = true;   // one frame to show it: the study blocks this thread while it measures
+            else if (session.studyStale)
             {
+                loading.active = false;
                 const bool wasRunning = session.running;
                 session.Build();
                 session.running = (wasRunning || autoRun) && session.machine != nullptr;
@@ -1672,7 +1868,7 @@ int main(int argc, char** argv)
                 // A run the agent asks for computes off the main thread: the UI keeps drawing meanwhile.
                 worstFrame = 0.0;
                 const auto runStart = std::chrono::steady_clock::now();
-                const Json quick = call("aiad_mechanism_run", {{"seconds", 0.5}});
+                const Json quick = call("aiad_mechanism_run", {{"seconds", 4.0}});
                 const double runSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - runStart).count();
                 log(!quick.value("isError", true) && runSeconds > 1.0 && worstFrame < 0.25,
                     std::format("aiad_mechanism_run took {:.1f} s and the UI kept drawing (longest frame {:.0f} ms)", runSeconds, worstFrame * 1e3));
@@ -1934,7 +2130,7 @@ int main(int argc, char** argv)
             if (ImGui::Checkbox("Section", &section))
                 session.scene->SetSectionView(section);
             ImGui::SameLine();
-            ImGui::TextDisabled("  Space+LMB drag rotate |MMB pan | MMB+RMB rotate | wheel zoom | LMB select | Alt+LMB rotate");
+            ImGui::TextDisabled("  LMB click select | LMB drag or MMB pan | Alt+LMB, Space+LMB or MMB+RMB rotate | wheel zoom");
 
             const ImVec2 avail = ImGui::GetContentRegionAvail();
             if (avail.x > 32 && avail.y > 32)
@@ -1956,7 +2152,9 @@ int main(int argc, char** argv)
                 ImGui::Image(ImTextureRef(ImTextureID(texture.Srv().ptr)), ImVec2(float(w), float(h)));
                 const ImVec2 imageMax(imageMin.x + w, imageMin.y + h);
                 DrawCompass(camera, imageMin, imageMax);
-                if (ImGui::IsItemHovered())
+                // A part set by hand: its control on it, which takes the pointer before the camera does.
+                const bool onControl = AdjusterControl(session, camera, selected, imageMin, imageMax);
+                if (ImGui::IsItemHovered() && !onControl)
                 {
                     const bool mmb = ImGui::IsMouseDown(ImGuiMouseButton_Middle), rmb = ImGui::IsMouseDown(ImGuiMouseButton_Right);
                     const bool altLmb = io.KeyAlt && ImGui::IsMouseDown(ImGuiMouseButton_Left);
@@ -1968,10 +2166,14 @@ int main(int argc, char** argv)
                         camera.yaw -= io.MouseDelta.x * 0.3;
                         camera.pitch = std::clamp(camera.pitch + io.MouseDelta.y * 0.3, -89.9, 89.9);
                     }
-                    else if (mmb)
+                    // Middle button, or left button dragged (past ImGui's drag threshold: a click still selects): pans,
+                    // moving the view's centre across and up and down with the pointer.
+                    else if (mmb || (ImGui::IsMouseDragging(ImGuiMouseButton_Left) && ImGui::IsMouseHoveringRect(imageMin, imageMax) &&
+                                     io.MouseClickedPos[0].x >= imageMin.x && io.MouseClickedPos[0].x < imageMax.x &&
+                                     io.MouseClickedPos[0].y >= imageMin.y && io.MouseClickedPos[0].y < imageMax.y))
                         camera.Pan(io.MouseDelta.x, io.MouseDelta.y, h);
                     camera.distance = std::clamp(camera.distance * std::pow(0.88, io.MouseWheel), 0.05, 10.0);
-                    // Left click (no drag, no Alt): select the part under the cursor.
+                    // Left click (no drag past the threshold, no Alt): select the part under the cursor.
                     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !io.KeyAlt && !space &&
                         ImGui::GetMouseDragDelta(ImGuiMouseButton_Left).x == 0 && ImGui::GetMouseDragDelta(ImGuiMouseButton_Left).y == 0)
                     {
@@ -2063,6 +2265,34 @@ int main(int argc, char** argv)
                 }
                 ImGui::EndPopup();
             }
+        }
+
+        // Loading: a bar over the window, with the time left estimated from the parts already displayed.
+        if (loading.active && session.document)
+        {
+            const ImGuiViewport* main = ImGui::GetMainViewport();
+            ImGui::SetNextWindowPos(ImVec2(main->WorkPos.x + main->WorkSize.x * 0.5f, main->WorkPos.y + main->WorkSize.y * 0.35f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+            ImGui::SetNextWindowSize(ImVec2(520 * scale, 0));
+            ImGui::Begin("##loading", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
+                                                   ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoNav);
+            ImGui::Text("Loading %s", documentTitle().c_str());
+            const size_t total = std::max<size_t>(loading.parts, 1), left = sceneReady ? session.scene->PendingCount() : total;
+            const size_t done = total - std::min(left, total);
+            std::string status;
+            if (!sceneReady)
+                status = "reading the document";
+            else if (left > 0)
+            {
+                const double elapsed = now - loading.viewStarted;
+                status = std::format("displaying parts: {} of {}", done, total);
+                if (done > 0 && elapsed > 0.5)
+                    status += std::format(", about {:.0f} s left", elapsed / double(done) * double(left));
+            }
+            else
+                status = "measuring the machine on the drawing (masses, contacts, springs)";
+            ImGui::ProgressBar(loading.measuring || left == 0 ? -1.0f * float(now) : float(done) / float(total), ImVec2(-1, 0));
+            ImGui::TextDisabled("%s", status.c_str());
+            ImGui::End();
         }
 
         ImGui::Render();
@@ -2166,6 +2396,8 @@ int main(int argc, char** argv)
 
     if (uiTestThread.joinable())
         uiTestThread.join();
+    if (!uiTest)
+        StartShutdownWatchdog();
     stopTables();
     bridgeServer.Stop();
     g_d3d.WaitIdle();

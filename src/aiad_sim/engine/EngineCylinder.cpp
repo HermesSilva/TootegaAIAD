@@ -99,12 +99,17 @@ double EngineCylinder::ValveMassFlow(const Valve& valve, double lift, const Plen
 
     // Isentropic compressible orifice flow, choked below the critical pressure ratio.
     const double ratio = std::max(pDown / pUp, 0.0);
-    const double critical = std::pow(2.0 / (g + 1.0), g / (g - 1.0));
+    // a = 2/(g+1): critical = a^(g/(g-1)) = a c, choked psi = sqrt(g) a^((g+1)/(2(g-1))) = sqrt(g a) c, c = a^(1/(g-1)).
+    const double a = 2.0 / (g + 1.0), c = std::pow(a, 1.0 / (g - 1.0));
+    const double critical = a * c;
     double psi;
     if (ratio <= critical)
-        psi = std::sqrt(g) * std::pow(2.0 / (g + 1.0), (g + 1.0) / (2.0 * (g - 1.0)));
+        psi = std::sqrt(g * a) * c;
     else
-        psi = std::sqrt(2.0 * g / (g - 1.0) * (std::pow(ratio, 2.0 / g) - std::pow(ratio, (g + 1.0) / g)));
+    {
+        const double r = std::pow(ratio, 1.0 / g);   // ratio^(2/g) = r^2, ratio^((g+1)/g) = ratio r
+        psi = std::sqrt(2.0 * g / (g - 1.0) * (r * r - ratio * r));
+    }
     const double flow = area * pUp / std::sqrt(gas.R * tUp) * psi;
 
     enthalpyDot = (inflow ? 1.0 : -1.0) * flow * gas.Enthalpy(tUp);
@@ -139,8 +144,8 @@ EngineCylinder::Rates EngineCylinder::Derivatives(double mass, double temperatur
     {
         // Woschni: h = 3.26 B^-0.2 p[kPa]^0.8 T^-0.55 w^0.8, w = C1 * mean piston speed.
         const double w = std::max(p.heat.woschniC1 * m_meanPistonSpeed, 0.1);
-        const double h = 3.26 * std::pow(p.geometry.bore, -0.2) * std::pow(pressure / 1000.0, 0.8) *
-                         std::pow(temperature, -0.55) * std::pow(w, 0.8);
+        const double h = 3.26 * std::pow(p.geometry.bore, -0.2) * std::pow(pressure / 1000.0 * w, 0.8) *
+                         std::pow(temperature, -0.55);
         const double area = 2.0 * p.geometry.PistonArea() +
                             std::numbers::pi * p.geometry.bore * (volume / p.geometry.PistonArea());
         r.heatLossDot = h * area * (temperature - p.heat.wallTemperature);

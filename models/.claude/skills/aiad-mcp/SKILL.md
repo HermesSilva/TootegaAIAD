@@ -54,8 +54,8 @@ part and the feature. Read the error, fix the input, try again; do not retry bli
 | `aiad_part_delete` | Remove a part (undoable) |
 | `aiad_materials_list` / `aiad_material_define` | Material table: density (drives the masses), `shear_modulus` (springs), `remanence` (magnets), `relative_permeability` (cores), colour, metallic, roughness, emission |
 | `aiad_body_define` | Rigid body and its rest origin (formulas allowed); `fixed: true` = part of the ground |
-| `aiad_joint_define` / `aiad_joint_delete` / `aiad_joints_list` | Joints between bodies (`revolute`, `prismatic`, `cylindrical`, `spherical`, `planar`, `fixed`; `body1` omitted = ground; `point`, `axis` as formulas; optional `motor` `{"mode": "speed"\|"torque", "value": ..., "free_speed"?, "duration"?}` in rad/s, m/s, N m or N; optional `limits` `[lower, upper]` = stops, e.g. a valve seat `[null, 0]`) |
-| `aiad_element_define` / `aiad_element_delete` / `aiad_elements_list` | What else the machine is made of, tied to joints and drawn parts: `gear`, `belt`, `rack`, `contact` (cam / rocker pad on a flat face), `spring`, `load`, `chamber` (gas), `magneto` (see below) |
+| `aiad_joint_define` / `aiad_joint_delete` / `aiad_joints_list` | Joints between bodies (`revolute`, `prismatic`, `cylindrical`, `spherical`, `planar`, `fixed`; `body1` omitted = ground; `point`, `axis` as formulas; optional `motor` `{"mode": "speed"\|"torque", "value": ..., "free_speed"?, "duration"?}` in rad/s, m/s, N m or N; optional `limits` `[lower, upper]` = stops, e.g. a valve seat `[null, 0]`; optional `start`: where it starts, a value or `{"local_time": period_s, "offset": rad}` = from the computer's date and time, see Machines step 5) |
+| `aiad_element_define` / `aiad_element_delete` / `aiad_elements_list` | What else the machine is made of, tied to joints and drawn parts: `gear`, `belt`, `rack`, `contact` (cam / rocker pad on a flat face), `spring`, `torsion` (spiral spring), `touch` (outlines that touch: escapements, ratchets), `load`, `chamber` (gas), `magneto` (see below) |
 | `aiad_mechanism_check` | The simulator's critique of ANY drawing: ground, bodies not connected, joints outside their parts, gears that do not mesh, belts that miss their wheels, cams that never reach (or never release) their followers, springs that do not fit, valves without seat/spring/drive, chambers and magnetos that do not match the drawing — each with its fix; plus everything it measured (ratios, lift, stiffness, bore, chamber volume, spark angle) |
 | `aiad_mechanism_run` | `{"seconds": s}` (up to 5): runs the machine and returns every joint (position, range, mean speed), chambers, magnetos, how far each body moved |
 | `aiad_sim_run` / `aiad_sim_job_status` | Measured run in the background (up to 30 s): joint speeds, chambers (displacement, compression ratio, peak pressure, combustions, indicated power), magnetos, and `runs_on_its_own` (does it keep going after its timed motors stop) |
@@ -144,6 +144,15 @@ Build one like this:
      Unilateral: the follower can lift off.
    - `spring` `{part, body0, point0, body1, point1, free_length}`: a drawn coil (`helix_pipe`), in a body of
      its own, between two bodies. Its material needs `shear_modulus`. The view stretches it.
+   - `torsion` `{joint, part, free?, damping?, holder?}` (holder: the part holding the strip near its outer end,
+     a regulator's index pins: see Adjusters): a drawn spiral spring (hairspring, mainspring) acting on the joint
+     it winds around: sketch tool `spiral`, or any imported spiral solid. The strip (length, thickness, height) is
+     measured on the part's section; its material needs `elastic_modulus`. `free` is the joint angle where it is
+     relaxed (a mainspring wound n turns: n·2π, its sign the way it drives).
+   - `touch` `{part0, part1, at?, stiffness?}`: two parts of different bodies that touch by their outlines in the
+     plane the bodies turn in (escape wheel teeth and pallet stones, impulse pin and fork, guard pin and safety
+     roller, ratchet and click, a fork and solid bankings). The outlines are cut from the solids (drawn or imported)
+     where their heights overlap, or at `at` (a height along the axis) when a part has details at other heights.
    - `load` `{joint, constant?, linear?, quadratic?}`: resisting torque or force (friction, brake, propeller).
    - `chamber` `{piston, cylinder, head, intake: [{joint, part}], exhaust: [...], ignition?, crank?}`:
      the gas between a piston (its prismatic joint), the bore (the part whose inside it is) and the head.
@@ -153,6 +162,35 @@ Build one like this:
      the U core (two legs and a yoke) on the stator. The magnet's material needs `remanence`. The spark
      fires the chamber that names it in `ignition`.
 5. Drive the input: a joint `motor` (`speed`, or `torque` with `free_speed` and `duration` for a starter).
+   **Start position, and starting at the computer's date and time.** A joint may start away from its drawn
+   position with `start` in `aiad_joint_define`: a number or formula (rad or m), or
+   `{"local_time": period, "offset": rad}` (revolute or cylindrical) to take it from the computer's local date
+   and time **when the simulation starts** (`aiad_sim_start` and every run read the clock then):
+   coordinate = offset + 2π · (local seconds since 1970-01-01 00:00 mod period) / period. The body turns there
+   with what is fixed to it; gears and belts take the positions as they start, so setting one wheel drags no
+   train (the escape wheel keeps its phase with the pallets). Typical uses:
+   - a watch or clock in sync with the computer: the joint carrying each hand gets `{"local_time": 60}`
+     (seconds), `3600` (minutes: the centre wheel / cannon pinion), `43200` (hours: the hour wheel); a 24 h
+     hand `86400`; a day-of-week disc `604800` (1970-01-01 was a Thursday: set `offset` to match);
+   - `offset` = the joint angle where the hand points at 12 when the drawn hands do not (measure it on the
+     drawing); the period's sign must match the way the train turns that joint (run 1 s and read the sign of
+     its speed: negative → use a negative period).
+   Check: `aiad_mechanism_check` lists each joint that starts at the local time ("starts at the local time,
+   one turn per ... s"); `aiad_sim_status` right after `aiad_sim_start` shows the coordinates.
+   **Adjusters: parts set by hand.** A joint with a range (`limits` on both sides) that nothing in the machine
+   drives (no motor, gear, belt, spring, contact or touch on it) is recognised as an **adjuster**: set by hand,
+   as in real life, and held where it is set while the machine runs. Examples: a watch's regulator (index), an
+   idle screw, a setting lever, a crown pulled out. To make one, put the part in a body of its own (moving), join
+   it where it pivots or slides, and give the joint its range:
+   `aiad_joint_define {"name": "Regulator", "type": "revolute", "body0": "Regulator index", "point": [...],
+   "axis": [0,0,1], "limits": [-0.15, 0.15]}`. `aiad_mechanism_check` then reports "Adjuster ...: set by hand".
+   Set it with `aiad_adjust {"joint": "Regulator", "value": -0.05}` (rad or m, inside the range; undoable; the
+   joint's start). In the app, selecting one of its parts shows its control on the part (a lever on an arc for a
+   joint that turns, a slider for one that slides) and in Properties ("Set by hand"); dragging it moves the part
+   at once and commits on release.
+   What an adjuster changes must be measured from where it is: a spiral spring (`torsion`) may name a `holder`
+   (the regulator's index pins on its outer coil): only the strip up to it works, so turning the index changes
+   the active length and the rate (ETA 6497: ±0.15 rad ≈ ±2.3 min/day).
 6. Run `aiad_mechanism_check`, apply its fixes, and check again until it finds nothing. Then run it:
    `aiad_mechanism_run {"seconds": 1}`, or `aiad_sim_run` for a measured run.
 

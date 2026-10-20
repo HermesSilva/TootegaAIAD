@@ -169,6 +169,45 @@ int main()
     CHECK(FindExtrudedProfile(lobe, doc->Lookup(), turned, error) &&
           std::all_of(turned.points.begin(), turned.points.end(), [](const kernel::Vec3& p) { return p.x < -0.0099 && p.x > -0.0201; }));
 
+    // A hairspring drawn with the spiral tool (strip 50 um x 0.2 mm, 10 turns from 0.6 mm, pitch 0.2 mm), measured
+    // on its section as the simulator measures drawn and imported springs: length half the perimeter, thickness the
+    // area over it. After its mass was computed: SMLib's mass integration used to spoil every later tessellation.
+    CHECK(bus.Execute("aiad_part_create",
+                      {{"name", "Hairspring"},
+                       {"body", "Cam"},
+                       {"material", "Steel"},
+                       {"features",
+                        {{{"op", "extrude"},
+                          {"plane", "XY"},
+                          {"distance", 0.0002},
+                          {"profile", {{"spiral", {{"inner_radius", 0.0006}, {"pitch", 0.0002}, {"turns", 10}, {"thickness", 0.00005}}}}}}}}},
+                      "ai")
+              .ok);
+    if (const auto spring = doc->FindPart("Hairspring", error))
+    {
+        kernel::MassProperties mp;
+        CHECK(doc->Mass(spring->path, mp, error));
+        const auto loops = doc->SectionOutline(spring->path, {0, 0, 0.0001}, {0, 0, 1});
+        double perimeter = 0.0, area = 0.0;
+        for (const auto& loop : loops)
+            for (size_t i = 0; i < loop.size(); ++i)
+            {
+                const kernel::Vec3& a = loop[i];
+                const kernel::Vec3& b = loop[(i + 1) % loop.size()];
+                perimeter += std::hypot(b.x - a.x, b.y - a.y);
+                area += (a.x * b.y - b.x * a.y) / 2.0;
+            }
+        double length = 0.0;   // the centre line r = 0.6 mm + 0.2 mm a / 2 pi
+        for (int i = 0; i < 100000; ++i)
+        {
+            const double a = (i + 0.5) * 20.0 * pi / 100000, r = 0.0006 + 0.0002 * a / (2.0 * pi);
+            length += std::hypot(r, 0.0002 / (2.0 * pi)) * 20.0 * pi / 100000;
+        }
+        std::printf("spiral: strip %.2f mm long (centre line %.2f mm), %.2f um thick\n", perimeter / 2.0 * 1e3, length * 1e3, std::abs(area) / (perimeter / 2.0) * 1e6);
+        CHECK(loops.size() == 1 && Near(perimeter / 2.0, length, 0.01) && Near(std::abs(area) / (perimeter / 2.0), 0.00005, 0.02));
+    }
+    CHECK(bus.Execute("aiad_part_delete", {{"part", "Hairspring"}}, "ai").ok);
+
     // Elements: tied to joints, parts and bodies by name, checked on definition, undoable.
     CHECK(bus.Execute("aiad_element_define", {{"name", "Mesh"}, {"type", "rack"}, {"definition", {{"joint0", "Hinge"}, {"joint1", "Slide"}, {"part0", "Pinion"}}}},
                       "ai")

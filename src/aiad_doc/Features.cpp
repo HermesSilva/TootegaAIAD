@@ -223,6 +223,39 @@ bool GearSketch(const Json& g, Eval& e, Profile& p)
     return true;
 }
 
+// A strip wound as an Archimedean spiral (hairspring, mainspring): centre line r = inner + pitch * angle / 2 pi
+// over `turns`, `thickness` wide. Out along the outer edge, back along the inner one (arcs of 20 degrees).
+bool SpiralSketch(const Json& s, Eval& e, Profile& p)
+{
+    double cu = 0.0, cv = 0.0, inner, pitch, turns, thickness, rotation;
+    if (!e.Field(s, "inner_radius", inner) || !e.Field(s, "pitch", pitch) || !e.Field(s, "turns", turns) || !e.Field(s, "thickness", thickness) ||
+        !e.Field(s, "rotation", rotation, 0.0) || (s.contains("center") && !e.Pair(s, "center", cu, cv)))
+        return false;
+    if (thickness <= 0.0 || pitch <= thickness || inner <= thickness / 2.0 || turns <= 0.0)
+    {
+        e.error = e.where + ": a spiral needs thickness > 0, pitch > thickness (the coils apart), inner_radius > thickness / 2 and turns > 0";
+        return false;
+    }
+    const int n = std::max(2, int(std::ceil(turns * 18.0)));
+    const double sweep = 2.0 * kPi * turns / n, bulge = Bulge(sweep);
+    auto at = [&](int i, double offset) {
+        const double a = i * sweep, r = inner + pitch * a / (2.0 * kPi) + offset;
+        return kernel::ProfileVertex{cu + r * std::cos(a + rotation * kDeg), cv + r * std::sin(a + rotation * kDeg), 0.0};
+    };
+    p.clear();
+    for (int i = 0; i <= n; ++i)
+    {
+        p.push_back(at(i, thickness / 2.0));
+        p.back().bulge = i < n ? bulge : 0.0;   // the end: a straight cut across the strip
+    }
+    for (int i = n; i >= 0; --i)
+    {
+        p.push_back(at(i, -thickness / 2.0));
+        p.back().bulge = i > 0 ? -bulge : 0.0;
+    }
+    return true;
+}
+
 bool HullSketch(const Json& h, Eval& e, Profile& p)
 {
     struct Sample
@@ -386,8 +419,10 @@ bool MakeSketch(const Json& s, Eval& e, Profile& profile, std::vector<std::array
         ok = HullSketch(a, e, profile);
     else if (tool == "cam")
         ok = CamSketch(a, e, smooth);
+    else if (tool == "spiral")
+        ok = SpiralSketch(a, e, profile);
     else
-        e.error = e.where + ": unknown sketch tool (circle, rect, rounded_rect, polygon, sprocket, gear, hull, cam)";
+        e.error = e.where + ": unknown sketch tool (circle, rect, rounded_rect, polygon, sprocket, gear, hull, cam, spiral)";
     e.where = saved;
     return ok;
 }
@@ -417,6 +452,35 @@ bool Combine(Solid& part, Solid&& tool, const std::string& mode, Eval& e)
 }
 
 }  // namespace
+
+bool MovePart(const Json& features, size_t from, const NameLookup& lookup, Solid& solid, std::string& error)
+{
+    error.clear();
+    Eval e{lookup, error, ""};
+    for (size_t i = from; features.is_array() && i < features.size(); ++i)
+    {
+        const Json& f = features[i];
+        const std::string op = f.is_object() ? f.value("op", "") : "";
+        e.where = std::format("feature {} ({})", i + 1, op);
+        Vec3 a, b;
+        double angle = 0;
+        std::string kerr;
+        if (op != "rotate" && op != "translate")
+        {
+            error = e.where + ": an imported part can only be moved (rotate, translate) after its import";
+            return false;
+        }
+        const bool ok = op == "rotate" ? e.Vector(f, "pivot", a, Vec3{}) && e.Vector(f, "axis", b) && e.Field(f, "angle", angle) : e.Vector(f, "offset", a);
+        if (!ok)
+            return false;
+        if (!(op == "rotate" ? kernel::Rotate(solid, a, b, angle, kerr) : kernel::Translate(solid, a, kerr)))
+        {
+            error = e.where + ": " + kerr;
+            return false;
+        }
+    }
+    return true;
+}
 
 Solid BuildPart(const Json& features, const NameLookup& lookup, std::string& error)
 {

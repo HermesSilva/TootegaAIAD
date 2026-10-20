@@ -185,26 +185,28 @@ void RegisterDocumentCommands(cmd::CommandBus& bus, std::function<Document*()> d
 
     // ---- Materials --------------------------------------------------------------------------------
     bus.Register({"aiad_materials_list", "List materials",
-                  "The material table: density (drives the masses), shear modulus (springs), remanence (magnets), relative permeability "
+                  "The material table: density (drives the masses), shear modulus (coil springs), elastic modulus (spiral springs), remanence "
+                  "(magnets), relative permeability "
                   "(magnetic cores), colour, metallic, roughness, emission.",
                   Object(Json::object()), {true, false, true}, [document, none](const Json&) {
                       Document* d = document();
                       if (!d)
                           return none();
                       CommandOutput o;
-                      std::string text = "| Material | Density [kg/m^3] | Shear modulus [GPa] | Remanence [T] | Rel. permeability | Colour | Metallic | "
-                                         "Roughness |\n|---|---|---|---|---|---|---|---|\n";
+                      std::string text = "| Material | Density [kg/m^3] | Shear modulus [GPa] | Elastic modulus [GPa] | Remanence [T] | Rel. permeability | "
+                                         "Colour | Metallic | Roughness |\n|---|---|---|---|---|---|---|---|---|\n";
                       Json list = Json::array();
                       for (const Material& m : d->Materials())
                       {
                           list.push_back({{"name", m.name},
                                           {"density", m.density},
                                           {"shear_modulus", m.shearModulus},
+                                          {"elastic_modulus", m.elasticModulus},
                                           {"remanence", m.remanence},
                                           {"relative_permeability", m.relativePermeability}});
                           auto given = [](double v, double scale) { return v > 0.0 ? std::format("{:g}", v * scale) : std::string("-"); };
-                          text += std::format("| {} | {:g} | {} | {} | {} | {:.2f} {:.2f} {:.2f} | {:g} | {:g} |\n", m.name, m.density, given(m.shearModulus, 1e-9),
-                                              given(m.remanence, 1.0), given(m.relativePermeability, 1.0), m.colour[0], m.colour[1], m.colour[2], m.metallic,
+                          text += std::format("| {} | {:g} | {} | {} | {} | {} | {:.2f} {:.2f} {:.2f} | {:g} | {:g} |\n", m.name, m.density, given(m.shearModulus, 1e-9),
+                                              given(m.elasticModulus, 1e-9), given(m.remanence, 1.0), given(m.relativePermeability, 1.0), m.colour[0], m.colour[1], m.colour[2], m.metallic,
                                               m.roughness);
                       }
                       o.result = {{"materials", list}};
@@ -218,7 +220,9 @@ void RegisterDocumentCommands(cmd::CommandBus& bus, std::function<Document*()> d
                           {"metallic", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
                           {"roughness", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
                           {"emission", {{"type", "number"}, {"minimum", 0}}},
-                          {"shear_modulus", {{"type", "number"}, {"minimum", 0}, {"description", "[Pa], for springs (steel 79.3e9)"}}},
+                          {"shear_modulus", {{"type", "number"}, {"minimum", 0}, {"description", "[Pa], for coil springs (steel 79.3e9)"}}},
+                          {"elastic_modulus",
+                           {{"type", "number"}, {"minimum", 0}, {"description", "[Pa], Young's modulus, for spiral springs (steel 200e9, Nivarox 190e9)"}}},
                           {"remanence", {{"type", "number"}, {"minimum", 0}, {"description", "[T], for permanent magnets (ferrite 0.4)"}}},
                           {"relative_permeability", {{"type", "number"}, {"minimum", 0}, {"description", "for magnetic cores"}}}},
                          {"name", "density"}),
@@ -235,6 +239,7 @@ void RegisterDocumentCommands(cmd::CommandBus& bus, std::function<Document*()> d
                       m.roughness = args.value("roughness", 0.5);
                       m.emission = args.value("emission", 0.0);
                       m.shearModulus = args.value("shear_modulus", 0.0);
+                      m.elasticModulus = args.value("elastic_modulus", 0.0);
                       m.remanence = args.value("remanence", 0.0);
                       m.relativePermeability = args.value("relative_permeability", 0.0);
                       const std::optional<Material> before = d->FindMaterial(m.name);
@@ -432,7 +437,7 @@ void RegisterDocumentCommands(cmd::CommandBus& bus, std::function<Document*()> d
     // ---- Joints: the mechanism (the simulation is built from them) ----
     auto jointJson = [](const JointInfo& j) {
         return Json{{"name", j.name}, {"type", j.type}, {"body0", j.body0}, {"body1", j.body1.empty() ? Json("ground") : Json(j.body1)},
-                    {"point", j.point}, {"axis", j.axis}, {"motor", j.motor}, {"limits", j.limits}};
+                    {"point", j.point}, {"axis", j.axis}, {"motor", j.motor}, {"limits", j.limits}, {"start", j.start}};
     };
     // Restores a joint to a definition (null = deleted).
     auto setJoint = [document](const std::string& name, const std::optional<JointInfo>& state) {
@@ -470,7 +475,11 @@ void RegisterDocumentCommands(cmd::CommandBus& bus, std::function<Document*()> d
                   "{\"mode\": \"speed\" (rad/s or m/s) | \"torque\" (N m or N), \"value\": number or formula}; a torque motor may have "
                   "\"free_speed\" (DC-motor curve: torque falls to 0 at that speed, e.g. a starter) and \"duration\" [s]. Optional limits "
                   "[lower, upper] (rad or m from the drawn position; null = no stop on that side): seats and end stops, e.g. a valve "
-                  "[null, 0] closes on its seat.",
+                  "[null, 0] closes on its seat. Optional start: where the coordinate starts instead of the drawn position, a number or "
+                  "formula (rad or m), or {\"local_time\": period [s], \"offset\": rad} to start from the computer's local date and time "
+                  "when the simulation starts: coordinate = offset + 2 pi (local seconds since 1970-01-01 00:00 mod period) / period "
+                  "(negative period: the other way). A watch's hands: 60 (seconds), 3600 (minutes), 43200 (hours). The body turns there "
+                  "with what is fixed to it; gears take the positions as they start (a hand set to the time drags no train).",
                   Object({{"name", {{"type", "string"}}},
                           {"type", {{"type", "string"}, {"enum", {"revolute", "prismatic", "cylindrical", "spherical", "planar", "fixed"}}}},
                           {"body0", {{"type", "string"}}},
@@ -478,7 +487,8 @@ void RegisterDocumentCommands(cmd::CommandBus& bus, std::function<Document*()> d
                           {"point", {{"type", "array"}, {"items", kNumberOrFormula}}},
                           {"axis", {{"type", "array"}, {"items", kNumberOrFormula}}},
                           {"motor", {{"type", {"object", "null"}}}},
-                          {"limits", {{"type", {"array", "null"}}, {"items", {{"type", {"number", "string", "null"}}}}}}},
+                          {"limits", {{"type", {"array", "null"}}, {"items", {{"type", {"number", "string", "null"}}}}}},
+                          {"start", {{"type", {"number", "string", "object", "null"}}}}},
                          {"name", "type", "body0", "point"}),
                   {}, [document, none, setJoint](const Json& args) {
                       Document* d = document();
@@ -495,6 +505,7 @@ void RegisterDocumentCommands(cmd::CommandBus& bus, std::function<Document*()> d
                       j.axis = args.value("axis", Json::array({0, 0, 1}));
                       j.motor = args.value("motor", Json());
                       j.limits = args.value("limits", Json());
+                      j.start = args.value("start", Json());
                       const std::optional<JointInfo> before = d->FindJoint(j.name);
                       std::string error;
                       if (!d->DefineJoint(j, error))
@@ -504,6 +515,50 @@ void RegisterDocumentCommands(cmd::CommandBus& bus, std::function<Document*()> d
                       o.text = std::format("{} joint {} between {} and {} at {}.", j.type, j.name, j.body0, j.body1.empty() ? "the ground" : j.body1, j.point.dump());
                       o.undo = [setJoint, name = j.name, before] { setJoint(name, before); };
                       o.redo = [setJoint, name = j.name, after = std::optional<JointInfo>(j)] { setJoint(name, after); };
+                      return o;
+                  }});
+    bus.Register({"aiad_adjust", "Adjust",
+                  "Sets an adjuster: a joint with a range (limits on both sides) that nothing in the machine drives, moved by hand as in real "
+                  "life (a watch's regulator, an idle screw, a setting lever). value: where it is set (rad or m, inside its limits); it is the "
+                  "joint's start, held there while the machine runs. Name the joint, or a part of the body it moves. Undoable.",
+                  Object({{"joint", {{"type", "string"}}}, {"part", {{"type", "string"}}}, {"value", {{"type", "number"}}}}, {"value"}), {},
+                  [document, none, setJoint](const Json& args) {
+                      Document* d = document();
+                      if (!d)
+                          return none();
+                      std::optional<JointInfo> j;
+                      if (args.contains("joint"))
+                          j = d->FindJoint(args["joint"].get<std::string>());
+                      else if (args.contains("part"))
+                      {
+                          std::string e;
+                          if (const auto part = d->FindPart(args["part"].get<std::string>(), e))
+                              for (const JointInfo& candidate : d->Joints())
+                                  if ((candidate.body0 == part->body || candidate.body1 == part->body) && candidate.limits.is_array())
+                                      j = candidate;
+                      }
+                      if (!j)
+                          return CommandOutput::Fail("No adjuster: name its joint (aiad_joints_list), or a part of the body it moves; an adjuster is a "
+                                                     "joint with limits [lower, upper] that nothing drives (aiad_joint_define).");
+                      double lo = 0, hi = 0;
+                      std::string e;
+                      if (!j->limits.is_array() || j->limits.size() != 2 || j->limits[0].is_null() || j->limits[1].is_null() ||
+                          !d->EvaluateNumber(j->limits[0], lo, e) || !d->EvaluateNumber(j->limits[1], hi, e))
+                          return CommandOutput::Fail("Joint " + j->name + " has no range to adjust in: give it limits [lower, upper] (aiad_joint_define).");
+                      const double value = args["value"].get<double>();
+                      if (value < lo || value > hi)
+                          return CommandOutput::Fail(std::format("Joint {}: {:.6g} is outside its range {:.6g} .. {:.6g}.", j->name, value, lo, hi));
+                      const std::optional<JointInfo> before = j;
+                      j->start = value;
+                      std::string error;
+                      if (!d->DefineJoint(*j, error))
+                          return CommandOutput::Fail("Joint " + j->name + ": " + error);
+                      CommandOutput o;
+                      o.label = "Adjust " + j->name;
+                      o.text = std::format("{} set at {:.6g} (range {:.6g} .. {:.6g}).", j->name, value, lo, hi);
+                      o.result = {{"joint", j->name}, {"value", value}, {"lower", lo}, {"upper", hi}};
+                      o.undo = [setJoint, name = j->name, before] { setJoint(name, before); };
+                      o.redo = [setJoint, name = j->name, after = j] { setJoint(name, after); };
                       return o;
                   }});
     bus.Register({"aiad_joint_delete", "Delete joint", "Removes a joint (undoable).", Object({{"name", {{"type", "string"}}}}, {"name"}), {false, true, false},
@@ -549,7 +604,8 @@ void RegisterDocumentCommands(cmd::CommandBus& bus, std::function<Document*()> d
                           o.result.push_back({{"name", e.name}, {"type", e.type}, {"definition", e.definition}});
                           text += std::format("| {} | {} | {} |\n", e.name, e.type, e.definition.dump());
                       }
-                      o.text = d->Elements().empty() ? "No element (aiad_element_define adds gears, belts, contacts, springs, loads, chambers, magnetos)."
+                      o.text = d->Elements().empty() ? "No element (aiad_element_define adds gears, belts, contacts, springs, torsion springs, touches, loads, "
+                                                       "chambers, magnetos)."
                                                      : text;
                       return o;
                   }});
@@ -566,6 +622,16 @@ void RegisterDocumentCommands(cmd::CommandBus& bus, std::function<Document*()> d
                   "`radius`.\n"
                   "- spring {part, body0, point0, body1, point1, free_length, active_turns?, damping?}: the drawn coil spring (helix_pipe; its "
                   "material needs shear_modulus) between two bodies; stiffness from wire, coil and turns; its body is stretched in the view.\n"
+                  "- torsion {joint, part, free?, damping?, holder?}: a drawn spiral spring (hairspring, mainspring: any solid, sketch tool spiral or "
+                  "imported; its material needs elastic_modulus) acting on the joint it winds around: torque k (free - angle), k = E b t^3 / 12 L "
+                  "with the strip's length, thickness and height measured on the part. free: the joint angle where it is relaxed [rad] (a "
+                  "mainspring wound n turns: n * 2 * pi, its sign the way it drives). holder: the part that holds the strip on its outer coil "
+                  "(a watch regulator's index pins): only the strip up to it works (L shorter); where it is follows its body's adjuster, so "
+                  "moving the regulator changes the rate.\n"
+                  "- touch {part0, part1, at?, stiffness?, damping?}: two drawn parts in different bodies that touch by their outlines in the "
+                  "plane the bodies turn in (escape wheel and pallet stone, fork and impulse pin, guard pin and safety roller, ratchet and click, "
+                  "a fork and solid bankings), cut from their solids (drawn or imported) in the middle of the heights they share, or at `at` "
+                  "(a height along the axis [m]). stiffness [N/m]: default automatic (the heavier side bouncing at 10 kHz).\n"
                   "- load {joint, constant?, linear?, quadratic?}: resisting torque or force -(c0 sign + c1 rate + c2 rate|rate|) (friction, "
                   "brake, propeller).\n"
                   "- chamber {piston (joint), cylinder (bore part), head (part), intake [{joint, part}], exhaust [{joint, part}], ignition? "
@@ -574,7 +640,7 @@ void RegisterDocumentCommands(cmd::CommandBus& bus, std::function<Document*()> d
                   "- magneto {rotor (joint), magnet (part), shoes [parts], core [parts], coil?, points_open (deg), points_close?, primary_turns?, "
                   "secondary_turns?}: field from the drawn magnet and core (MFEM), breaker points, spark to the chamber that names it.",
                   Object({{"name", {{"type", "string"}}},
-                          {"type", {{"type", "string"}, {"enum", {"gear", "belt", "rack", "contact", "spring", "load", "chamber", "magneto"}}}},
+                          {"type", {{"type", "string"}, {"enum", {"gear", "belt", "rack", "contact", "spring", "torsion", "touch", "load", "chamber", "magneto"}}}},
                           {"definition", {{"type", "object"}, {"description", "the fields of the type"}}}},
                          {"name", "type", "definition"}),
                   {}, [document, none, setElement](const Json& args) {

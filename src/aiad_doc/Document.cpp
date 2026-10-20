@@ -6,7 +6,12 @@
 #include <pxr/base/gf/rotation.h>
 #include <pxr/base/gf/vec3d.h>
 #include <pxr/base/gf/vec3f.h>
+#include <pxr/usd/sdf/copyUtils.h>
+#include <pxr/usd/sdf/layer.h>
+#include <pxr/usd/sdf/payload.h>
+#include <pxr/usd/sdf/primSpec.h>
 #include <pxr/usd/sdf/types.h>
+#include <pxr/usd/usd/editContext.h>
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usdGeom/metrics.h>
 #include <pxr/usd/usdGeom/scope.h>
@@ -41,9 +46,9 @@ namespace
 
 const TfToken kParameters("aiad:parameters"), kMaterials("aiad:materials"), kBody("aiad:body"), kName("aiad:name"),
     kMaterial("aiad:material"), kRole("aiad:role"), kSectioned("aiad:sectioned"), kFeatures("aiad:features"), kError("aiad:error");
-const TfToken kShape("Shape"), kSection("Section"), kLooks("Looks"), kBrepArray("BrepArray");
+const TfToken kShape("Shape"), kImported("Imported"), kSection("Section"), kLooks("Looks"), kBrepArray("BrepArray");
 const TfToken kFixed("aiad:fixed"), kJoints("Joints"), kJointType("aiad:type"), kBody0("aiad:body0"), kBody1("aiad:body1"),
-    kPoint("aiad:point"), kAxis("aiad:axis"), kMotor("aiad:motor"), kLimits("aiad:limits"), kElements("Elements"),
+    kPoint("aiad:point"), kAxis("aiad:axis"), kMotor("aiad:motor"), kLimits("aiad:limits"), kStart("aiad:start"), kView("aiad:view"), kElements("Elements"),
     kDefinition("aiad:definition");
 const std::set<std::string> kJointTypes{"revolute", "prismatic", "cylindrical", "spherical", "planar", "fixed"};
 
@@ -154,6 +159,18 @@ std::unique_ptr<Document> Document::Open(const std::string& path, std::string& e
     }
     doc->m_path = path;
     doc->m_root = doc->m_stage->GetDefaultPrim().GetPath();
+    // Saved as interface + payload (see Save): edited as one layer, the payload's geometry flattened into it.
+    if (const SdfPrimSpecHandle root = doc->m_stage->GetRootLayer()->GetPrimAtPath(doc->m_root); root && root->HasPayloads())
+    {
+        for (const SdfPayload& payload : root->GetPayloadList().GetAddedOrExplicitItems())
+            if (const std::filesystem::path geometry = (std::filesystem::path(path).parent_path() / payload.GetAssetPath()).lexically_normal();
+                !std::filesystem::exists(geometry))
+            {
+                error = "the geometry of " + path + " is in " + geometry.string() + ", which is missing (a document is its .usda and its .geom.usdc)";
+                return nullptr;
+            }
+        doc->m_stage = UsdStage::Open(doc->m_stage->Flatten(false));
+    }
     // Exact geometry back from the BrepArray prims; a part without readable geometry is regenerated.
     for (const PartInfo& part : doc->Parts())
     {
@@ -162,6 +179,7 @@ std::unique_ptr<Document> Document::Open(const std::string& path, std::string& e
         if (solids.size() == 1)
         {
             doc->SetShape(part.path, std::move(solids[0]));
+            doc->LoadDerived(part.path);
         }
         else
             doc->Regenerate(part.path, e);
@@ -169,9 +187,64 @@ std::unique_ptr<Document> Document::Open(const std::string& path, std::string& e
     return doc;
 }
 
+std::string Document::View() const
+{
+    return GetString(m_stage->GetPrimAtPath(m_root), kView);
+}
+
+void Document::SetView(const std::string& view)
+{
+    if (UsdPrim root = m_stage->GetPrimAtPath(m_root))
+    {
+        const UsdEditContext edit(m_stage, m_stage->GetRootLayer());
+        SetString(root, kView, view);
+    }
+}
+
 bool Document::Save(const std::string& path, std::string& error)
 {
-    if (!m_stage->GetRootLayer()->Export(path))
+    if (OnSaving)
+        OnSaving();
+    // OpenUSD's asset pattern (interface + payload): the design in a small text layer (parts, features, bodies,
+    // joints, elements, parameters) and the exact geometry (BrepArray prims, 95 % of the data) in a binary crate layer
+    // beside it (<name>.geom.usdc), brought in by a payload on the root prim. Nothing is approximated.
+    const SdfLayerHandle source = m_stage->GetRootLayer();
+    const std::filesystem::path file(path);
+    const std::string geometryName = file.stem().string() + ".geom.usdc";
+    SdfLayerRefPtr design = SdfLayer::CreateAnonymous("design.usda");
+    design->TransferContent(source);
+    SdfLayerRefPtr geometry = SdfLayer::CreateAnonymous("geometry.usdc");
+    std::vector<SdfPath> breps;
+    source->Traverse(SdfPath::AbsoluteRootPath(), [&](const SdfPath& p) {
+        if (p.IsPrimPath())
+            if (const SdfPrimSpecHandle spec = source->GetPrimAtPath(p); spec && spec->GetTypeName() == kBrepArray)
+                breps.push_back(p);
+    });
+    for (const SdfPath& b : breps)
+    {
+        SdfCreatePrimInLayer(geometry, b.GetParentPath());
+        if (!SdfCopySpec(source, b, geometry, b))
+        {
+            error = "cannot copy the geometry of " + b.GetParentPath().GetString();
+            return false;
+        }
+        if (const SdfPrimSpecHandle parent = design->GetPrimAtPath(b.GetParentPath()))
+            parent->RemoveNameChild(design->GetPrimAtPath(b));
+    }
+    if (const SdfPrimSpecHandle root = design->GetPrimAtPath(m_root))
+    {
+        root->ClearPayloadList();
+        if (!breps.empty())
+            root->GetPayloadList().Prepend(SdfPayload("./" + geometryName));
+    }
+    geometry->SetDefaultPrim(m_root.GetNameToken());
+    const std::string geometryPath = (file.parent_path() / geometryName).string();
+    if (!breps.empty() && !geometry->Export(geometryPath))
+    {
+        error = "cannot write " + geometryPath;
+        return false;
+    }
+    if (!design->Export(path))
     {
         error = "cannot write " + path;
         return false;
@@ -510,6 +583,7 @@ std::vector<Material> Document::Materials() const
             mat.roughness = m.value("roughness", 0.5);
             mat.emission = m.value("emission", 0.0);
             mat.shearModulus = m.value("shear_modulus", 0.0);
+            mat.elasticModulus = m.value("elastic_modulus", 0.0);
             mat.remanence = m.value("remanence", 0.0);
             mat.relativePermeability = m.value("relative_permeability", 0.0);
             list.push_back(mat);
@@ -543,7 +617,8 @@ bool Document::DefineMaterial(const Material& material, std::string& error)
                         {"metallic", material.metallic},
                         {"roughness", material.roughness},
                         {"emission", material.emission}};
-    for (const auto& [key, value] : {std::pair<const char*, double>{"shear_modulus", material.shearModulus}, {"remanence", material.remanence},
+    for (const auto& [key, value] : {std::pair<const char*, double>{"shear_modulus", material.shearModulus}, {"elastic_modulus", material.elasticModulus},
+                                     {"remanence", material.remanence},
                                      {"relative_permeability", material.relativePermeability}})
         if (value > 0.0)
             j[material.name][key] = value;
@@ -688,6 +763,8 @@ std::vector<JointInfo> Document::Joints() const
         j.motor = motor.is_object() ? motor : Json();
         const Json limits = ParseJson(GetString(prim, kLimits));
         j.limits = limits.is_array() ? limits : Json();
+        const Json start = ParseJson(GetString(prim, kStart));
+        j.start = start.is_discarded() ? Json() : start;
         list.push_back(std::move(j));
     }
     return list;
@@ -763,6 +840,27 @@ bool Document::DefineJoint(const JointInfo& joint, std::string& error)
         if (!error.empty())
             return false;
     }
+    if (!joint.start.is_null())
+    {
+        double value = 0;
+        const bool rotation = joint.type == "revolute" || joint.type == "cylindrical";
+        if (!rotation && joint.type != "prismatic")
+            error = "start places a revolute, prismatic or cylindrical joint";
+        else if (joint.start.is_object())
+        {
+            if (!rotation)
+                error = "start from the local time turns a revolute or cylindrical joint";
+            else if (!joint.start.contains("local_time") || !EvaluateNumber(joint.start["local_time"], value, e) || value == 0.0)
+                error = "start: {\"local_time\": period [s] (one turn: 60 a seconds hand, 3600 minutes, 43200 hours; negative turns the "
+                        "other way), \"offset\": rad (where the coordinate is at 00:00:00)}" + (e.empty() ? std::string() : ": " + e);
+            else if (joint.start.contains("offset") && !EvaluateNumber(joint.start["offset"], value, e))
+                error = "start offset: " + e;
+        }
+        else if (!EvaluateNumber(joint.start, value, e))
+            error = "start: a number or formula (rad or m), or {\"local_time\": period [s], \"offset\": rad}: " + e;
+        if (!error.empty())
+            return false;
+    }
     UsdGeomScope::Define(m_stage, m_root.AppendChild(kJoints));
     const SdfPath path = JointPath(joint.name);
     m_stage->RemovePrim(path);   // the schema follows the type
@@ -785,6 +883,7 @@ bool Document::DefineJoint(const JointInfo& joint, std::string& error)
     SetString(prim, kAxis, joint.axis.dump());
     SetString(prim, kMotor, joint.motor.is_null() ? std::string() : joint.motor.dump());
     SetString(prim, kLimits, joint.limits.is_null() ? std::string() : joint.limits.dump());
+    SetString(prim, kStart, joint.start.is_null() ? std::string() : joint.start.dump());
     WriteJointPhysics(prim, joint);
     Changed();
     return true;
@@ -883,6 +982,8 @@ const std::map<std::string, std::vector<Field>> kElementFields = {
       {"active_turns", 'n', false},
       {"damping", 'n', false}}},
     {"load", {{"joint", 'j', true}, {"constant", 'n', false}, {"linear", 'n', false}, {"quadratic", 'n', false}}},
+    {"torsion", {{"joint", 'j', true}, {"part", 'p', true}, {"free", 'n', false}, {"damping", 'n', false}, {"holder", 'p', false}}},
+    {"touch", {{"part0", 'p', true}, {"part1", 'p', true}, {"at", 'n', false}, {"stiffness", 'n', false}, {"damping", 'n', false}}},
     {"chamber",
      {{"piston", 'j', true},
       {"cylinder", 'p', true},
@@ -941,7 +1042,7 @@ bool Document::DefineElement(const ElementInfo& element, std::string& error)
     if (element.name.empty())
         error = "an element needs a name";
     else if (type == kElementFields.end())
-        error = "unknown element type '" + element.type + "' (gear, belt, rack, contact, spring, load, chamber, magneto)";
+        error = "unknown element type '" + element.type + "' (gear, belt, rack, contact, spring, torsion, touch, load, chamber, magneto)";
     else if (!element.definition.is_object())
         error = "the definition is an object of fields";
     if (!error.empty())
@@ -1136,24 +1237,91 @@ std::optional<PartInfo> Document::FindPart(const std::string& reference, std::st
 
 bool Document::BuildGeometry(const SdfPath& path, const PartInfo& part, std::string& error)
 {
-    kernel::Solid solid = BuildPart(part.features, Lookup(), error);
+    // An imported part (first feature "import") has no history to rebuild: its solid is the one stored with it,
+    // moved by the "rotate"/"translate" features after the import. Once moved, the solid as imported is kept in
+    // an "Imported" child, so that moves never pile up.
+    const bool imported = part.features.is_array() && !part.features.empty() && part.features[0].value("op", "") == "import";
+    kernel::Solid solid;
+    if (imported)
+    {
+        // The view deactivates stored geometry; it is read with the prim active.
+        auto read = [&](const SdfPath& child) {
+            std::vector<kernel::Solid> solids;
+            if (UsdPrim p = m_stage->GetPrimAtPath(child))
+            {
+                const bool inactive = !p.IsActive();
+                if (inactive)
+                    p.SetActive(true);
+                std::string e;
+                solids = kernel::ReadFromPrim(m_stage->GetPrimAtPath(child), e);
+                if (inactive)
+                    m_stage->GetPrimAtPath(child).SetActive(false);
+            }
+            return solids;
+        };
+        const SdfPath shapePath = path.AppendChild(kShape), importedPath = path.AppendChild(kImported);
+        const bool kept = bool(m_stage->GetPrimAtPath(importedPath));
+        if (!kept && part.features.size() == 1)
+        {
+            // Never moved: the stored solid is it.
+            if (auto it = m_shapes.find(path); it == m_shapes.end() || !it->second.solid.Valid())
+            {
+                std::vector<kernel::Solid> solids = read(shapePath);
+                if (solids.size() != 1)
+                {
+                    error = "the imported geometry of this part is missing (import it again)";
+                    return false;
+                }
+                SetShape(path, std::move(solids[0]));
+                LoadDerived(path);
+            }
+            const SdfPath look = m_root.AppendChild(kLooks).AppendChild(TfToken(PrimName(part.material)));
+            UsdShadeMaterialBindingAPI::Apply(m_stage->GetPrimAtPath(shapePath)).Bind(UsdShadeMaterial(m_stage->GetPrimAtPath(look)));
+            return true;
+        }
+        std::vector<kernel::Solid> original = read(kept ? importedPath : shapePath);
+        if (original.size() != 1)
+        {
+            error = "the imported geometry of this part is missing (import it again)";
+            return false;
+        }
+        if (!kept)
+        {
+            UsdPrim keep = m_stage->DefinePrim(importedPath, kBrepArray);
+            if (!kernel::WriteToPrim({&original[0]}, keep, error))
+                return false;
+            UsdGeomImageable(keep).MakeInvisible();
+        }
+        solid = std::move(original[0]);
+        if (!MovePart(part.features, 1, Lookup(), solid, error))
+            return false;
+        if (part.features.size() == 1)   // the moves were taken back: as imported again
+            m_stage->RemovePrim(importedPath);
+    }
+    else
+        solid = BuildPart(part.features, Lookup(), error);
     if (!solid.Valid())
         return false;
+    if (!WriteShape(path, part.material, solid, error))
+        return false;
+    SetShape(path, std::move(solid));
+    LoadDerived(path);   // still valid when the solid came out the same
+    return true;
+}
+
+bool Document::WriteShape(const SdfPath& path, const std::string& material, const kernel::Solid& solid, std::string& error)
+{
     // Exact geometry in the document (an old "Section" child from earlier versions is dropped).
     m_stage->RemovePrim(path.AppendChild(kShape));
     m_stage->RemovePrim(path.AppendChild(kSection));
     UsdPrim shape = m_stage->DefinePrim(path.AppendChild(kShape), kBrepArray);
-    std::string e;
-    if (!kernel::WriteToPrim({&solid}, shape, e))
-    {
-        error = e;
+    if (!kernel::WriteToPrim({&solid}, shape, error))
         return false;
-    }
-    const SdfPath look = m_root.AppendChild(kLooks).AppendChild(TfToken(PrimName(part.material)));
+    const SdfPath look = m_root.AppendChild(kLooks).AppendChild(TfToken(PrimName(material)));
     UsdShadeMaterialBindingAPI::Apply(shape).Bind(UsdShadeMaterial(m_stage->GetPrimAtPath(look)));
-    SetShape(path, std::move(solid));
     return true;
 }
+
 
 bool Document::CreatePart(PartInfo part, std::string& error)
 {
@@ -1183,6 +1351,11 @@ bool Document::CreatePart(PartInfo part, std::string& error)
     SetString(body, kBody, part.body);
     UsdPrim prim = UsdGeomXform::Define(m_stage, path).GetPrim();
     WritePart(prim, part);
+    // A part moved to another body or renamed (UpdatePart): its stored geometry comes along.
+    if (m_carry)
+        for (const TfToken& child : {kShape, kImported})
+            if (m_carry->GetPrimAtPath(m_carryFrom.AppendChild(child)))
+                SdfCopySpec(m_carry, m_carryFrom.AppendChild(child), m_stage->GetRootLayer(), path.AppendChild(child));
     if (!BuildGeometry(path, part, error))
     {
         m_stage->RemovePrim(path);
@@ -1211,11 +1384,23 @@ bool Document::UpdatePart(const SdfPath& path, const PartInfo& part, std::string
     const PartInfo before = ReadPart(prim);
     if (part.body != before.body || part.name != before.name)
     {
-        // Move/rename: recreate under the new body (the definition is everything).
+        // Move/rename: recreate under the new body (the definition is everything), taking its stored geometry along: an
+        // imported part has no history to rebuild it from.
         const Json snapshot = Snapshot(path);
+        SdfLayerRefPtr carry = SdfLayer::CreateAnonymous("carry.usda");
+        for (const TfToken& child : {kShape, kImported})
+            if (m_stage->GetRootLayer()->GetPrimAtPath(path.AppendChild(child)))
+            {
+                SdfCreatePrimInLayer(carry, path);
+                SdfCopySpec(m_stage->GetRootLayer(), path.AppendChild(child), carry, path.AppendChild(child));
+            }
         if (!DeletePart(path, error))
             return false;
-        if (!CreatePart(part, error))
+        m_carry = carry;
+        m_carryFrom = path;
+        const bool created = CreatePart(part, error);
+        m_carry = nullptr;
+        if (!created)
         {
             std::string ignore;
             Restore(path, snapshot, ignore);
@@ -1286,6 +1471,7 @@ void Document::SetShape(const SdfPath& path, kernel::Solid solid)
     entry.solid = std::move(solid);
     entry.revision = ++m_shapeCounter;
     entry.mesh.reset();
+    entry.fineMesh.reset();
     entry.unitMass.reset();
     entry.bounds.reset();
     entry.cuts.clear();
@@ -1308,6 +1494,7 @@ bool Document::Bounds(const SdfPath& part, kernel::Vec3& minimum, kernel::Vec3& 
         if (!kernel::BoundingBox(it->second.solid, lo, hi))
             return false;
         it->second.bounds = std::make_pair(lo, hi);
+        StoreDerived(part);
     }
     minimum = it->second.bounds->first;
     maximum = it->second.bounds->second;
@@ -1352,6 +1539,94 @@ const kernel::Mesh* Document::DisplayMesh(const SdfPath& part) const
     return it->second.mesh.get();
 }
 
+std::vector<std::vector<kernel::Vec3>> Document::SectionOutline(const SdfPath& part, const kernel::Vec3& point, const kernel::Vec3& normal) const
+{
+    auto it = m_shapes.find(part);
+    if (it == m_shapes.end())
+        return {};
+    if (!it->second.fineMesh)
+    {
+        kernel::Vec3 lo, hi;
+        const double size = Bounds(part, lo, hi) ? std::hypot(hi.x - lo.x, hi.y - lo.y, hi.z - lo.z) : 0.01;
+        auto mesh = std::make_shared<kernel::Mesh>();
+        std::string error;
+        kernel::Tessellate(it->second.solid, std::max(1e-6, size / 5000.0), 4.0, *mesh, error);
+        it->second.fineMesh = mesh;
+    }
+    return kernel::SectionLoops(*it->second.fineMesh, point, normal);
+}
+
+namespace
+{
+
+const TfToken kDerived("aiad:derived"), kVertexPositions("brep:vertexPoint:point:position");
+
+// Fingerprint of a stored solid: its vertices (any change of its geometry or place moves or adds some). 0: none.
+uint64_t ShapeKey(const UsdPrim& shape)
+{
+    VtVec3dArray points;
+    const UsdAttribute a = shape ? shape.GetAttribute(kVertexPositions) : UsdAttribute();
+    if (!a || !a.Get(&points) || points.empty())
+        return 0;
+    uint64_t h = 1469598103934665603ull;   // FNV-1a
+    const auto* bytes = reinterpret_cast<const unsigned char*>(points.cdata());
+    for (size_t i = 0; i < points.size() * sizeof(GfVec3d); ++i)
+        h = (h ^ bytes[i]) * 1099511628211ull;
+    return h;
+}
+
+}  // namespace
+
+void Document::LoadDerived(const SdfPath& part)
+{
+    auto it = m_shapes.find(part);
+    const UsdPrim prim = m_stage->GetPrimAtPath(part);
+    if (it == m_shapes.end() || !prim)
+        return;
+    ShapeEntry& entry = it->second;
+    entry.key = ShapeKey(m_stage->GetPrimAtPath(part.AppendChild(kShape)));
+    const Json j = ParseJson(GetString(prim, kDerived));
+    if (!entry.key || !j.is_object() || j.value("key", "") != std::format("{:016x}", entry.key))
+        return;
+    auto vec = [](const Json& a) { return kernel::Vec3{a[0].get<double>(), a[1].get<double>(), a[2].get<double>()}; };
+    if (j.contains("volume") && j.contains("centroid") && j.contains("inertia"))
+    {
+        kernel::MassProperties mp;
+        mp.volume = mp.mass = j["volume"].get<double>();
+        mp.area = j.value("area", 0.0);
+        mp.centroid = vec(j["centroid"]);
+        for (size_t k = 0; k < 6; ++k)
+            mp.inertia[k] = j["inertia"][k].get<double>();
+        entry.unitMass = mp;
+    }
+    if (j.contains("bounds"))
+        entry.bounds = std::make_pair(vec(j["bounds"][0]), vec(j["bounds"][1]));
+}
+
+void Document::StoreDerived(const SdfPath& part) const
+{
+    auto it = m_shapes.find(part);
+    UsdPrim prim = m_stage->GetPrimAtPath(part);
+    if (it == m_shapes.end() || !prim || !it->second.key)
+        return;
+    const ShapeEntry& entry = it->second;
+    Json j = {{"key", std::format("{:016x}", entry.key)}};
+    if (entry.unitMass)
+    {
+        const kernel::MassProperties& mp = *entry.unitMass;
+        j["volume"] = mp.volume;
+        j["area"] = mp.area;
+        j["centroid"] = {mp.centroid.x, mp.centroid.y, mp.centroid.z};
+        j["inertia"] = mp.inertia;
+    }
+    if (entry.bounds)
+        j["bounds"] = {{entry.bounds->first.x, entry.bounds->first.y, entry.bounds->first.z},
+                       {entry.bounds->second.x, entry.bounds->second.y, entry.bounds->second.z}};
+    // In the document itself (the view writes in the session layer): saved with it.
+    const UsdEditContext root(m_stage, m_stage->GetRootLayer());
+    prim.CreateAttribute(kDerived, SdfValueTypeNames->String, true).Set(j.dump());
+}
+
 bool Document::Mass(const SdfPath& part, kernel::MassProperties& out, std::string& error) const
 {
     const kernel::Solid* solid = Shape(part);
@@ -1368,6 +1643,7 @@ bool Document::Mass(const SdfPath& part, kernel::MassProperties& out, std::strin
         if (!kernel::ComputeMass(*solid, 1.0, unit, error))
             return false;
         entry.unitMass = unit;
+        StoreDerived(part);
     }
     // Mass and inertia scale with the material's density; massless materials (e.g. the spark) stay 0.
     const std::optional<Material> material = FindMaterial(ReadPart(prim).material);

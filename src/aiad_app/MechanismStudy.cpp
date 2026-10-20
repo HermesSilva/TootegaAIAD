@@ -619,6 +619,410 @@ void ReadSpring(Reader& r, const doc::ElementInfo& e, const std::set<std::string
     r.s.springBodies.push_back({part->body, int(r.s.machine.mechanism.springs.size()) - 1});
 }
 
+// ---- Spiral springs and touching outlines -----------------------------------------------------------------------------
+
+// Extent of a part along a direction (model frame, from its tessellation).
+void Extent(Reader& r, const doc::PartInfo& part, const Vec3& n, double& lo, double& hi)
+{
+    lo = 1e300, hi = -1e300;
+    for (const Vec3& p : r.Points(part))
+        lo = std::min(lo, Dot(p, n)), hi = std::max(hi, Dot(p, n));
+}
+
+// The part's outline on the plane {x : x.n = height} (model frame).
+std::vector<std::vector<Vec3>> OutlineAt(Reader& r, const doc::PartInfo& part, const Vec3& n, double height)
+{
+    const Vec3 o = r.d.BodyOrigin(part.body);
+    std::vector<std::vector<Vec3>> loops = r.d.SectionOutline(part.path, Sub(Mul(n, height), o), n);
+    for (auto& loop : loops)
+        for (Vec3& p : loop)
+            p = Add(p, o);
+    return loops;
+}
+
+// In-plane coordinates (u, v) for a normal.
+void PlaneAxes(const Vec3& n, Vec3& u, Vec3& v)
+{
+    u = Unit(Cross(n, std::abs(n.x) < 0.9 ? Vec3{1, 0, 0} : Vec3{0, 1, 0}));
+    v = Cross(n, u);
+}
+
+void ReadTorsion(Reader& r, const doc::ElementInfo& e)
+{
+    const int j = r.NeedJoint(e, "joint");
+    const doc::PartInfo* part = r.NeedPart(e, "part");
+    if (j < 0 || !part)
+        return;
+    const sim::mb::Joint& J = r.s.machine.mechanism.joints[size_t(j)];
+    const int body = r.Body(part->body);
+    const bool grounded = body >= 0 && !r.Moving(body) && (!r.Moving(J.body0) || !r.Moving(J.body1));
+    if (body < 0 || (r.Side(j, body) == 0 && !grounded))
+    {
+        r.Error(std::format("The spiral spring '{}' ('{}', in '{}') is not on either body of the joint '{}', which turns {} relative to {}.", e.name, part->name,
+                            part->body, J.name, r.BodyName(J.body0), r.BodyName(J.body1)),
+                "Name the joint it winds around, or draw it in one of that joint's bodies (aiad_part_update body).");
+        return;
+    }
+    const Vec3 axis = Unit(FromArr(J.axis)), centre = FromArr(J.point);
+    double lo, hi;
+    Extent(r, *part, axis, lo, hi);
+    const double height = hi - lo;
+    const std::vector<std::vector<Vec3>> loops = OutlineAt(r, *part, axis, (lo + hi) / 2.0);
+    // The strip: its length is half the outline's perimeter, its thickness the section's area over that.
+    double perimeter = 0.0, area = 0.0, winding = 0.0;
+    Vec3 u, v;
+    PlaneAxes(axis, u, v);
+    for (const auto& loop : loops)
+    {
+        double turned = 0.0, low = 0.0, high = 0.0, previous = 0.0;
+        for (size_t i = 0; i < loop.size(); ++i)
+        {
+            const Vec3& a = loop[i];
+            const Vec3& b = loop[(i + 1) % loop.size()];
+            perimeter += Norm(Sub(b, a));
+            area += Dot(Cross(Sub(a, centre), Sub(b, centre)), axis) / 2.0;
+            const Vec3 d = Sub(a, centre);
+            const double angle = std::atan2(Dot(d, v), Dot(d, u));
+            if (i > 0)
+                turned += std::remainder(angle - previous, 2.0 * std::numbers::pi);
+            previous = angle;
+            low = std::min(low, turned), high = std::max(high, turned);
+        }
+        winding = std::max(winding, high - low);
+    }
+    double length = perimeter / 2.0;
+    const double thickness = length > 0.0 ? std::abs(area) / length : 0.0;
+    if (loops.empty() || thickness <= 0.0)
+    {
+        r.Error(std::format("'{}' (the spiral spring '{}') has no section across the axis of '{}' at its mid-height.", part->name, e.name, J.name),
+                "Draw the spring as a strip wound around the joint's axis (sketch tool spiral, extruded along the axis).");
+        return;
+    }
+    if (thickness > 0.05 * length)
+    {
+        r.Error(std::format("'{}' is not a spiral strip: its section is {:.2f} mm long and {:.3f} mm thick.", part->name, length * 1e3, thickness * 1e3),
+                "A spiral spring is a long thin strip (sketch tool spiral).");
+        return;
+    }
+    if (winding < 1.8 * std::numbers::pi)
+    {
+        r.Error(std::format("'{}' does not wind around the axis of '{}': its outline turns {:.0f} deg around it.", part->name, J.name,
+                            winding * 180.0 / std::numbers::pi),
+                std::format("Name the joint whose staff or arbor it is coiled around, or put the joint on the spiral's centre."));
+        return;
+    }
+    const std::optional<doc::Material> material = r.d.FindMaterial(part->material);
+    const double E = material ? material->elasticModulus : 0.0;
+    if (E <= 0.0)
+    {
+        r.Error(std::format("The material '{}' of the spiral spring '{}' has no elastic modulus, so its stiffness is unknown.", part->material, part->name),
+                std::format("Give it one: aiad_material_define '{}' with elastic_modulus (steel 200e9 Pa, Nivarox 190e9 Pa).", part->material));
+        return;
+    }
+    // A holder (a watch regulator's index pins): the strip works only up to where it holds it; the rest, to the outer end
+    // (the stud), does not bend. The holder is where its body is set (an adjuster's start), so moving it changes the rate.
+    std::string held;
+    if (const std::string holderName = e.definition.value("holder", ""); !holderName.empty())
+    {
+        const doc::PartInfo* holder = r.NeedPart(e, "holder");
+        if (!holder)
+            return;
+        Vec3 c{0, 0, 0};
+        const std::vector<Vec3>& pts = r.Points(*holder);
+        for (const Vec3& p : pts)
+            c = Add(c, Mul(p, 1.0 / double(std::max<size_t>(pts.size(), 1))));
+        // Where its body is set: turned (slid) by the start of the joint that moves it.
+        const int hb = r.Body(holder->body);
+        for (const sim::mb::Joint& HJ : r.s.machine.mechanism.joints)
+            if (hb >= 0 && HJ.start != 0.0 && (HJ.body0 == hb || HJ.body1 == hb) && r.Moving(hb))
+            {
+                const double turn = HJ.body0 == hb ? HJ.start : -HJ.start;
+                const Vec3 ha = Unit(FromArr(HJ.axis)), hp = FromArr(HJ.point);
+                if (HJ.type == sim::mb::JointType::Prismatic)
+                    c = Add(c, Mul(ha, turn));
+                else
+                {
+                    const Vec3 d = Sub(c, hp), along = Mul(ha, Dot(d, ha)), across = Sub(d, along);
+                    c = Add(hp, Add(along, Add(Mul(across, std::cos(turn)), Mul(Cross(ha, across), std::sin(turn)))));
+                }
+                break;
+            }
+        // The strip's outer end and the way it winds outward, from its outline about the axis.
+        double outerR = -1.0, innerR = 1e300, outerTurn = 0.0, innerTurn = 0.0, outerAngle = 0.0;
+        for (const auto& loop : loops)
+        {
+            double turned = 0.0, previous = 0.0;
+            for (size_t i = 0; i < loop.size(); ++i)
+            {
+                const Vec3 d = Sub(loop[i], centre);
+                const double angle = std::atan2(Dot(d, v), Dot(d, u)), radius = Norm(Radial(loop[i], centre, axis));
+                if (i > 0)
+                    turned += std::remainder(angle - previous, 2.0 * std::numbers::pi);
+                previous = angle;
+                if (radius > outerR)
+                    outerR = radius, outerTurn = turned, outerAngle = angle;
+                if (radius < innerR)
+                    innerR = radius, innerTurn = turned;
+            }
+        }
+        const double outward = outerTurn >= innerTurn ? 1.0 : -1.0;
+        const Vec3 hd = Radial(c, centre, axis);
+        const double holdR = Norm(hd), holdAngle = std::atan2(Dot(hd, v), Dot(hd, u));
+        // From the holder outward to the end, the way the strip winds out.
+        const double slack = std::fmod(std::fmod(outward * (outerAngle - holdAngle), 2.0 * std::numbers::pi) + 2.0 * std::numbers::pi, 2.0 * std::numbers::pi);
+        const double cut = holdR * slack;
+        if (holdR < innerR || holdR > outerR * 1.2 || cut >= 0.5 * length)
+        {
+            r.Error(std::format("The holder '{}' of the spiral spring '{}' is not on its outer coil ({:.2f} mm from the axis; the strip spans {:.2f} .. {:.2f} mm).",
+                                holder->name, e.name, holdR * 1e3, innerR * 1e3, outerR * 1e3),
+                    "Name as holder the part that holds the strip near its outer end (a regulator's index pins).");
+            return;
+        }
+        length -= cut;
+        held = std::format("; held by '{}' {:.2f} mm before its end, so {:.1f} mm of it work", holder->name, cut * 1e3, length * 1e3);
+    }
+    sim::mb::TorsionSpring t;
+    t.name = e.name;
+    t.joint = j;
+    t.stiffness = E * height * std::pow(thickness, 3) / (12.0 * length);
+    t.free = r.Number(e, "free", 0.0);
+    t.damping = r.Number(e, "damping", 0.0);
+    std::string text = std::format("Spiral spring {}: '{}', strip {:.1f} mm long, {:.1f} um thick, {:.2f} mm high, E {:.0f} GPa: {:.4g} N mm/rad on '{}'", e.name,
+                                   part->name, perimeter / 2.0 * 1e3, thickness * 1e6, height * 1e3, E * 1e-9, t.stiffness * 1e3, J.name);
+    text += held;
+    if (t.free != 0.0)
+        text += std::format(", wound {:.2f} turns: {:.4g} N mm at rest", t.free / (2.0 * std::numbers::pi), t.stiffness * t.free * 1e3);
+    // What it oscillates with alone (a balance): the moving side's inertia about the axis.
+    const int moving = r.Moving(J.body0) && !r.Moving(J.body1) ? J.body0 : !r.Moving(J.body0) && r.Moving(J.body1) ? J.body1 : -1;
+    if (moving >= 0)
+    {
+        const sim::mb::Body& b = r.s.machine.mechanism.bodies[size_t(moving)];
+        const double t3[3][3] = {{b.inertia[0], b.inertia[5], b.inertia[4]}, {b.inertia[5], b.inertia[1], b.inertia[3]}, {b.inertia[4], b.inertia[3], b.inertia[2]}};
+        const double a[3] = {axis.x, axis.y, axis.z};
+        double I = 0.0;
+        for (int p = 0; p < 3; ++p)
+            for (int q = 0; q < 3; ++q)
+                I += a[p] * t3[p][q] * a[q];
+        const Vec3 off = Radial(FromArr(b.centroid), centre, axis);
+        I += b.mass * Dot(off, off);
+        const double f = std::sqrt(t.stiffness / I) / (2.0 * std::numbers::pi);
+        text += std::format("; with {} ({:.3g} kg m^2) it swings at {:.3f} Hz ({:.0f} beats per hour)", r.BodyName(moving), I, f, 2.0 * f * 3600.0);
+    }
+    r.s.measured.push_back(text + ".");
+    r.s.machine.mechanism.torsions.push_back(t);
+}
+
+void ReadTouch(Reader& r, const doc::ElementInfo& e)
+{
+    const doc::PartInfo* p0 = r.NeedPart(e, "part0");
+    const doc::PartInfo* p1 = r.NeedPart(e, "part1");
+    if (!p0 || !p1)
+        return;
+    const int b0 = r.Body(p0->body), b1 = r.Body(p1->body);
+    if (b0 < 0 || b1 < 0)
+    {
+        r.Error(std::format("A part of the touch '{}' is in a body that only holds a spring.", e.name), "Name rigid parts.");
+        return;
+    }
+    if (b0 == b1)
+    {
+        r.Error(std::format("'{}' and '{}' (the touch '{}') are both in '{}': they never move relative to each other.", p0->name, p1->name, e.name, p0->body),
+                "Name parts of the two bodies that touch.");
+        return;
+    }
+    if (!r.Moving(b0) && !r.Moving(b1))
+    {
+        r.Error(std::format("In the touch '{}' neither '{}' nor '{}' moves.", e.name, p0->body, p1->body), "Mount them on joints.");
+        return;
+    }
+    // The plane they move in: the axis their bodies turn about.
+    Vec3 n;
+    bool planar = false;
+    for (const int b : {b0, b1})
+    {
+        if (!r.Moving(b))
+            continue;
+        for (const sim::mb::Joint& j : r.s.machine.mechanism.joints)
+            if (Rotational(j.type) && (j.body0 == b || j.body1 == b))
+            {
+                const Vec3 a = Unit(FromArr(j.axis));
+                if (!planar)
+                    n = a, planar = true;
+                else if (Norm(Cross(n, a)) > 0.01)
+                {
+                    r.Error(std::format("'{}' and '{}' (the touch '{}') turn about different axes ({} and {}): their outlines do not move in one plane.",
+                                        p0->body, p1->body, e.name, Mm(Mul(n, 1e-3)), Mm(Mul(a, 1e-3))),
+                            "A touch is planar: the two bodies must turn about parallel axes.");
+                    return;
+                }
+                break;
+            }
+    }
+    if (!planar)
+    {
+        r.Error(std::format("Neither body of the touch '{}' turns on a revolute joint: the plane the outlines move in is unknown.", e.name),
+                "Mount the moving part on a revolute (or cylindrical) joint.");
+        return;
+    }
+    double lo0, hi0, lo1, hi1;
+    Extent(r, *p0, n, lo0, hi0);
+    Extent(r, *p1, n, lo1, hi1);
+    const double lo = std::max(lo0, lo1), hi = std::min(hi0, hi1);
+    if (hi - lo <= 1e-6)
+    {
+        r.Error(std::format("'{}' spans {:.3f} .. {:.3f} mm and '{}' {:.3f} .. {:.3f} mm along their axis: at different heights, they never touch.", p0->name,
+                            lo0 * 1e3, hi0 * 1e3, p1->name, lo1 * 1e3, hi1 * 1e3),
+                "Name the parts that are at the same height, or move one of them along the axis.");
+        return;
+    }
+    sim::mb::Touch t;
+    t.name = e.name;
+    t.body0 = b0;
+    t.body1 = b1;
+    t.normal = Arr(n);
+    t.stiffness = r.Number(e, "stiffness", 0.0);
+    t.damping = r.Number(e, "damping", -1.0);
+    const double height = e.definition.contains("at") ? r.Number(e, "at", 0.0) : (lo + hi) / 2.0;
+    if (height < lo - 1e-9 || height > hi + 1e-9)
+    {
+        r.Error(std::format("The touch '{}' is cut at {:.3f} mm, outside the heights both parts share ({:.3f} .. {:.3f} mm).", e.name, height * 1e3, lo * 1e3, hi * 1e3),
+                "Give 'at' a height inside that range, or leave it out (the middle of it).");
+        return;
+    }
+    std::vector<std::vector<Vec3>> o0 = OutlineAt(r, *p0, n, height), o1 = OutlineAt(r, *p1, n, height);
+    if (o0.empty() || o1.empty())
+    {
+        r.Error(std::format("The touch '{}': '{}' has no outline at {:.3f} mm.", e.name, (o0.empty() ? p0 : p1)->name, height * 1e3),
+                "Check that the part is a closed solid there.");
+        return;
+    }
+    Vec3 u, v;
+    PlaneAxes(n, u, v);
+    // A fixed side (a plate with its bankings) is cropped to where the moving side can reach: a square around the
+    // moving body's axis, as wide as its outline's farthest point (plus a margin). Clipping each loop to a convex
+    // window keeps which points are in the material inside the window.
+    for (int side = 0; side < 2; ++side)
+    {
+        const int still = side == 0 ? b0 : b1, moving = side == 0 ? b1 : b0;
+        if (r.Moving(still) || !r.Moving(moving))
+            continue;
+        const sim::mb::Joint* turn = nullptr;
+        for (const sim::mb::Joint& j : r.s.machine.mechanism.joints)
+            if (Rotational(j.type) && (j.body0 == moving || j.body1 == moving))
+            {
+                turn = &j;
+                break;
+            }
+        if (!turn || r.Moving(turn->body0 == moving ? turn->body1 : turn->body0))
+            continue;   // its axis moves too: no fixed reach
+        const Vec3 c = FromArr(turn->point);
+        double reach = 0.0;
+        for (const auto& loop : side == 0 ? o1 : o0)
+            for (const Vec3& p : loop)
+                reach = std::max(reach, Norm(Radial(p, c, n)));
+        reach = reach * 1.1 + 0.0002;
+        const double cu = Dot(c, u), cv = Dot(c, v);
+        std::vector<std::vector<Vec3>> cropped;
+        for (const auto& loop : side == 0 ? o0 : o1)
+        {
+            std::vector<Vec3> poly = loop;
+            // Sutherland-Hodgman against the four sides of the square (u, v around c).
+            for (int edge = 0; edge < 4 && !poly.empty(); ++edge)
+            {
+                const Vec3 axis = edge < 2 ? u : v;
+                const double limit = (edge < 2 ? cu : cv) + (edge % 2 == 0 ? reach : -reach), sign = edge % 2 == 0 ? 1.0 : -1.0;
+                auto inside = [&](const Vec3& p) { return sign * (Dot(p, axis) - limit) <= 0.0; };
+                std::vector<Vec3> out;
+                for (size_t i = 0; i < poly.size(); ++i)
+                {
+                    const Vec3& a = poly[i];
+                    const Vec3& b = poly[(i + 1) % poly.size()];
+                    if (inside(a))
+                        out.push_back(a);
+                    if (inside(a) != inside(b))
+                    {
+                        const double da = Dot(a, axis) - limit, db = Dot(b, axis) - limit;
+                        out.push_back(Add(a, Mul(Sub(b, a), da / (da - db))));
+                    }
+                }
+                poly = std::move(out);
+            }
+            if (poly.size() >= 3)
+                cropped.push_back(std::move(poly));
+        }
+        (side == 0 ? o0 : o1) = std::move(cropped);
+    }
+    // At rest: how far one outline enters the other, or the gap between them (in the plane).
+    using Loops = std::vector<std::vector<std::array<double, 2>>>;
+    auto flat = [&](const std::vector<std::vector<Vec3>>& loops) {
+        Loops out;
+        for (const auto& loop : loops)
+        {
+            auto& l = out.emplace_back();
+            for (const Vec3& p : loop)
+                l.push_back({Dot(p, u), Dot(p, v)});
+        }
+        return out;
+    };
+    const Loops f0 = flat(o0), f1 = flat(o1);
+    auto inside = [](const Loops& loops, double x, double y) {
+        bool in = false;
+        for (const auto& l : loops)
+            for (size_t i = 0, k = l.size() - 1; i < l.size(); k = i++)
+                if ((l[i][1] > y) != (l[k][1] > y) && x < (l[k][0] - l[i][0]) * (y - l[i][1]) / (l[k][1] - l[i][1]) + l[i][0])
+                    in = !in;
+        return in;
+    };
+    auto nearest = [](const Loops& loops, double x, double y) {
+        double best = 1e300;
+        for (const auto& l : loops)
+            for (size_t i = 0; i < l.size(); ++i)
+            {
+                const auto& a = l[i];
+                const auto& b = l[(i + 1) % l.size()];
+                const double eu = b[0] - a[0], ev = b[1] - a[1], len2 = eu * eu + ev * ev;
+                const double s = len2 > 0.0 ? std::clamp(((x - a[0]) * eu + (y - a[1]) * ev) / len2, 0.0, 1.0) : 0.0;
+                best = std::min(best, std::hypot(x - a[0] - s * eu, y - a[1] - s * ev));
+            }
+        return best;
+    };
+    double depth = 0.0, gap = 1e300;
+    size_t points = 0;
+    for (const auto& [a, b] : {std::pair<const Loops*, const Loops*>{&f0, &f1}, {&f1, &f0}})
+        for (const auto& l : *a)
+            for (const auto& p : l)
+            {
+                ++points;
+                const double d = nearest(*b, p[0], p[1]);
+                if (inside(*b, p[0], p[1]))
+                    depth = std::max(depth, d);
+                else
+                    gap = std::min(gap, d);
+            }
+    double size = 1e300;
+    for (const Loops* l : {&f0, &f1})
+    {
+        double x0 = 1e300, x1 = -1e300, y0 = 1e300, y1 = -1e300;
+        for (const auto& loop : *l)
+            for (const auto& p : loop)
+                x0 = std::min(x0, p[0]), x1 = std::max(x1, p[0]), y0 = std::min(y0, p[1]), y1 = std::max(y1, p[1]);
+        size = std::min(size, std::max(x1 - x0, y1 - y0));
+    }
+    if (depth > 0.05 * size)
+        r.Error(std::format("'{}' and '{}' overlap by {:.3f} mm at rest (at {:.3f} mm along their axis).", p0->name, p1->name, depth * 1e3, height * 1e3),
+                "Draw them where they just touch, or apart: a touch pushes overlapping outlines apart at once.");
+    r.s.measured.push_back(std::format("Touch {}: '{}' and '{}' at {:.3f} mm (heights overlap {:.3f} mm), {} outline points; at rest {}.", e.name, p0->name,
+                                       p1->name, height * 1e3, (hi - lo) * 1e3, points,
+                                       depth > 0.0 ? std::format("touching ({:.1f} um in)", depth * 1e6) : std::format("{:.3f} mm apart", gap * 1e3)));
+    for (const auto& loop : o0)
+        for (auto& out = t.outline0.emplace_back(); const Vec3& p : loop)
+            out.push_back(Arr(p));
+    for (const auto& loop : o1)
+        for (auto& out = t.outline1.emplace_back(); const Vec3& p : loop)
+            out.push_back(Arr(p));
+    r.s.machine.mechanism.touches.push_back(t);
+}
+
 // ---- Magnetos -------------------------------------------------------------------------------------------------------
 
 void ReadMagneto(Reader& r, const doc::ElementInfo& e)
@@ -995,9 +1399,17 @@ bool DeriveMechanismStudy(const doc::Document& d, MechanismStudy& study)
         {
             if (p.body != name)
                 continue;
+            // A fixed body does not move: its mass is no input (and the exact mass of a large imported part costs
+            // seconds); its parts only need a valid solid.
             kernel::MassProperties mp;
             std::string e;
-            if (!d.Mass(p.path, mp, e))
+            if (body.fixed)
+            {
+                const kernel::Solid* solid = d.Shape(p.path);
+                if (!solid || !solid->Valid())
+                    r.Error(std::format("'{}' has no valid solid.", p.name), "Fix its features (Properties panel, or aiad_part_update) until it regenerates.");
+            }
+            else if (!d.Mass(p.path, mp, e))
                 r.Error(std::format("'{}' has no valid solid, so its mass is unknown: {}.", p.name, e),
                         "Fix its features (Properties panel, or aiad_part_update) until it regenerates.");
             else if (mp.mass > 0.0)
@@ -1072,6 +1484,21 @@ bool DeriveMechanismStudy(const doc::Document& d, MechanismStudy& study)
             for (size_t i = 0; i < 2 && i < j.limits.size(); ++i)
                 if (double v = 0; !j.limits[i].is_null() && d.EvaluateNumber(j.limits[i], v, e))
                     (i == 0 ? joint.lower : joint.upper) = v;
+        // Where it starts: a value, or the local time when the simulation starts (read then by the solver).
+        if (j.start.is_object())
+        {
+            if (!d.EvaluateNumber(j.start.value("local_time", Json(0)), joint.clockPeriod, e) ||
+                (j.start.contains("offset") && !d.EvaluateNumber(j.start["offset"], joint.start, e)))
+                r.Error(std::format("The start of '{}' cannot be evaluated: {}.", j.name, e), "Fix its start (aiad_joint_define).");
+        }
+        else if (!j.start.is_null() && !d.EvaluateNumber(j.start, joint.start, e))
+            r.Error(std::format("The start of '{}' cannot be evaluated: {}.", j.name, e), "Fix its start (aiad_joint_define).");
+        if (joint.clockPeriod != 0.0)
+            r.s.measured.push_back(std::format("Joint {}: starts at the local time, one turn per {:g} s{} (offset {:.4f} rad at 00:00:00).", j.name,
+                                               std::abs(joint.clockPeriod), joint.clockPeriod < 0.0 ? ", the other way" : "", joint.start));
+        else if (joint.start != 0.0)
+            r.s.measured.push_back(std::format("Joint {}: starts at {:g} {} from the drawn position.", j.name, joint.start,
+                                               joint.type == sim::mb::JointType::Prismatic ? "m" : "rad"));
         for (const std::string& body : {j.body0, j.body1})
         {
             if (body.empty())
@@ -1089,7 +1516,7 @@ bool DeriveMechanismStudy(const doc::Document& d, MechanismStudy& study)
 
     // Elements: loads, couplings, contacts and springs (the mechanism), then magnetos and chambers.
     std::map<std::string, int> magnetos;
-    for (const char* kind : {"load", "gear", "belt", "rack", "contact", "spring", "magneto", "chamber"})
+    for (const char* kind : {"load", "gear", "belt", "rack", "contact", "spring", "torsion", "touch", "magneto", "chamber"})
         for (const doc::ElementInfo& e : elements)
         {
             if (e.type != kind)
@@ -1110,6 +1537,10 @@ bool DeriveMechanismStudy(const doc::Document& d, MechanismStudy& study)
                 ReadContact(r, e);
             else if (e.type == "spring")
                 ReadSpring(r, e, springBodies);
+            else if (e.type == "torsion")
+                ReadTorsion(r, e);
+            else if (e.type == "touch")
+                ReadTouch(r, e);
             else if (e.type == "magneto")
             {
                 const size_t before = study.machine.magnetos.size();
@@ -1120,6 +1551,45 @@ bool DeriveMechanismStudy(const doc::Document& d, MechanismStudy& study)
             else
                 ReadChamber(r, e, magnetos);
         }
+
+    // Adjusters: a joint with a range on both sides that nothing drives is set by hand (a regulator, a screw, a lever):
+    // it is held at its start while the machine runs, and the user (or the agent) moves it.
+    {
+        std::set<int> drivenJoints, drivenBodies;
+        for (const sim::mb::Coupling& c : model.couplings)
+            drivenJoints.insert(c.joint0), drivenJoints.insert(c.joint1);
+        for (const sim::mb::TorsionSpring& t : model.torsions)
+            drivenJoints.insert(t.joint);
+        for (const sim::mb::Touch& t : model.touches)
+            drivenBodies.insert(t.body0), drivenBodies.insert(t.body1);
+        for (const sim::mb::Contact& c : model.contacts)
+            drivenBodies.insert(c.body), drivenBodies.insert(c.follower);
+        for (const sim::mb::Spring& s : model.springs)
+            drivenBodies.insert(s.body0), drivenBodies.insert(s.body1);
+        for (size_t j = 0; j < model.joints.size(); ++j)
+        {
+            sim::mb::Joint& joint = model.joints[j];
+            const bool rotation = joint.type == sim::mb::JointType::Revolute || joint.type == sim::mb::JointType::Cylindrical;
+            if ((!rotation && joint.type != sim::mb::JointType::Prismatic) || !joint.lower || !joint.upper || *joint.lower >= *joint.upper ||
+                joint.motor.mode != sim::mb::Motor::Mode::None || joint.clockPeriod != 0.0 || drivenJoints.contains(int(j)))
+                continue;
+            const int moved = r.Moving(joint.body0) ? joint.body0 : joint.body1;
+            if (moved < 0 || !r.Moving(moved) || drivenBodies.contains(joint.body0) || drivenBodies.contains(joint.body1))
+                continue;
+            if (joint.start < *joint.lower || joint.start > *joint.upper)
+            {
+                r.Error(std::format("The adjuster '{}' is set at {:.4g}, outside its range {:.4g} .. {:.4g}.", joint.name, joint.start, *joint.lower,
+                                    *joint.upper),
+                        "Set it inside its range (aiad_adjust), or widen its limits (aiad_joint_define).");
+                continue;
+            }
+            study.adjusters.push_back({int(j), joint.name, study.bodies[size_t(moved)], rotation, *joint.lower, *joint.upper, joint.start});
+            r.s.measured.push_back(std::format("Adjuster {}: {} is set by hand, {} {:.4g} {} (range {:.4g} .. {:.4g}); held there while it runs.",
+                                               joint.name, r.BodyName(moved), rotation ? "turned" : "slid", joint.start, rotation ? "rad" : "m",
+                                               *joint.lower, *joint.upper));
+            joint.lower = joint.upper = joint.start;   // held where it is set
+        }
+    }
 
     // Ground and connection: every moving body must hang from the ground through joints.
     std::set<int> grounded;
@@ -1161,9 +1631,9 @@ bool DeriveMechanismStudy(const doc::Document& d, MechanismStudy& study)
 
     // Mobility, and what drives the machine.
     study.mobility = sim::mb::Mobility(model);
-    const bool driven = !study.machine.chambers.empty() || std::any_of(model.joints.begin(), model.joints.end(), [](const sim::mb::Joint& j) {
-                            return j.motor.mode != sim::mb::Motor::Mode::None;
-                        });
+    const bool driven = !study.machine.chambers.empty() ||
+                        std::any_of(model.joints.begin(), model.joints.end(), [](const sim::mb::Joint& j) { return j.motor.mode != sim::mb::Motor::Mode::None; }) ||
+                        std::any_of(model.torsions.begin(), model.torsions.end(), [](const sim::mb::TorsionSpring& t) { return t.free != 0.0; });
     if (study.mobility < 0)
         r.Note(std::format("The joints over-constrain the mechanism ({} by the Gruebler-Kutzbach count): some constraints are redundant. It "
                            "still runs if the drawing is consistent; if it locks, a joint does not match the geometry.",

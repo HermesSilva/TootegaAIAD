@@ -420,6 +420,35 @@ Solid Pipe(const std::vector<Vec3>& path, double radius, std::string& error)
     return Solid();
 }
 
+namespace
+{
+
+// What makes SMLib's booleans fail (measured: a 50 um ring and mark fail joined flush or overlapping; from about
+// 0.15 mm they work).
+constexpr const char* kBooleanHint =
+    "The kernel fails on solids that touch exactly along faces (on the same plane, or a face lying on another) and on "
+    "features finer than about 0.15 mm (ring, marks, walls). Overlap the solids clearly instead of letting them touch, "
+    "or make the fine features larger, or keep them as separate parts";
+
+// SMLib's merge of coincident faces can read outside its arrays (an access violation in SmApiBooleanUnion, e.g. a ring
+// and markers sharing their top face): caught here, so that the boolean fails instead of the application.
+SmApiStatus GuardedBoolean(BooleanOp op, SmBrep* a, SmBrep* b, SmBrep** result, bool* crashed)
+{
+    __try
+    {
+        return op == BooleanOp::Union      ? SmApiBooleanUnion(a, b, *result)
+               : op == BooleanOp::Subtract ? SmApiBooleanDifference(a, b, *result)
+                                           : SmApiBooleanIntersection(a, b, *result);
+    }
+    __except (GetExceptionCode() == 0xC0000005 /* access violation */ ? 1 /* handle */ : 0 /* search on */)
+    {
+        *crashed = true;
+        return SM_ERR;
+    }
+}
+
+}  // namespace
+
 bool Boolean(Solid& a, Solid&& b, BooleanOp op, std::string& error)
 {
     SmBrep* pa = Access::Get(a);
@@ -430,11 +459,23 @@ bool Boolean(Solid& a, Solid&& b, BooleanOp op, std::string& error)
         return false;
     }
     SmBrep* result = nullptr;
-    const SmApiStatus s = op == BooleanOp::Union      ? SmApiBooleanUnion(pa, pb, result)
-                          : op == BooleanOp::Subtract ? SmApiBooleanDifference(pa, pb, result)
-                                                      : SmApiBooleanIntersection(pa, pb, result);
+    bool crashed = false;
+    const SmApiStatus s = GuardedBoolean(op, pa, pb, &result, &crashed);
+    if (crashed)
+    {
+        // Both operands may be half rewritten: never touched again (leaked rather than freed).
+        Access::Release(a);
+        Access::Release(b);
+        error = std::string(op == BooleanOp::Union ? "union" : op == BooleanOp::Subtract ? "subtract" : "intersect") +
+                " failed inside the geometry kernel (it stopped on bad memory, caught). " + kBooleanHint;
+        return false;
+    }
     if (s != SM_SUCCESS || result != pa)
-        return Fail(error, op == BooleanOp::Union ? "union" : op == BooleanOp::Subtract ? "subtract" : "intersect", s);
+    {
+        Fail(error, op == BooleanOp::Union ? "union" : op == BooleanOp::Subtract ? "subtract" : "intersect", s);
+        error += ". " + std::string(kBooleanHint);
+        return false;
+    }
     Access::Release(b);  // deleted by SMLib on success
     return true;
 }
@@ -483,12 +524,15 @@ Solid KeepBelow(const Solid& solid, const Vec3& point, const Vec3& normal, std::
 
 bool ComputeMass(const Solid& solid, double density, MassProperties& out, std::string& error)
 {
-    const SmBrep* brep = Access::Get(solid);
-    if (!brep)
+    if (!solid.Valid())
     {
         error = "mass of an empty solid";
         return false;
     }
+    // On a copy: SMLib's mass integration changes the brep, and every later tessellation of it (and of its copies)
+    // comes out coarse or broken (a hairspring's section lost 7 points in 8; its display mesh had -485 % volume).
+    const Solid scratch = solid.Copy();
+    const SmBrep* brep = Access::Get(scratch);
     SmPoint3d centroid;
     SmVector3d moments, products;
     double area = 0, volume = 0, mass = 0;

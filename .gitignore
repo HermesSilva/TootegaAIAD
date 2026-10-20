@@ -42,3 +42,6 @@
 
 # Per-installation app state (layout, chat placement, agent timeline)
 .aiad/
+
+# Local working material (third-party CAD sources, scratch files): never versioned
+/Temp/

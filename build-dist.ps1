@@ -98,6 +98,15 @@ Step '6/9 Assemble Dist (exe, DLLs, runtime)' {
     $cache = Join-Path $Dist 'magneto_table.txt'
     $savedCache = Join-Path $env:TEMP 'aiad_magneto_table.txt'
     if (Test-Path $cache) { Copy-Item $cache $savedCache -Force }
+    # Keep the user's state: the app's settings and layout (.aiad) and the agent's sessions in the models folder
+    # (models\.aiad: TimeLine). Put back over the fresh copy below.
+    $kept = Join-Path $env:TEMP 'aiad_dist_state'
+    Remove-Item $kept -Recurse -Force -ErrorAction SilentlyContinue
+    foreach ($state in '.aiad', 'models\.aiad')
+    {
+        $from = Join-Path $Dist $state
+        if (Test-Path $from) { Copy-Item $from (Join-Path $kept $state) -Recurse -Force -ErrorAction Stop }
+    }
     if (Test-Path $Dist)
     {
         try { Remove-Item $Dist -Recurse -Force -ErrorAction Stop }
@@ -152,6 +161,17 @@ Step '6/9 Assemble Dist (exe, DLLs, runtime)' {
     $tool = Get-Item (Join-Path $Runtime 'aiad-model.exe') -ErrorAction SilentlyContinue
     if ($tool) { Copy-Item $tool.FullName $Dist }
     if (Test-Path $savedCache) { Copy-Item $savedCache $cache }
+    foreach ($state in '.aiad', 'models\.aiad')
+    {
+        $from = Join-Path $kept $state
+        if (Test-Path $from)
+        {
+            $to = Join-Path $Dist $state
+            New-Item -ItemType Directory $to -Force | Out-Null
+            Copy-Item (Join-Path $from '*') $to -Recurse -Force
+            Write-Host "    kept $state"
+        }
+    }
 }
 
 Step '7/9 Assemble Dist (USD plugins, MaterialX)' {

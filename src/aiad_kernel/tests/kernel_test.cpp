@@ -91,6 +91,17 @@ int main()
     CHECK(Boolean(plate, Cylinder({0.025, 0.025, -0.01}, {0, 0, 1}, 0.005, 0.03, error), BooleanOp::Subtract, error));
     CHECK(IsManifoldSolid(plate) && Near(Volume(plate), 0.05 * 0.05 * 0.01 - pi * 0.005 * 0.005 * 0.01, 1e-4));
 
+    // A watch dial's track: two 50 um rings and a mark flush between them. SMLib crashed inside this union (access
+    // violation in its coincident-face merge): it must come back as a failed boolean with its explanation.
+    {
+        Plane xzPlane{{0, 0, 0}, {1, 0, 0}, {0, 0, 1}};
+        auto ring = [&](double r0, double r1) { return Revolve(xzPlane, {{r0, -4e-5, 0}, {r1, -4e-5, 0}, {r1, 0, 0}, {r0, 0, 0}}, 0, 0, 0, 1, 360.0, error); };
+        Solid track = ring(0.01685, 0.0169);
+        CHECK(Boolean(track, ring(0.0173, 0.01735), BooleanOp::Union, error));
+        std::string why;
+        CHECK(!Boolean(track, Box({0.0169, -2.5e-5, -4e-5}, {4e-4, 5e-5, 4e-5}, error), BooleanOp::Union, why) && why.find("touch exactly") != std::string::npos);
+    }
+
     // Section: half of the plate below y = 0.025 (the hole is cut in two).
     Solid half = KeepBelow(plate, {0, 0.025, 0}, {0, 1, 0}, error);
     CHECK(half.Valid() && IsManifoldSolid(half) && Near(Volume(half), Volume(plate) / 2, 1e-3));

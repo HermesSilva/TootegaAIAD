@@ -97,11 +97,33 @@ Json RunMachine(const MechanismStudy& study, const std::vector<std::vector<sim::
     const size_t joints = model.joints.size(), chambers = study.machine.chambers.size(), magnetos = study.machine.magnetos.size();
     std::vector<double> lo(joints, 1e300), hi(joints, -1e300), rate(joints, 0.0), workAt(chambers, 0.0), maxKv(magnetos, 0.0);
     std::vector<int> combustionsAt(chambers, 0);
+    // Oscillations in the window (a balance, a pallet fork): the joints' motion is kept to tell them from rotation.
+    std::vector<double> swingLo(joints, 1e300), swingHi(joints, -1e300), windowTime;
+    std::vector<std::vector<double>> history(joints);
     int samples = 0;
     bool inWindow = false;
     for (int step = 0; machine.Time() < seconds - dt / 2.0 && !(stop && *stop); ++step)
     {
         machine.Step(dt);
+        static FILE* trace = std::getenv("AIAD_TRACE") ? std::fopen(std::getenv("AIAD_TRACE"), "w") : nullptr;   // TEMP
+        if (trace && step == 0)
+        {
+            std::fprintf(trace, "#t");
+            for (size_t j = 0; j < joints; ++j)
+                std::fprintf(trace, "|%s", model.joints[j].name.c_str());
+            for (size_t k = 0; k < model.touches.size(); ++k)
+                std::fprintf(trace, "|%s", model.touches[k].name.c_str());
+            std::fprintf(trace, "\n");
+        }
+        if (trace && step % 10 == 0)
+        {
+            std::fprintf(trace, "%.7f", machine.Time());
+            for (size_t j = 0; j < joints; ++j)
+                std::fprintf(trace, " %.7e", mb.Coordinate(int(j)));
+            for (size_t k = 0; k < model.touches.size(); ++k)
+                std::fprintf(trace, " %.4e", mb.TouchForce(int(k)));
+            std::fprintf(trace, "\n");
+        }
         for (size_t j = 0; j < joints; ++j)
         {
             lo[j] = std::min(lo[j], mb.Coordinate(int(j)));
@@ -115,8 +137,15 @@ Json RunMachine(const MechanismStudy& study, const std::vector<std::vector<sim::
                 for (size_t c = 0; c < chambers; ++c)
                     workAt[c] = machine.Chamber(c).work, combustionsAt[c] = machine.Chamber(c).combustions;
             inWindow = true;
+            windowTime.push_back(machine.Time());
             for (size_t j = 0; j < joints; ++j)
+            {
+                const double q = mb.Coordinate(int(j));
                 rate[j] += mb.Rate(int(j));
+                swingLo[j] = std::min(swingLo[j], q);
+                swingHi[j] = std::max(swingHi[j], q);
+                history[j].push_back(q);
+            }
             ++samples;
         }
         if (progress && (step & 2047) == 0)
@@ -130,7 +159,34 @@ Json RunMachine(const MechanismStudy& study, const std::vector<std::vector<sim::
         const sim::mb::Joint& joint = model.joints[j];
         const double mean = samples ? rate[j] / samples : 0.0;
         Json item = {{"name", joint.name}, {"coordinate", mb.Coordinate(int(j))}, {"min", lo[j]}, {"max", hi[j]}, {"mean_rate", mean}};
-        if (Rotational(joint.type))
+        // It oscillates when it goes back and forth: most of its path cancels out (an escape wheel recoils at every lock,
+        // but advances: its rate is its mean speed). The frequency is timed between the first and the last crossing of
+        // the middle of the swing (with a hysteresis of a quarter of the swing, so a bounce on a banking counts none).
+        const std::vector<double>& h = history[j];
+        const double middle = (swingLo[j] + swingHi[j]) / 2.0, band = (swingHi[j] - swingLo[j]) / 4.0;
+        double path = 0.0, first = 0.0, last = 0.0;
+        int crossings = 0, side = 0;
+        for (size_t k = 0; k < h.size(); ++k)
+        {
+            if (k)
+                path += std::abs(h[k] - h[k - 1]);
+            const int now = h[k] > middle + band ? 1 : h[k] < middle - band ? -1 : side;
+            if (side && now != side)
+                (++crossings == 1 ? first : last) = windowTime[k];
+            side = now;
+        }
+        if (crossings >= 2 && band > 1e-4 && std::abs(h.back() - h.front()) < 0.5 * path)
+        {
+            const double frequency = (crossings - 1) / 2.0 / (last - first);
+            item["oscillation_hz"] = frequency;
+            item["swing_min"] = swingLo[j];
+            item["swing_max"] = swingHi[j];
+            const bool turns = Rotational(joint.type);
+            const double scale = turns ? 180.0 / std::numbers::pi : 1e3;
+            text += std::format(" '{}': swings {:.1f} .. {:.1f} {} at {:.2f} Hz ({:.0f} beats per hour) over the last {:.2f} s.", joint.name, swingLo[j] * scale,
+                                swingHi[j] * scale, turns ? "deg" : "mm", frequency, 2.0 * frequency * 3600.0, window);
+        }
+        else if (Rotational(joint.type))
         {
             item["mean_rpm"] = mean * 30.0 / std::numbers::pi;
             text += std::format(" '{}': {:.0f} rpm (mean of the last {:.2f} s), turned {:.1f} rev.", joint.name, mean * 30.0 / std::numbers::pi, window,

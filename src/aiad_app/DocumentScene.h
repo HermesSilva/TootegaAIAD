@@ -56,6 +56,7 @@ public:
     // Writes the display of changed parts for up to `budgetMs`; true when nothing is left.
     bool Update(double budgetMs);
     bool Pending() const;
+    size_t PendingCount() const;   // parts whose display is still to be written
     const std::vector<ScenePart>& Parts() const { return m_parts; }
     int Find(const std::string& name) const;
 
@@ -67,6 +68,8 @@ public:
     void SetHighlight(int part);
     PickResult Pick(const pxr::GfVec3d& origin, const pxr::GfVec3d& direction) const;
     pxr::GfRange3d WorldBounds() const;
+    // Model frame (joints, the study) to the world the camera sees (the document's orientation).
+    pxr::GfMatrix4d ModelToWorld() const;
     double TessellationSeconds() const { return m_tessellationSeconds; }
 
 private:

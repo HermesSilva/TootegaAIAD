@@ -29,6 +29,17 @@ struct MechanismStudy
         int spring = -1;
     };
     std::vector<SpringBody> springBodies;
+    // Adjusters: joints with a range (limits) that nothing in the machine drives (no motor, gear, belt, spring, contact or
+    // touch on them): set by hand, as in real life (a watch's regulator, an idle screw, a setting lever), and held where
+    // they are set while the machine runs. Their position is the joint's start.
+    struct Adjuster
+    {
+        int joint = -1;                 // in machine.mechanism.joints
+        std::string name, body;         // the joint, the body that is moved
+        bool rotation = true;           // turns (rad) or slides (m)
+        double lower = 0.0, upper = 0.0, value = 0.0;
+    };
+    std::vector<Adjuster> adjusters;
     int mobility = 0;                              // degrees of freedom left (Gruebler-Kutzbach)
     std::vector<std::string> measured;             // what was read from the drawing, one line each
     std::vector<StudyFinding> findings;            // errors stop the simulation; notes inform
