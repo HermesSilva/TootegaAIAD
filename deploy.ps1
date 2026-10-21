@@ -60,7 +60,11 @@ if (-not $SkipBuild -and -not $NoBump)
     }
 }
 $commit = (git -C $Repo rev-parse --short HEAD).Trim()
-$dirty = [bool](git -C $Repo status --porcelain)
+# Uncommitted changes by content (a file only rewritten with other line endings, as deps\fetch-prebuilt.ps1 does to a
+# few .bat files, is not a change), plus new files that are not ignored.
+git -C $Repo update-index -q --refresh 2>$null | Out-Null
+git -C $Repo diff --quiet HEAD -- 2>$null
+$dirty = $LASTEXITCODE -ne 0 -or [bool](git -C $Repo ls-files --others --exclude-standard)
 $full = "$appVersion.$build"
 $version = "$full+$commit$(if ($dirty) { '.dirty' })"
 $name = "TootegaAIAD-$full"
