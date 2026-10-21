@@ -1,6 +1,7 @@
 # Continuous delivery: builds, tests and packages Tootega AIAD (deploy.ps1) and delivers the zip.
 #   - a tag v* (e.g. v0.1.0): the zip and its SHA-256 become the GitHub release of that tag;
-#   - Actions > Deploy > Run workflow: the zip is kept as the run's artifact (30 days).
+#   - Actions > Deploy > Run workflow: the zip is kept as the run's artifact (30 days); with "publish" checked it also
+#     becomes the release v<app version> (or the tag given).
 # It needs a self-hosted Windows runner with the toolchain of the README (Visual Studio 18 with MSVC v145, CUDA 13,
 # an NVIDIA GPU with DXR for the snapshot and UI tests): GitHub's hosted runners have none of them. Register one in
 # Settings > Actions > Runners with the labels self-hosted, Windows, X64, gpu.
@@ -10,6 +11,15 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish the zip as a GitHub release'
+        type: boolean
+        default: false
+      tag:
+        description: 'Release tag (empty: v<app version>)'
+        type: string
+        default: ''
 
 permissions:
   contents: write   # create the release
@@ -36,7 +46,11 @@ jobs:
 
       - name: Build, test and package
         shell: pwsh
-        run: pwsh -NoProfile -File deploy.ps1 ${{ startsWith(github.ref, 'refs/tags/v') && format('-Publish -Yes -Tag {0}', github.ref_name) || '' }}
+        run: >-
+          pwsh -NoProfile -File deploy.ps1
+          ${{ startsWith(github.ref, 'refs/tags/v') && format('-Publish -Yes -Tag {0}', github.ref_name) || '' }}
+          ${{ !startsWith(github.ref, 'refs/tags/v') && inputs.publish && '-Publish -Yes' || '' }}
+          ${{ !startsWith(github.ref, 'refs/tags/v') && inputs.publish && inputs.tag != '' && format('-Tag {0}', inputs.tag) || '' }}
         env:
           GH_TOKEN: ${{ github.token }}
 

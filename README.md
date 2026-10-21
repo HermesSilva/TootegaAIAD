@@ -329,7 +329,7 @@ Debug symbols, the machine's state (`.aiad`), test outputs and caches stay out. 
 already built; `-Publish` makes the zip the GitHub release `v<version>` (it asks first; `-Yes` does not).
 
 **Continuous delivery** (`.github/workflows/deploy.yml`): pushing a tag `v*` builds, tests and publishes that release;
-Actions > Deploy > Run workflow keeps the zip as the run's artifact. It runs on a self-hosted Windows runner with the
+Actions > Deploy > Run workflow keeps the zip as the run's artifact, and with **publish** checked also makes it the release `v<version>` (or the tag given). It runs on a self-hosted Windows runner with the
 toolchain and an NVIDIA GPU (labels `self-hosted, Windows, X64, gpu`); GitHub's hosted runners have neither. On the
 build machine the runner is `C:\actions-runner`, started at logon in the user's session by the scheduled task
 "GitHub Actions Runner (TootegaAIAD)" (not a Windows service: the snapshot and UI tests need the desktop and the
