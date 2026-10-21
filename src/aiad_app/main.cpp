@@ -12,6 +12,7 @@
 #include "DocumentScene.h"
 #include "InstrumentPanels.h"
 #include "SectionPanel.h"
+#include "Version.h"
 #include "Session.h"
 #include "MainThreadQueue.h"
 #include "Paths.h"
@@ -2569,6 +2570,7 @@ int main(int argc, char** argv)
             ImGui::PushFont(fonts.bold, fonts.size * 1.2f);
             ImGui::TextUnformatted("Tootega AIAD - Artificial Intelligence-Aided Design");
             ImGui::PopFont();
+            ImGui::Text("Version %s, build %d", app::kAppVersion, app::kAppBuild);
             ImGui::TextUnformatted("CAD/CAE where the user and an AI operate the same exact B-rep model.");
             ImGui::TextDisabled("OpenUSD 25.11 - USD BRep - Hydra/Aurora (DXR) - MFEM + CUDA - Project Chrono");
             ImGui::TextDisabled("Tootega Pesquisa e Inovação -github.com/HermesSilva/TootegaAIAD");

@@ -314,22 +314,23 @@ CRT (`/MD`), because all prebuilt dependencies are release builds.
 
 ## Deploy
 
-`pwsh -File deploy.ps1` builds and tests (`build-dist.ps1`), stages the runnable package, checks that it runs on its
+`pwsh -File deploy.ps1` takes the next build number (`kAppBuild` in `src/aiad_app/Version.h`, committed and pushed as
+"Build <n>"; the app shows it in About and the AI Hub), builds and tests (`build-dist.ps1`), stages the runnable package, checks that it runs on its
 own (its `aiad.exe` opens and checks every example) and zips it with its SHA-256:
 
 ```text
-_deploy\TootegaAIAD-<version>-<commit>-win-x64.zip
-  TootegaAIAD-<version>\
+_deploy\TootegaAIAD-<version>.<build>-win-x64.zip
+  TootegaAIAD-<version>.<build>\
     aiad.exe, aiad-mcp.exe, aiad-model.exe, DLLs, usd\, MaterialX\, README.txt
     Examples\   Engine_1Cyl_OHC_Belt, Engine_1Cyl_OHV_GearTrain, Engine_V2-60_OHV_Chain, Watch_ETA6497
                 (.usda + .geom.usdc each), CLAUDE.md and the agent's skill
 ```
 
 Debug symbols, the machine's state (`.aiad`), test outputs and caches stay out. `-SkipBuild` packages the `Dist\`
-already built; `-Publish` makes the zip the GitHub release `v<version>` (it asks first; `-Yes` does not).
+already built; `-Publish` makes the zip the GitHub release `v<version>.<build>` (it asks first; `-Yes` does not); `-NoBump` builds without a new number.
 
 **Continuous delivery** (`.github/workflows/deploy.yml`): pushing a tag `v*` builds, tests and publishes that release;
-Actions > Deploy > Run workflow keeps the zip as the run's artifact, and with **publish** checked also makes it the release `v<version>` (or the tag given). It runs on a self-hosted Windows runner with the
+Actions > Deploy > Run workflow keeps the zip as the run's artifact, and with **publish** checked also makes it the release `v<version>.<build>` (or the tag given); every such run takes the next build number. It runs on a self-hosted Windows runner with the
 toolchain and an NVIDIA GPU (labels `self-hosted, Windows, X64, gpu`); GitHub's hosted runners have neither. On the
 build machine the runner is `C:\actions-runner`, started at logon in the user's session by the scheduled task
 "GitHub Actions Runner (TootegaAIAD)" (not a Windows service: the snapshot and UI tests need the desktop and the

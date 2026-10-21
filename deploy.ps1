@@ -3,10 +3,14 @@
 Tootega AIAD - deployment: builds and tests (build-dist.ps1), stages the runnable package with the example models,
 checks that the package runs on its own (its aiad.exe opens and checks every example), and zips it.
 
-  pwsh -File .\deploy.ps1                 # build + every test + package: _deploy\TootegaAIAD-<version>-win-x64.zip
-  pwsh -File .\deploy.ps1 -SkipBuild      # package the Dist\ already built
-  pwsh -File .\deploy.ps1 -Publish        # ... and publish it as the GitHub release v<version> (outward: asks first,
+  pwsh -File .\deploy.ps1                 # next build number + build + every test + package: _deploy\TootegaAIAD-<version>.<build>-win-x64.zip
+  pwsh -File .\deploy.ps1 -SkipBuild      # package the Dist\ already built (same build number)
+  pwsh -File .\deploy.ps1 -NoBump         # build without a new build number (a tag's deployment: the tag names it)
+  pwsh -File .\deploy.ps1 -Publish        # ... and publish it as the GitHub release v<version>.<build> (outward: asks first,
                                           #     -Yes skips the question, as the CD workflow does)
+
+Every deployment that builds first increments the build number (kAppBuild in src\aiad_app\Version.h), commits it ("Build
+<n>") and pushes it, so the app, the zip and the release all carry it (About, the AI Hub: v<version>.<build>).
 
 The zip:
   TootegaAIAD-<version>\
@@ -15,7 +19,7 @@ The zip:
     README.txt  requirements and how to start
 Left out: debug symbols (.pdb), the build machine's state (.aiad), test outputs, crash dumps, caches.
 #>
-param([switch]$SkipBuild, [switch]$Publish, [switch]$Yes, [string]$Tag = '')
+param([switch]$SkipBuild, [switch]$NoBump, [switch]$Publish, [switch]$Yes, [string]$Tag = '')
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -33,14 +37,34 @@ function Step([string]$Name, [scriptblock]$Body)
     Write-Host ('    ok ({0:N1} s)' -f $sw.Elapsed.TotalSeconds) -ForegroundColor Green
 }
 
-# The version: the app's (kAppVersion) and the commit it is built from.
-$appVersion = [regex]::Match((Get-Content (Join-Path $Repo 'src\aiad_app\AiPanels.cpp') -Raw), 'kAppVersion = "([^"]+)"').Groups[1].Value
-if (-not $appVersion) { throw 'kAppVersion not found in src\aiad_app\AiPanels.cpp' }
+# The version and build: src\aiad_app\Version.h. A deployment that builds takes the next build number first: committed
+# ("Build <n>", only that file) and pushed, so that every package has its own.
+$versionFile = Join-Path $Repo 'src\aiad_app\Version.h'
+$versionText = Get-Content $versionFile -Raw
+$appVersion = [regex]::Match($versionText, 'kAppVersion = "([^"]+)"').Groups[1].Value
+$build = [int][regex]::Match($versionText, 'kAppBuild = (\d+);').Groups[1].Value
+if (-not $appVersion) { throw 'kAppVersion not found in src\aiad_app\Version.h' }
+if (-not $SkipBuild -and -not $NoBump)
+{
+    Step "Build number $($build + 1)" {
+        $script:build = $build + 1
+        $text = [regex]::Replace($versionText, 'kAppBuild = \d+;', "kAppBuild = $script:build;")
+        [IO.File]::WriteAllText($versionFile, $text)
+        git -C $Repo add -- $versionFile
+        git -C $Repo commit -q -m "Build $script:build" -- $versionFile
+        if ($LASTEXITCODE -ne 0) { throw 'git commit of the build number failed' }
+        $branch = (git -C $Repo rev-parse --abbrev-ref HEAD).Trim()
+        if ($branch -eq 'HEAD') { $branch = if ($env:GITHUB_REF_NAME) { $env:GITHUB_REF_NAME } else { 'main' } }   # CD: detached checkout
+        git -C $Repo push -q origin "HEAD:$branch"
+        if ($LASTEXITCODE -ne 0) { throw "git push of the build number to $branch failed (pull, then deploy again)" }
+    }
+}
 $commit = (git -C $Repo rev-parse --short HEAD).Trim()
 $dirty = [bool](git -C $Repo status --porcelain)
-$version = "$appVersion+$commit$(if ($dirty) { '.dirty' })"
-$name = "TootegaAIAD-$appVersion"
-$zip = Join-Path $Out "TootegaAIAD-$appVersion-$commit-win-x64.zip"
+$full = "$appVersion.$build"
+$version = "$full+$commit$(if ($dirty) { '.dirty' })"
+$name = "TootegaAIAD-$full"
+$zip = Join-Path $Out "TootegaAIAD-$full-win-x64.zip"
 Write-Host "Tootega AIAD $version"
 
 if (-not $SkipBuild)
@@ -121,7 +145,7 @@ Step "Zip $(Split-Path $zip -Leaf)" {
 
 if ($Publish)
 {
-    $tag = if ($Tag) { $Tag } else { "v$appVersion" }
+    $tag = if ($Tag) { $Tag } else { "v$full" }
     if ($dirty) { throw "the working tree has uncommitted changes: commit them before publishing $tag" }
     if (-not $Yes)
     {

@@ -1,4 +1,5 @@
 #include "AiPanels.h"
+#include "Version.h"
 
 #include "Paths.h"
 #include "Text.h"
@@ -26,7 +27,7 @@ namespace
 using namespace std::chrono;
 using ai::ItemKind;
 
-constexpr const char* kAppVersion = "0.1.0";
+
 constexpr double kCacheLife = 3600.0;   // prompt cache TTL [s]
 constexpr double kKeepAliveLead = 300.0;
 constexpr const char* kKeepAlivePrompt = "keep-alive: answer only \"ok\". Do not use tools and do not change files.";
@@ -570,7 +571,7 @@ void AiPanels::DrawHeader()
     ImGui::TextUnformatted("Tootega AIAD");
     ImGui::PopFont();
     ImGui::SameLine();
-    ImGui::TextColored(kDim, "v%s", kAppVersion);
+    ImGui::TextColored(kDim, "v%s.%d", kAppVersion, kAppBuild);
     ImGui::SameLine();
     const bool outdated = ai::IsOutdated(m_cliVersion, m_latestVersion);
     if (m_cliVersion.empty())

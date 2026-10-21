@@ -21,6 +21,7 @@
     <ClInclude Include="InstrumentBank.h" />
     <ClInclude Include="InstrumentPanels.h" />
     <ClInclude Include="SectionPanel.h" />
+    <ClInclude Include="Version.h" />
     <ClInclude Include="Markdown.h" />
   </ItemGroup>
 </Project>
