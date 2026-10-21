@@ -198,11 +198,10 @@ Build one like this:
    rotate). A `translate`/`rotate` feature only redraws it elsewhere, still fixed. Being set by hand comes from
    its **body** (its own, not fixed) and its **joint** (pivot or slide, with `limits`). When the user asks to
    make a part adjustable, define those; do not edit its features.
-   **ETA 6497 regulator** (models `Clock*.usda`): the index is "303 Two–piece regulator with pointer" [1], [3],
-   [4] (the dash is the character U+0096 from the STEP import; copy the name from `aiad_parts_list`); [4] holds
-   the two pins on the hairspring's outer coil; [2] and [5] are the stud carrier (it stays fixed). The ready
-   script is `models/Clock_regulator.aiad.json` (`aiad-model apply <doc> models/Clock_regulator.aiad.json`):
-   body "Regulator index" with [1], [3], [4]; joint "Regulator", revolute about the balance axis, limits
+   **ETA 6497 regulator** (model `Watch_ETA6497.usda`, already set up): the index is "303 Two–piece regulator with
+   pointer" [1], [3], [4] (the dash is the character U+0096 from the STEP import; copy the name from
+   `aiad_parts_list`); [4] holds the two pins on the hairspring's outer coil; [2] and [5] are the stud carrier (it
+   stays fixed). The setup in it: body "Regulator index" with [1], [3], [4]; joint "Regulator", revolute about the balance axis, limits
    [-0.15, 0.15]; the hairspring drawn up to the stud (13.18 turns, 33.36 µm, 18,000 vph at 0) with `holder`
    [4]. Then `aiad_adjust {"joint": "Regulator", "value": ...}`: + slows, − speeds up. Not adjusters in that
    movement: the screws (5125, 5121...) only hold bridges.

@@ -80,7 +80,7 @@ yet). The keyless works (pull the crown out and turn it) are not a mechanism yet
 Instruments are document entities (`/Root/Instruments`) plugged into the machine with ideal probes: they
 read the solver at every step and change nothing. Right-click a part in the view (or in the tree): the menu
 lists the joints that move it and the elements that use it, each with the instruments that can read it.
-A seconds hand: its arbor, then the tachometer. View > Instruments shows and hides them; the agent plugs and
+A seconds hand: its arbor, then the tachometer. A turning shaft also offers **DY-1 Dynamometer**: choose hold a speed, sweep the speed or a constant torque, and "Put the shaft on the dynamometer" adds the brake (a `dynamometer` element) and its panel in one go. View > Instruments shows and hides them; the agent plugs and
 reads them through MCP (`aiad_instrument_define`, `aiad_instrument_read`).
 
 | Instrument | Reads |
@@ -88,7 +88,7 @@ reads them through MCP (`aiad_instrument_define`, `aiad_instrument_read`).
 | TC-1 tachometer | speed of a joint (rpm, rad/s, Hz...) |
 | OA-1 oscillation analyzer (timegrapher) | beat rate (vph), period, beat error, amplitude, centre and rate in s/day against a reference |
 | MN-1 manometer, TH-1 thermometer | chamber pressure and gas temperature |
-| DY-1 dynamometer | on a `dynamometer` element: brake power (kW, W, hp, cv), torque, speed, held speed, the indicated power of the chambers turning that shaft and the mechanical efficiency, the peak power and torque with their rpm, and the torque and power curve against rpm (only the points where the brake held the speed) |
+| DY-1 dynamometer | on a `dynamometer` element: brake power (auto-ranging from pW to kW, or a fixed kW, W, mW, µW, nW, pW, hp, cv), torque (auto-ranging), speed, held speed, the indicated power of the chambers turning that shaft and the mechanical efficiency, the peak power and torque with their rpm, and the torque and power curve against rpm (only the points where the brake held the speed) |
 | PR-1 protractor, DI-1 dial indicator | angle or displacement of a joint |
 | FG-1 force and torque gauge | contact, spring and touch forces, spiral torques |
 | VM-1 voltmeter | magneto primary and spark voltage |
@@ -123,8 +123,14 @@ It opens with no document.
   (Ctrl+Shift+S), Close and Exit, and asks before discarding unsaved changes. **Edit** undoes and redoes;
   **View** fits the model, toggles the section, opens the section planes and restores the layout.
 - **Opening a document:** the machine of the drawing is derived and checked.
-- **Example engines:** `models\Engine_SingleCylinder.usda` (OHC) and
-  `models\Engine_SingleCylinder_Pushrod.usda` (OHV), next to the executable.
+- **Example models** (next to the executable, named `<kind>_<cylinders>_<valve train>_<cam drive>`):
+
+  | Document | What it is |
+  |----------|------------|
+  | `models\Engine_1Cyl_OHC_Belt.usda` | single cylinder, overhead cam on bucket tappets, timing belt, flywheel magneto |
+  | `models\Engine_1Cyl_OHV_GearTrain.usda` | single cylinder, pushrods and rockers, gear train (crank, idler, cam), magneto |
+  | `models\Engine_V2-60_OHV_Chain.usda` | 60° V-twin, pushrods and rockers, timing chain, one magneto for both cylinders |
+  | `models\Watch_ETA6497.usda` | ETA 6497 hand-wound watch movement imported from STEP, with its regulator |
 - **Saved layout:** panel layout, window placement and where the AI chat opens are kept in
   `<exe folder>\.aiad\aiadconfig.json` (`build-dist.ps1` keeps it, and the agent's sessions in
   `models\.aiad`, when it rebuilds `Dist\`).
@@ -206,15 +212,19 @@ Everything in the viewport is a part of the document, created by commands; there
 | `chamber` | bore, chamber volume and valve sizes measured on the parts |
 | `magneto` | magnet, pole shoes and core geometry; the field is computed with MFEM |
 
-The example engines are command scripts:
+The models are documents edited by commands (the user, the agent or a command script); `aiad-model` runs scripts and
+reads documents without the UI:
 
 ```powershell
-Dist\aiad-model.exe build models\Engine_SingleCylinder.aiad.json models\Engine_SingleCylinder.usda
-Dist\aiad-model.exe apply models\Clock.usda models\Clock_regulator.aiad.json models\Clock_reg.usda   # a script on a document
-Dist\aiad-model.exe info  models\Engine_SingleCylinder.usda     # parts, masses and centres, regeneration errors
-Dist\aiad-model.exe outline models\Clock.usda 0.0004 "721 Balance [2]"   # a part's section, as the simulator cuts it
-Dist\aiad.exe --simulate models\Engine_SingleCylinder.usda 3     # runs it 3 s and reports
+Dist\aiad-model.exe build my_engine.aiad.json models\My_Engine.usda          # a command script into a new document
+Dist\aiad-model.exe apply models\Watch_ETA6497.usda changes.aiad.json out.usda   # a script on a document
+Dist\aiad-model.exe info  models\Engine_1Cyl_OHC_Belt.usda     # parts, masses and centres, regeneration errors
+Dist\aiad-model.exe outline models\Watch_ETA6497.usda 0.0004 "721 Balance [2]"   # a part's section, as the simulator cuts it
+Dist\aiad.exe --simulate models\Engine_1Cyl_OHC_Belt.usda 3     # runs it 3 s and reports
 ```
+
+A document renamed outside the app still opens: when the geometry file it names is missing, its own
+`<name>.geom.usdc` beside it is used (rename by File > Save As to keep the two in step).
 
 A document on disk follows OpenUSD's interface + payload pattern: `<name>.usda` is the design in text
 (parts and features, bodies, joints, elements, parameters, the saved view), and `<name>.geom.usdc` holds the
@@ -259,7 +269,7 @@ cd TootegaAIAD
 pwsh -File deps\fetch-prebuilt.ps1     # prebuilt dependencies (~0.5 GB), checked by SHA-256
 start TootegaAIAD.slnx                 # Visual Studio: Build, and F5 runs aiad (below)
 pwsh -File build-dist.ps1              # or: builds, runs the tests, assembles Dist\ and runs the app tests
-Dist\aiad.exe Dist\models\Engine_SingleCylinder.usda   # or File > Open
+Dist\aiad.exe Dist\models\Engine_1Cyl_OHC_Belt.usda   # or File > Open
 ```
 
 `build-dist.ps1` runs nine timed steps and stops at the first error:
@@ -301,6 +311,29 @@ Solution folders:
 
 Configurations: **Release** (optimised) and **Debug** (no optimisation, with `assert`). Both use the release
 CRT (`/MD`), because all prebuilt dependencies are release builds.
+
+## Deploy
+
+`pwsh -File deploy.ps1` builds and tests (`build-dist.ps1`), stages the runnable package, checks that it runs on its
+own (its `aiad.exe` opens and checks every example) and zips it with its SHA-256:
+
+```text
+_deploy\TootegaAIAD-<version>-<commit>-win-x64.zip
+  TootegaAIAD-<version>\
+    aiad.exe, aiad-mcp.exe, aiad-model.exe, DLLs, usd\, MaterialX\, README.txt
+    Examples\   Engine_1Cyl_OHC_Belt, Engine_1Cyl_OHV_GearTrain, Engine_V2-60_OHV_Chain, Watch_ETA6497
+                (.usda + .geom.usdc each), CLAUDE.md and the agent's skill
+```
+
+Debug symbols, the machine's state (`.aiad`), test outputs and caches stay out. `-SkipBuild` packages the `Dist\`
+already built; `-Publish` makes the zip the GitHub release `v<version>` (it asks first; `-Yes` does not).
+
+**Continuous delivery** (`.github/workflows/deploy.yml`): pushing a tag `v*` builds, tests and publishes that release;
+Actions > Deploy > Run workflow keeps the zip as the run's artifact. It runs on a self-hosted Windows runner with the
+toolchain and an NVIDIA GPU (labels `self-hosted, Windows, X64, gpu`); GitHub's hosted runners have neither. On the
+build machine the runner is `C:\actions-runner`, started at logon in the user's session by the scheduled task
+"GitHub Actions Runner (TootegaAIAD)" (not a Windows service: the snapshot and UI tests need the desktop and the
+GPU). Only tags and manual runs start it, never pull requests: the repository is public.
 
 ## Dependencies
 
@@ -350,7 +383,7 @@ new packages with `pwsh -File deps\pack-prebuilt.ps1 -Publish`.
 | `src/aiad_sim` | generic mechanism (Chrono: couplings, contacts, springs, stops), machine (mechanism + chambers + magnetos), 0D Otto cycle, magneto (MFEM) |
 | `src/aiad_render` | Hydra + HdAurora viewport |
 | `src/aiad_app` | ImGui application: scene, machine study and critique, session, app commands, AI panels |
-| `models/` | documents (`*.usda`) and command scripts (`*.aiad.json`); the agent's skill |
+| `models/` | documents (`<name>.usda` + `<name>.geom.usdc`); the agent's skill and directives |
 | `deps/` | scripts, patches, prebuilt manifest and submodules |
 | `spikes/` | spikes S2–S8 (validation code for each technology) |
 | `Docs/` | survey, architecture, execution plan, diagrams (in Portuguese) |

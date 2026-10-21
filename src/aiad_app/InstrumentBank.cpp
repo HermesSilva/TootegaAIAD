@@ -132,6 +132,31 @@ Reading Make(const std::string& label, double si, doc::Dimension dimension, cons
     return {label, si * u.scale + u.offset, u.label, digits, valid};
 }
 
+// A readout that ranges itself, as a bench meter does: the decade unit that puts the value between 1 and 1000 (a watch's
+// 0.7 nW, an engine's 9.8 kW) and four significant digits.
+Reading Ranged(const std::string& label, double si, doc::Dimension dimension, bool valid = true)
+{
+    static const std::vector<std::string> power{"kW", "W", "mW", "uW", "nW", "pW"}, torque{"N.m", "mN.m", "uN.m", "nN.m"};
+    const std::vector<std::string>& ladder = dimension == doc::Dimension::Power ? power : torque;
+    std::string unit = ladder.back();
+    for (const std::string& name : ladder)
+        if (std::abs(si * doc::FindUnit(dimension, name).scale) >= 1.0)
+        {
+            unit = name;
+            break;
+        }
+    const double shown = std::abs(si * doc::FindUnit(dimension, unit).scale);
+    const int digits = shown > 0.0 ? std::clamp(3 - int(std::floor(std::log10(shown))), 0, 6) : 2;
+    return Make(label, si, dimension, unit, digits, valid);
+}
+
+// Four significant digits for a speed shown in rpm (a seconds hand's 1.000 rpm, a crankshaft's 2477 rpm).
+int SpeedDigits(double rad)
+{
+    const double rpm = std::abs(rad) * 60.0 / (2.0 * std::numbers::pi);
+    return rpm > 0.0 ? std::clamp(3 - int(std::floor(std::log10(rpm))), 0, 6) : 0;
+}
+
 }  // namespace
 
 std::string Reading::Text() const
@@ -442,12 +467,16 @@ Readout InstrumentBank::Measure(const LiveInstrument& li, double now) const
         const double gate = std::max(Gate(li), 1e-9);
         double power = 0.0, t = 0.0, w = 0.0, held = 0.0, dw = 0.0, span = 0.0;
         const bool ok = samples && MeanSince(p, now - gate, power);
-        r.main = Make("Brake power", power, doc::Dimension::Power, li.unit, li.digits, ok);
-        r.secondary.push_back(Make("Torque", t, doc::Dimension::Torque, "N.m", 2, MeanSince(torque, now - gate, t)));
-        r.secondary.push_back(Make("Speed", w, doc::Dimension::AngularSpeed, "rpm", 0, MeanSince(speed, now - gate, w)));
-        r.secondary.push_back(Make("Held at", held, doc::Dimension::AngularSpeed, "rpm", 0, MeanSince(target, now - gate, held) && held > 0.0));
+        // No unit chosen: it ranges itself (a watch's nW, an engine's kW).
+        r.main = li.info.definition.contains("unit") ? Make("Brake power", power, doc::Dimension::Power, li.unit, li.digits, ok)
+                                                     : Ranged("Brake power", power, doc::Dimension::Power, ok);
+        const bool hasTorque = MeanSince(torque, now - gate, t), hasSpeed = MeanSince(speed, now - gate, w);
+        const bool hasHeld = MeanSince(target, now - gate, held) && held > 0.0;
+        r.secondary.push_back(Ranged("Torque", t, doc::Dimension::Torque, hasTorque));
+        r.secondary.push_back(Make("Speed", w, doc::Dimension::AngularSpeed, "rpm", SpeedDigits(w), hasSpeed));
+        r.secondary.push_back(Make("Held at", held, doc::Dimension::AngularSpeed, "rpm", SpeedDigits(held), hasHeld));
         const bool indicated = ChangeSince(work, now - gate, dw, span) && dw != 0.0;
-        r.secondary.push_back(Make("Indicated", indicated ? dw / span : 0.0, doc::Dimension::Power, li.unit, li.digits, indicated));
+        r.secondary.push_back(indicated ? Ranged("Indicated", dw / span, doc::Dimension::Power) : Reading{"Indicated", 0.0, "", 0, false});
         r.secondary.push_back({"Mech. efficiency", indicated && ok ? 100.0 * power / (dw / span) : 0.0, "%", 1, indicated && ok && dw > 0.0});
         // The best of the curve so far (the chart's buckets: power and speed side by side), where the brake held the
         // speed (within 2 %): the moment it engages it also takes the flywheel's energy, which is not the machine's power.
@@ -463,9 +492,9 @@ Readout InstrumentBank::Measure(const LiveInstrument& li, double now) const
         }
         if (best > 0.0)
         {
-            const doc::Unit& u = doc::FindUnit(doc::Dimension::Power, li.unit);
-            r.secondary.push_back({std::format("Peak power (at {:.0f} rpm)", bestAt * 60.0 / (2.0 * std::numbers::pi)), best * u.scale + u.offset, u.label, li.digits, true});
-            r.secondary.push_back({std::format("Peak torque (at {:.0f} rpm)", mostAt * 60.0 / (2.0 * std::numbers::pi)), most, "N·m", 2, true});
+            auto at = [](double rad) { return std::format("{:.{}f}", rad * 60.0 / (2.0 * std::numbers::pi), SpeedDigits(rad)); };
+            r.secondary.push_back(Ranged(std::format("Peak power (at {} rpm)", at(bestAt)), best, doc::Dimension::Power));
+            r.secondary.push_back(Ranged(std::format("Peak torque (at {} rpm)", at(mostAt)), most, doc::Dimension::Torque));
         }
         if (!ok)
             r.status = "no signal yet: run the machine";

@@ -383,6 +383,37 @@ using app::OrbitCamera;
 
 // ---- Panels ---------------------------------------------------------------------------------------
 
+// The tree's search: every word must appear (any case) in what an item is made of.
+struct TreeSearch
+{
+    std::vector<std::string> words;
+    bool Active() const { return !words.empty(); }
+    static std::string Lower(std::string s)
+    {
+        for (char& c : s)
+            c = char(std::tolower(static_cast<unsigned char>(c)));
+        return s;
+    }
+    void Set(const std::string& text)
+    {
+        words.clear();
+        std::string w;
+        for (const char c : Lower(text) + " ")
+            if (std::isspace(static_cast<unsigned char>(c)))
+            {
+                if (!w.empty())
+                    words.push_back(w), w.clear();
+            }
+            else
+                w += c;
+    }
+    bool Match(const std::string& haystack) const
+    {
+        const std::string h = Lower(haystack);
+        return std::all_of(words.begin(), words.end(), [&](const std::string& w) { return h.find(w) != std::string::npos; });
+    }
+};
+
 void SpecificationTree(Session& session, int& selected)
 {
     ImGui::Begin("Specification Tree");
@@ -391,20 +422,80 @@ void SpecificationTree(Session& session, int& selected)
         ImGui::End();
         return;
     }
+    // Search: parts (name, body, material, role, features: operations, parameters, formulas; the joints and elements
+    // on them), bodies, joints, elements, instruments and section planes (their whole definitions). Ctrl+F in the
+    // tree goes to it, Esc clears it, Enter selects the first part found.
+    static char query[160] = "";
+    if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && ImGui::IsKeyPressed(ImGuiKey_F) && ImGui::GetIO().KeyCtrl)
+        ImGui::SetKeyboardFocusHere();
+    ImGui::SetNextItemWidth(-ImGui::GetFrameHeight() - ImGui::GetStyle().ItemSpacing.x);
+    const bool entered = ImGui::InputTextWithHint("##search", "Search: part, body, material, joint, element, parameter...", query, sizeof(query),
+                                                  ImGuiInputTextFlags_EnterReturnsTrue);
+    if (ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_Escape))
+        query[0] = '\0';
+    ImGui::SameLine();
+    if (ImGui::Button("x", ImVec2(ImGui::GetFrameHeight(), 0)))
+        query[0] = '\0';
+    TreeSearch search;
+    search.Set(query);
     const auto& parts = session.scene->Parts();
+    const std::vector<doc::JointInfo> joints = session.document->Joints();
+    const std::vector<doc::ElementInfo> elements = session.document->Elements();
+    const std::vector<doc::InstrumentInfo> instruments = session.document->Instruments();
+    std::vector<bool> partFound(parts.size(), true);
+    size_t found = 0;
+    if (search.Active())
+    {
+        std::map<std::string, std::string> extra;   // part name -> its definition and what is tied to it
+        for (const doc::PartInfo& p : session.document->Parts())
+            extra[p.name] = p.features.dump();
+        for (const doc::JointInfo& j : joints)
+            for (const std::string& b : {j.body0, j.body1})
+                for (const app::ScenePart& p : parts)
+                    if (!b.empty() && p.body == b)
+                        extra[p.name] += " " + j.name;
+        for (const doc::ElementInfo& e : elements)
+            for (const app::ScenePart& p : parts)
+                if (e.definition.dump().find("\"" + p.name + "\"") != std::string::npos)
+                    extra[p.name] += " " + e.name + " " + e.type;
+        for (size_t i = 0; i < parts.size(); ++i)
+        {
+            const app::ScenePart& p = parts[i];
+            partFound[i] = p.role != "spark" && search.Match(std::format("{} {} {} {} {}", p.name, p.body, p.material, p.role, extra[p.name]));
+            found += partFound[i] ? 1 : 0;
+        }
+        if (entered)
+            for (size_t i = 0; i < parts.size(); ++i)
+                if (partFound[i])
+                {
+                    selected = int(i);
+                    break;
+                }
+    }
     const std::string product = session.document->Root().GetName() + " (product)";
     if (ImGui::TreeNodeEx(product.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
     {
+        size_t shownItems = 0;
         for (const std::string& body : session.document->Bodies())
         {
+            const bool fixed = session.document->BodyFixed(body);
+            const bool bodyFound = search.Active() && search.Match(body + (fixed ? " fixed ground" : " moving"));
+            bool any = !search.Active() || bodyFound;
+            for (size_t i = 0; !any && i < parts.size(); ++i)
+                any = parts[i].body == body && partFound[i];
+            if (!any)
+                continue;
+            ++shownItems;
             ImGui::PushID(body.c_str());
-            const std::string label = body + (session.document->BodyFixed(body) ? " (fixed)" : "");
+            const std::string label = body + (fixed ? " (fixed)" : "");
+            if (search.Active())
+                ImGui::SetNextItemOpen(true, ImGuiCond_Always);
             const bool open = ImGui::TreeNodeEx(label.c_str(), 0);
             if (open)
             {
                 for (size_t i = 0; i < parts.size(); ++i)
                 {
-                    if (parts[i].body != body || parts[i].role == "spark")
+                    if (parts[i].body != body || parts[i].role == "spark" || (search.Active() && !bodyFound && !partFound[i]))
                         continue;
                     ImGui::PushID(int(i));
                     bool visible = parts[i].visible;
@@ -431,11 +522,23 @@ void SpecificationTree(Session& session, int& selected)
             ImGui::PopID();
         }
         // The mechanism: joints and the elements tied to them.
-        const std::vector<doc::JointInfo> joints = session.document->Joints();
-        if (!joints.empty() && ImGui::TreeNodeEx(std::format("Joints ({})", joints.size()).c_str(), 0))
+        auto jointText = [](const doc::JointInfo& j) {
+            return std::format("{} {} {} {} {} {} {} point {} axis {}", j.name, j.type, j.body0, j.body1.empty() ? "ground" : j.body1, j.motor.is_null() ? "" : "motor " + j.motor.dump(),
+                               j.limits.is_null() ? "" : "limits " + j.limits.dump(), j.start.is_null() ? "" : "start " + j.start.dump(), j.point.dump(), j.axis.dump());
+        };
+        size_t jointsFound = 0;
+        for (const doc::JointInfo& j : joints)
+            jointsFound += !search.Active() || search.Match(jointText(j)) ? 1 : 0;
+        if (search.Active() && jointsFound > 0)
+            ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+        shownItems += jointsFound;
+        if (jointsFound > 0 &&
+            ImGui::TreeNodeEx(search.Active() ? std::format("Joints ({} of {})###joints", jointsFound, joints.size()).c_str() : std::format("Joints ({})###joints", joints.size()).c_str(), 0))
         {
             for (const doc::JointInfo& j : joints)
             {
+                if (search.Active() && !search.Match(jointText(j)))
+                    continue;
                 ImGui::BulletText("%s: %s, %s - %s%s", j.name.c_str(), j.type.c_str(), j.body0.c_str(), j.body1.empty() ? "ground" : j.body1.c_str(),
                                   j.motor.is_null() ? "" : ", motor");
                 // Right click: plug a measuring instrument into it.
@@ -449,11 +552,22 @@ void SpecificationTree(Session& session, int& selected)
             }
             ImGui::TreePop();
         }
-        const std::vector<doc::ElementInfo> elements = session.document->Elements();
-        if (!elements.empty() && ImGui::TreeNodeEx(std::format("Elements ({})", elements.size()).c_str(), 0))
+        auto elementText = [](const doc::ElementInfo& e) { return e.name + " " + e.type + " " + e.definition.dump(); };
+        size_t elementsFound = 0;
+        for (const doc::ElementInfo& e : elements)
+            elementsFound += !search.Active() || search.Match(elementText(e)) ? 1 : 0;
+        if (search.Active() && elementsFound > 0)
+            ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+        shownItems += elementsFound;
+        if (elementsFound > 0 &&
+            ImGui::TreeNodeEx(search.Active() ? std::format("Elements ({} of {})###elements", elementsFound, elements.size()).c_str()
+                                              : std::format("Elements ({})###elements", elements.size()).c_str(),
+                              0))
         {
             for (const doc::ElementInfo& e : elements)
             {
+                if (search.Active() && !search.Match(elementText(e)))
+                    continue;
                 ImGui::BulletText("%s: %s", e.name.c_str(), e.type.c_str());
                 if (ImGui::IsItemHovered())
                     ImGui::SetTooltip("%s", e.definition.dump(1).c_str());
@@ -468,11 +582,24 @@ void SpecificationTree(Session& session, int& selected)
             ImGui::TreePop();
         }
         // The measuring instruments: shown or hidden.
-        const std::vector<doc::InstrumentInfo> instruments = session.document->Instruments();
-        if (!instruments.empty() && ImGui::TreeNodeEx(std::format("Instruments ({})", instruments.size()).c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+        auto instrumentText = [](const doc::InstrumentInfo& i) {
+            const doc::InstrumentType* t = doc::FindInstrumentType(i.type);
+            return std::format("{} {} {} {} {}", i.name, i.type, t ? t->model : "", t ? t->title : "", i.definition.dump());
+        };
+        size_t instrumentsFound = 0;
+        for (const doc::InstrumentInfo& i : instruments)
+            instrumentsFound += !search.Active() || search.Match(instrumentText(i)) ? 1 : 0;
+        if (search.Active() && instrumentsFound > 0)
+            ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+        shownItems += instrumentsFound;
+        if (instrumentsFound > 0 && ImGui::TreeNodeEx(search.Active() ? std::format("Instruments ({} of {})###instruments", instrumentsFound, instruments.size()).c_str()
+                                                                      : std::format("Instruments ({})###instruments", instruments.size()).c_str(),
+                                                      ImGuiTreeNodeFlags_DefaultOpen))
         {
             for (const doc::InstrumentInfo& i : instruments)
             {
+                if (search.Active() && !search.Match(instrumentText(i)))
+                    continue;
                 ImGui::PushID(i.name.c_str());
                 bool visible = i.definition.value("visible", true);
                 if (ImGui::Checkbox("##shown", &visible))
@@ -490,6 +617,46 @@ void SpecificationTree(Session& session, int& selected)
             }
             ImGui::TreePop();
         }
+        // Section planes (display only): on or off, and what each cuts.
+        const std::vector<doc::ElementInfo> sections = session.document->Sections();
+        size_t sectionsFound = 0;
+        for (const doc::ElementInfo& s : sections)
+            sectionsFound += !search.Active() || search.Match(s.name + " section plane cut " + s.definition.dump()) ? 1 : 0;
+        if (search.Active() && sectionsFound > 0)
+            ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+        shownItems += sectionsFound;
+        if (sectionsFound > 0 && ImGui::TreeNodeEx(std::format("Section planes ({})###sections", sectionsFound).c_str(), 0))
+        {
+            for (const doc::ElementInfo& s : sections)
+            {
+                if (search.Active() && !search.Match(s.name + " section plane cut " + s.definition.dump()))
+                    continue;
+                ImGui::PushID(s.name.c_str());
+                bool on = s.definition.value("enabled", true);
+                if (ImGui::Checkbox("##on", &on))
+                {
+                    Json d = s.definition;
+                    d["enabled"] = on;
+                    UserCommand("aiad_section_define", {{"name", s.name}, {"definition", d}});
+                }
+                ImGui::SameLine();
+                ImGui::TextUnformatted(s.name.c_str());
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("%s", s.definition.dump(1).c_str());
+                if (ImGui::BeginPopupContextItem("section"))
+                {
+                    if (ImGui::MenuItem("Delete"))
+                        UserCommand("aiad_section_delete", {{"name", s.name}});
+                    ImGui::EndPopup();
+                }
+                ImGui::PopID();
+            }
+            ImGui::TreePop();
+        }
+        if (search.Active() && shownItems == 0)
+            ImGui::TextDisabled("Nothing found for \"%s\".", query);
+        else if (search.Active())
+            ImGui::TextDisabled("%zu part(s) found; Enter selects the first.", found);
         ImGui::TreePop();
     }
     ImGui::End();
@@ -1116,7 +1283,7 @@ void ApplyStyle(float scale)
 // executable, else the repository's models folder. The interactive app opens nothing by itself.
 std::string EngineModelPath()
 {
-    return Resource("models/Engine_SingleCylinder.usda", AIAD_MODELS_DIR "/Engine_SingleCylinder.usda");
+    return Resource("models/Engine_1Cyl_OHC_Belt.usda", AIAD_MODELS_DIR "/Engine_1Cyl_OHC_Belt.usda");
 }
 
 // Opens a document and prepares its machine: the study and the magneto field tables (computed here, or
@@ -1805,7 +1972,7 @@ int main(int argc, char** argv)
             std::filesystem::remove(saved, ec);
             check(saveDocumentAs(saved) && std::filesystem::exists(saved) && session.document->Path() == saved && !unsavedChanges(),
                   "File > Save As writes it; no unsaved changes");
-            check(openDocument(EngineModelPath()) && session.document->Parts().size() > 50 && documentTitle() == "Engine_SingleCylinder.usda" &&
+            check(openDocument(EngineModelPath()) && session.document->Parts().size() > 50 && documentTitle() == "Engine_1Cyl_OHC_Belt.usda" &&
                       !bus.CanUndo() && recent.Items().size() == 2,
                   "File > Open: the engine drawing (new undo history, listed in Open Recent)");
             std::fflush(stdout);

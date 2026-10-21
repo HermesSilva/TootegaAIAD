@@ -6,7 +6,7 @@
 )
 
 def Xform "Engine_SingleCylinder_Pushrod" (
-    prepend payload = @./Engine_SingleCylinder-SHV.geom.usdc@
+    prepend payload = @./Engine_1Cyl_OHV_GearTrain.geom.usdc@
 )
 {
     custom string aiad:materials = '''{
@@ -889,189 +889,6 @@ def Xform "Engine_SingleCylinder_Pushrod" (
     quatd xformOp:orient = (0.7071067811865476, -0, -0.7071067811865476, -0)
     uniform token[] xformOpOrder = ["xformOp:orient"]
 
-    def "Looks"
-    {
-        def Material "Cast_aluminium_A356"
-        {
-            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Cast_aluminium_A356/Surface.outputs:surface>
-
-            def Shader "Surface"
-            {
-                uniform token info:id = "UsdPreviewSurface"
-                color3f inputs:diffuseColor = (0.8, 0.81, 0.82)
-                color3f inputs:emissiveColor = (0, 0, 0)
-                float inputs:metallic = 1
-                float inputs:roughness = 0.42
-                token outputs:surface
-            }
-        }
-
-        def Material "Forged_aluminium_4032"
-        {
-            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Forged_aluminium_4032/Surface.outputs:surface>
-
-            def Shader "Surface"
-            {
-                uniform token info:id = "UsdPreviewSurface"
-                color3f inputs:diffuseColor = (0.88, 0.88, 0.89)
-                color3f inputs:emissiveColor = (0, 0, 0)
-                float inputs:metallic = 1
-                float inputs:roughness = 0.24
-                token outputs:surface
-            }
-        }
-
-        def Material "Steel_42CrMo4"
-        {
-            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Steel_42CrMo4/Surface.outputs:surface>
-
-            def Shader "Surface"
-            {
-                uniform token info:id = "UsdPreviewSurface"
-                color3f inputs:diffuseColor = (0.64, 0.65, 0.67)
-                color3f inputs:emissiveColor = (0, 0, 0)
-                float inputs:metallic = 1
-                float inputs:roughness = 0.28
-                token outputs:surface
-            }
-        }
-
-        def Material "Steel_black_oxide"
-        {
-            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Steel_black_oxide/Surface.outputs:surface>
-
-            def Shader "Surface"
-            {
-                uniform token info:id = "UsdPreviewSurface"
-                color3f inputs:diffuseColor = (0.22, 0.22, 0.24)
-                color3f inputs:emissiveColor = (0, 0, 0)
-                float inputs:metallic = 1
-                float inputs:roughness = 0.38
-                token outputs:surface
-            }
-        }
-
-        def Material "Grey_cast_iron"
-        {
-            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Grey_cast_iron/Surface.outputs:surface>
-
-            def Shader "Surface"
-            {
-                uniform token info:id = "UsdPreviewSurface"
-                color3f inputs:diffuseColor = (0.38, 0.38, 0.4)
-                color3f inputs:emissiveColor = (0, 0, 0)
-                float inputs:metallic = 1
-                float inputs:roughness = 0.55
-                token outputs:surface
-            }
-        }
-
-        def Material "Bearing_bronze"
-        {
-            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Bearing_bronze/Surface.outputs:surface>
-
-            def Shader "Surface"
-            {
-                uniform token info:id = "UsdPreviewSurface"
-                color3f inputs:diffuseColor = (0.78, 0.56, 0.32)
-                color3f inputs:emissiveColor = (0, 0, 0)
-                float inputs:metallic = 1
-                float inputs:roughness = 0.3
-                token outputs:surface
-            }
-        }
-
-        def Material "Copper_winding"
-        {
-            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Copper_winding/Surface.outputs:surface>
-
-            def Shader "Surface"
-            {
-                uniform token info:id = "UsdPreviewSurface"
-                color3f inputs:diffuseColor = (0.8, 0.45, 0.24)
-                color3f inputs:emissiveColor = (0, 0, 0)
-                float inputs:metallic = 1
-                float inputs:roughness = 0.3
-                token outputs:surface
-            }
-        }
-
-        def Material "Alumina_ceramic"
-        {
-            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Alumina_ceramic/Surface.outputs:surface>
-
-            def Shader "Surface"
-            {
-                uniform token info:id = "UsdPreviewSurface"
-                color3f inputs:diffuseColor = (0.93, 0.93, 0.91)
-                color3f inputs:emissiveColor = (0, 0, 0)
-                float inputs:metallic = 0
-                float inputs:roughness = 0.18
-                token outputs:surface
-            }
-        }
-
-        def Material "Rubber"
-        {
-            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Rubber/Surface.outputs:surface>
-
-            def Shader "Surface"
-            {
-                uniform token info:id = "UsdPreviewSurface"
-                color3f inputs:diffuseColor = (0.05, 0.05, 0.06)
-                color3f inputs:emissiveColor = (0, 0, 0)
-                float inputs:metallic = 0
-                float inputs:roughness = 0.75
-                token outputs:surface
-            }
-        }
-
-        def Material "Ferrite_magnet"
-        {
-            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Ferrite_magnet/Surface.outputs:surface>
-
-            def Shader "Surface"
-            {
-                uniform token info:id = "UsdPreviewSurface"
-                color3f inputs:diffuseColor = (0.17, 0.17, 0.19)
-                color3f inputs:emissiveColor = (0, 0, 0)
-                float inputs:metallic = 0
-                float inputs:roughness = 0.55
-                token outputs:surface
-            }
-        }
-
-        def Material "Spark"
-        {
-            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Spark/Surface.outputs:surface>
-
-            def Shader "Surface"
-            {
-                uniform token info:id = "UsdPreviewSurface"
-                color3f inputs:diffuseColor = (1, 0.85, 0.45)
-                color3f inputs:emissiveColor = (25, 21.25, 11.25)
-                float inputs:metallic = 0
-                float inputs:roughness = 0.5
-                token outputs:surface
-            }
-        }
-
-        def Material "Engine_oil_SAE_30"
-        {
-            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Engine_oil_SAE_30/Surface.outputs:surface>
-
-            def Shader "Surface"
-            {
-                uniform token info:id = "UsdPreviewSurface"
-                color3f inputs:diffuseColor = (0.72, 0.45, 0.08)
-                color3f inputs:emissiveColor = (0, 0, 0)
-                float inputs:metallic = 0
-                float inputs:roughness = 0.08
-                token outputs:surface
-            }
-        }
-    }
-
     def Xform "Frame"
     {
         custom string aiad:body = "Frame"
@@ -1082,7 +899,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Crankcase"
         {
-            custom string aiad:derived = '{"bounds":[[-0.0675,-0.112,-0.03510000000000001],[0.09900000000000003,0.0675,0.03510000000000001]],"key":"297d2b0811586a3c"}'
+            custom string aiad:derived = '{"area":0.1356486899880077,"bounds":[[-0.0675,-0.112,-0.03510000000000001],[0.09900000000000003,0.0675,0.03510000000000001]],"centroid":[0.008833718314493548,-0.02015890994535435,6.710990637104046e-07],"inertia":[1.4007201711460922e-06,1.0382495580897299e-06,1.8887410720913357e-06,5.14150131602261e-12,-1.0592930882238648e-10,3.5947673499117974e-07],"key":"297d2b0811586a3c","volume":0.00040517963256504264}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -1269,7 +1086,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Main_bearing_magneto_side"
         {
-            custom string aiad:derived = '{"bounds":[[-0.022000000000000002,-0.022,0.028099999999999997],[0.022,0.022,0.035100000000000006]],"key":"9c653232973bbec7"}'
+            custom string aiad:derived = '{"area":0.003104311398831008,"bounds":[[-0.022000000000000002,-0.022,0.028099999999999997],[0.022,0.022,0.035100000000000006]],"centroid":[9.63306814762052e-07,5.311098614250667e-06,0.031599408371691076],"inertia":[9.488661711765134e-10,9.480595625045174e-10,1.8559416707881572e-09,5.990400817057539e-14,9.66227611171072e-15,-1.2409415313129817e-13],"key":"9c653232973bbec7","volume":5.0156050524938075e-06}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -1297,7 +1114,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Main_bearing_timing_side"
         {
-            custom string aiad:derived = '{"bounds":[[-0.022000000000000002,-0.022,-0.035100000000000006],[0.022,0.022,-0.028099999999999997]],"key":"58b5b4f552aee0bb"}'
+            custom string aiad:derived = '{"area":0.003104311398827295,"bounds":[[-0.022000000000000002,-0.022,-0.035100000000000006],[0.022,0.022,-0.028099999999999997]],"centroid":[9.632336747439231e-07,5.310644899680893e-06,-0.0316005916296523],"inertia":[9.488657320137737e-10,9.48059419723187e-10,1.855941370367479e-09,3.606178507106458e-14,5.816621460625579e-15,-1.2404999422414918e-13],"key":"58b5b4f552aee0bb","volume":5.015604911494195e-06}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -1325,7 +1142,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Cylinder_liner"
         {
-            custom string aiad:derived = '{"bounds":[[0.0555,-0.043500000000000004,-0.043500000000000004],[0.15668,0.043500000000000004,0.043500000000000004]],"key":"60cdaaddc49b0f1b"}'
+            custom string aiad:derived = '{"area":0.05491713654173159,"bounds":[[0.0555,-0.043500000000000004,-0.043500000000000004],[0.15668,0.043500000000000004,0.043500000000000004]],"centroid":[0.10608999999999999,1.3704644943796519e-05,-1.7907200563036648e-05],"inertia":[1.6241312893228512e-07,1.6024765422898936e-07,1.6066442602977112e-07,-1.300675669607995e-10,4.170463100105246e-23,2.0575514848952058e-23],"key":"60cdaaddc49b0f1b","volume":9.289413463909528e-05}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -1353,7 +1170,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Cylinder_barrel"
         {
-            custom string aiad:derived = '{"bounds":[[0.0675,-0.08680000000000002,-0.07],[0.15668,0.07,0.07]],"key":"1a354aec4ad74b23"}'
+            custom string aiad:derived = '{"area":0.22157378043985043,"bounds":[[0.0675,-0.08680000000000002,-0.07],[0.15668,0.07,0.07]],"centroid":[0.11141552833323612,-0.001374002422483955,-2.298405736455519e-05],"inertia":[1.0271531153931223e-06,7.151706186676775e-07,7.520719075316752e-07,-7.83900920810657e-10,3.88077909219487e-13,7.614157448547497e-09],"key":"1a354aec4ad74b23","volume":0.0003331465480518206}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -1484,7 +1301,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Cylinder_head"
         {
-            custom string aiad:derived = '{"bounds":[[0.15667999999999996,-0.08680000000000021,-0.07],[0.19868000000000002,0.07,0.07]],"key":"63b4e2bf2c800b2c"}'
+            custom string aiad:derived = '{"area":0.07998567953126486,"bounds":[[0.15667999999999996,-0.08680000000000021,-0.07],[0.19868000000000002,0.07,0.07]],"centroid":[0.17748131201259512,-0.0007732683855677256,-5.421749797838929e-06],"inertia":[7.071979526722527e-07,3.959173434855003e-07,4.218949036891737e-07,-2.0640543288684816e-10,-2.5173853088540324e-12,-2.8948560289806723e-10],"key":"63b4e2bf2c800b2c","volume":0.00041191617340292295}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -1628,7 +1445,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Magneto_core_leg_A"
         {
-            custom string aiad:derived = '{"bounds":[[0.00917120640180441,0.07365839264175399,0.0451],[0.02486383642091394,0.1193639269486388,0.0701]],"key":"21a5c4d9202f1e9f"}'
+            custom string aiad:derived = '{"area":0.0033699999999999993,"bounds":[[0.00917120640180441,0.07365839264175399,0.0451],[0.02486383642091394,0.1193639269486388,0.0701]],"centroid":[0.017017521411359173,0.09651115979519642,0.0576],"inertia":[1.943151461010439e-09,5.610985389895642e-10,1.5667500000000014e-09,-1.5186519058590742e-24,-2.7788098702953273e-25,-2.515130628981165e-10],"key":"21a5c4d9202f1e9f","volume":9.000000000000009e-06}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -1672,7 +1489,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Magneto_core_leg_B"
         {
-            custom string aiad:derived = '{"bounds":[[-0.02486383642091394,0.07365839264175399,0.0451],[-0.00917120640180441,0.1193639269486388,0.0701]],"key":"e241560a303f80bf"}'
+            custom string aiad:derived = '{"area":0.0033699999999999993,"bounds":[[-0.02486383642091394,0.07365839264175399,0.0451],[-0.00917120640180441,0.1193639269486388,0.0701]],"centroid":[-0.017017521411359173,0.09651115979519638,0.057600000000000005],"inertia":[1.9431514610104393e-09,5.610985389895631e-10,1.5667500000000019e-09,5.751490196657771e-25,-1.7933017186208217e-25,2.515130628981151e-10],"key":"e241560a303f80bf","volume":9.000000000000009e-06}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -1716,7 +1533,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Magneto_core_yoke"
         {
-            custom string aiad:derived = '{"bounds":[[-0.024924605408865104,0.1105,0.0451],[0.024924605408865104,0.1205,0.0701]],"key":"e53c7e23041db717"}'
+            custom string aiad:derived = '{"area":0.0039894447572411135,"bounds":[[-0.024924605408865104,0.1105,0.0451],[0.024924605408865104,0.1205,0.0701]],"centroid":[1.592990891981116e-18,0.1155,0.0576],"inertia":[7.529307883928013e-10,3.2297551056693887e-09,2.6845293623504677e-09,-4.479215328717323e-25,1.809457589959748e-25,6.397725050214823e-25],"key":"e53c7e23041db717","volume":1.2462302704432545e-05}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -1746,7 +1563,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Magneto_coil"
         {
-            custom string aiad:derived = '{"bounds":[[-0.014188123632195803,0.09849999999999999,0.033100000000000004],[0.014188123632195803,0.1325,0.08209999999999999]],"key":"a9130364bb042f67"}'
+            custom string aiad:derived = '{"area":0.008990056401010579,"bounds":[[-0.014188123632195803,0.09849999999999999,0.033100000000000004],[0.014188123632195803,0.1325,0.08209999999999999]],"centroid":[-1.3970826417162976e-19,0.11549999999999999,0.0576],"inertia":[1.1742997086791746e-08,1.020015994790987e-08,6.358354186068877e-09,-6.767327088089392e-14,-8.165137297827164e-25,3.097111706108239e-25],"key":"a9130364bb042f67","volume":3.588262904250963e-05}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -1796,7 +1613,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Spark_plug_body"
         {
-            custom string aiad:derived = '{"bounds":[[0.15366496494554266,0.015265935689977058,-0.007],[0.17807807594023714,0.038205593037043864,0.007]],"key":"acaace3e657f249f"}'
+            custom string aiad:derived = '{"area":0.0011876459149863018,"bounds":[[0.15366496494554266,0.015265935689977058,-0.007],[0.17807807594023714,0.038205593037043864,0.007]],"centroid":[0.16587152044288989,0.02673576436351049,1.2985078077528426e-17],"inertia":[9.680461218343478e-11,1.1899202440393333e-10,1.4039104486171347e-10,2.6286889207615146e-15,-1.8406277979512187e-15,-3.047970703597561e-11],"key":"acaace3e657f249f","volume":3.0789404751035865e-06}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -1823,7 +1640,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Spark_plug_hex"
         {
-            custom string aiad:derived = '{"bounds":[[0.16717502707927528,0.022634425538849305,-0.010399999999999998],[0.18914257513517427,0.048044396278703,0.0104]],"key":"e94a535c98836886"}'
+            custom string aiad:derived = '{"area":0.0014698875973352516,"bounds":[[0.16717502707927528,0.022634425538849305,-0.010399999999999998],[0.18914257513517427,0.048044396278703,0.0104]],"centroid":[0.17815880110722476,0.035339410908776146,-8.830860749370018e-19],"inertia":[1.983771760734795e-10,1.70555003749189e-10,1.437927949794061e-10,-4.6044233315940017e-26,-8.077935669463161e-28,3.8220395110581744e-11],"key":"e94a535c98836886","volume":3.746772306932991e-06}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -1866,7 +1683,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Spark_plug_insulator"
         {
-            custom string aiad:derived = '{"bounds":[[0.17869838742329325,0.03312855041593964,-0.0062],[0.2110485207094972,0.06024792325306533,0.006200000000000001]],"key":"4963b2bc0095338d"}'
+            custom string aiad:derived = '{"area":0.001474974436037626,"bounds":[[0.17869838742329325,0.03312855041593964,-0.0062],[0.2110485207094972,0.06024792325306533,0.006200000000000001]],"centroid":[0.19488088972804482,0.0470499158548705,-1.6830549401853281e-06],"inertia":[1.433722660629053e-10,2.301088815672581e-10,3.13691752803856e-10,-4.016550176617245e-14,2.633048191712169e-14,-1.191501583472453e-10],"key":"4963b2bc0095338d","volume":3.4374348702492326e-06}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -1976,7 +1793,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Spark_plug_terminal"
         {
-            custom string aiad:derived = '{"bounds":[[0.20686141272413455,0.054268113329755674,-0.0028],[0.21662665712201237,0.0634439762685824,0.0028]],"key":"d50e5252a02e8acb"}'
+            custom string aiad:derived = '{"area":0.00019002204762108286,"bounds":[[0.20686141272413455,0.054268113329755674,-0.0028],[0.21662665712201237,0.0634439762685824,0.0028]],"centroid":[0.21174403492307334,0.058856044799169234,8.286752505292213e-17],"inertia":[9.912792287583336e-13,1.2184783298962809e-12,1.4376042993838259e-12,2.6917774524046635e-17,-1.8848028631947897e-17,-3.1211220004844836e-13],"key":"d50e5252a02e8acb","volume":1.9705219040663022e-07}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -2003,7 +1820,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Spark_plug_electrode"
         {
-            custom string aiad:derived = '{"bounds":[[0.15412467612136727,0.01800950001962455,-0.0012],[0.15836829172362124,0.021982982453146793,0.0012]],"key":"a747605c81252f73"}'
+            custom string aiad:derived = '{"area":3.544091539829351e-05,"bounds":[[0.15412467612136727,0.01800950001962455,-0.0012],[0.15836829172362124,0.021982982453146793,0.0012]],"centroid":[0.15624648392249432,0.01999624123638557,-4.471431244029917e-17],"inertia":[1.4845604985844516e-14,1.8422297522181735e-14,2.187132561281422e-14,3.9729222656144464e-19,-2.781870119096773e-19,-4.9134409899592524e-15],"key":"a747605c81252f73","volume":1.5834551014818393e-08}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -2030,7 +1847,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Spark"
         {
-            custom string aiad:derived = '{"bounds":[[0.15143956141398623,0.015790978967325613,-0.0028],[0.15703956141398623,0.02139097896732561,0.0028]],"key":"de850be39da65c57"}'
+            custom string aiad:derived = '{"area":9.856785241973736e-05,"bounds":[[0.15143956141398623,0.015790978967325613,-0.0028],[0.15703956141398623,0.02139097896732561,0.0028]],"centroid":[0.15423943886591499,0.018591739618697572,-2.06842236835714e-08],"inertia":[2.885611120989141e-13,2.883976531509325e-13,2.884800152820658e-13,-1.669587869898027e-19,-5.950791992158213e-20,2.5002940342586982e-17],"key":"de850be39da65c57","volume":9.198956567332726e-08}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -2051,7 +1868,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "HT_lead"
         {
-            custom string aiad:derived = '{"bounds":[[-0.0027400818154769383,0.060165808294604745,-0.00672750141676996],[0.21848405960533723,0.17434138176754133,0.08238399819965173]],"key":"4fa06fd78431052d"}'
+            custom string aiad:derived = '{"area":0.006629899461505454,"bounds":[[-0.0027400818154769383,0.060165808294604745,-0.00672750141676996],[0.21848405960533723,0.17434138176754133,0.08238399819965173]],"centroid":[0.12074650571544424,0.14132528996059246,0.037380063870879485],"inertia":[2.1302544540673408e-08,6.252958455142486e-08,6.228085373858779e-08,-7.927235483495658e-09,2.3302916076365744e-08,1.6229895069950188e-08],"key":"4fa06fd78431052d","volume":1.147039293457028e-05}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -2089,7 +1906,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Intake_runner"
         {
-            custom string aiad:derived = '{"bounds":[[0.1592214186703245,0.013114961056513457,0.010945031608299668],[0.19611452167945986,0.07734030027100786,0.12245967801215336]],"key":"4d58da588b97ffe7"}'
+            custom string aiad:derived = '{"area":0.010690178994814606,"bounds":[[0.1592214186703245,0.013114961056513457,0.010945031608299668],[0.19611452167945986,0.07734030027100786,0.12245967801215336]],"centroid":[0.17737142624578028,0.05057646579931495,0.06672053012019954],"inertia":[6.767066042572155e-08,5.950226016896394e-08,1.5089660592497875e-08,-1.9945566448632244e-08,-5.264253365870595e-09,-1.9738407418340156e-09],"key":"4d58da588b97ffe7","volume":6.443220268825643e-05}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -2127,7 +1944,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Carburettor"
         {
-            custom string aiad:derived = '{"bounds":[[0.16168000000000002,0.043,0.12],[0.20368,0.085,0.16999999999999998]],"key":"10b96f64a5f0da33"}'
+            custom string aiad:derived = '{"area":0.009369351844871917,"bounds":[[0.16168000000000002,0.043,0.12],[0.20368,0.085,0.16999999999999998]],"centroid":[0.18267971785660334,0.06400004194830088,0.14499897413207374],"inertia":[2.2070200178389476e-08,2.2071073951315746e-08,1.527563651431952e-08,-1.3731627089851696e-13,-4.621627351081839e-13,8.426589953690493e-14],"key":"10b96f64a5f0da33","volume":6.92771418498703e-05}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -2154,7 +1971,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Exhaust_pipe"
         {
-            custom string aiad:derived = '{"bounds":[[-0.06903164588118534,0.01301064923376457,-0.1426564286773389],[0.1945115376590253,0.09649917735288907,-0.01082926734147913]],"key":"44ba7e2a2b00d3a6"}'
+            custom string aiad:derived = '{"area":0.026250427588369478,"bounds":[[-0.06903164588118534,0.01301064923376457,-0.1426564286773389],[0.1945115376590253,0.09649917735288907,-0.01082926734147913]],"centroid":[0.08653431177504385,0.06986314454335688,-0.10219380117209972],"inertia":[2.2224652850518514e-07,1.152896176786535e-06,1.0337425697260213e-06,8.60836532837621e-08,-3.210966674008009e-07,1.7128068934037248e-07],"key":"44ba7e2a2b00d3a6","volume":0.00015795935922347513}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -2192,7 +2009,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Idler_pin"
         {
-            custom string aiad:derived = '{"bounds":[[-0.0029037206034987434,-0.046282648395023586,-0.0583],[0.015096279396501256,-0.028282648395023584,-0.0351]],"key":"e531aca29754d7f8"}'
+            custom string aiad:derived = '{"area":0.0014063286715431075,"bounds":[[-0.0029037206034987434,-0.046282648395023586,-0.0583],[0.015096279396501256,-0.028282648395023584,-0.0351]],"centroid":[0.006096588896168462,-0.03728268364583325,-0.04736764901614499],"inertia":[1.6555307516760963e-10,1.6554354892143514e-10,5.713893345427655e-11,-4.3461362855657023e-16,3.603354751762475e-15,-2.9148055717340832e-15],"key":"e531aca29754d7f8","volume":2.793178231766315e-06}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -2234,7 +2051,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Rocker_box"
         {
-            custom string aiad:derived = '{"bounds":[[0.19467999999999996,-0.092,-0.033],[0.27568000000000015,0.02,0.033]],"key":"44b830d69c5353ae"}'
+            custom string aiad:derived = '{"area":0.06095633369728812,"bounds":[[0.19467999999999996,-0.092,-0.033],[0.27568000000000015,0.02,0.033]],"centroid":[0.2327015431201844,-0.03864135444911151,1.9417695140942616e-09],"inertia":[2.5345802638939924e-07,1.455784197731058e-07,2.451528249725761e-07,-1.0120633731863721e-12,7.984963593921893e-15,-1.0874723937781229e-08],"key":"44b830d69c5353ae","volume":0.0001141503532238831}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -2358,7 +2175,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Rocker_shaft"
         {
-            custom string aiad:derived = '{"bounds":[[0.24668,-0.045,-0.03300000000000001],[0.25668,-0.035,0.03300000000000001]],"key":"c7db15de8fe8623b"}'
+            custom string aiad:derived = '{"area":0.0022308223952024154,"bounds":[[0.24668,-0.045,-0.03300000000000001],[0.25668,-0.035,0.03300000000000001]],"centroid":[0.25168030140865244,-0.039999962484584255,-3.558716718480258e-07],"inertia":[1.9140782334870935e-09,1.914068497905888e-09,6.478808711456637e-11,-8.282998827804993e-16,2.0813010850988702e-14,1.4431260686748905e-15],"key":"c7db15de8fe8623b","volume":5.183689593272827e-06}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -2385,7 +2202,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Rocker_cover"
         {
-            custom string aiad:derived = '{"bounds":[[0.27568,-0.093,-0.034],[0.2841800000000001,0.021,0.034]],"key":"3e8d491dcaa47cda"}'
+            custom string aiad:derived = '{"area":0.018175303804150666,"bounds":[[0.27568,-0.093,-0.034],[0.2841800000000001,0.021,0.034]],"centroid":[0.2794664867906645,-0.03605049931107111,4.424569287396017e-19],"inertia":[7.153738777626075e-08,1.8324512533162927e-08,5.382601161928644e-08,-1.4654315485899382e-13,5.1607753736101725e-25,1.2873291322199792e-12],"key":"3e8d491dcaa47cda","volume":5.499738354196291e-05}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -2451,7 +2268,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Timing_gear_case"
         {
-            custom string aiad:derived = '{"bounds":[[-0.029700000000000008,-0.1297,-0.061100000000000015],[0.0947,0.0297,-0.035099999999999985]],"key":"5d8233a4805d8f53"}'
+            custom string aiad:derived = '{"area":0.06346165598289434,"bounds":[[-0.029700000000000008,-0.1297,-0.061100000000000015],[0.0947,0.0297,-0.035099999999999985]],"centroid":[0.032170436584166455,-0.05799393374410992,-0.04824775682599731],"inertia":[1.595888986882952e-07,1.0404000925164928e-07,2.460475145582098e-07,4.4876035279063206e-11,-1.5613004583871032e-11,4.775421744624328e-08],"key":"5d8233a4805d8f53","volume":8.326269929958997e-05}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -2578,7 +2395,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Crank_oil_seal_timing_side"
         {
-            custom string aiad:derived = '{"bounds":[[-0.021000000000000005,-0.021000000000000005,-0.06110000000000001],[0.021,0.021,-0.0586]],"key":"e4aac477367d9b97"}'
+            custom string aiad:derived = '{"area":0.0017065809927266956,"bounds":[[-0.021000000000000005,-0.021000000000000005,-0.06110000000000001],[0.021,0.021,-0.0586]],"centroid":[1.5632090886050471e-06,6.145429853172523e-06,-0.05985018944682035],"inertia":[2.4811018262932175e-10,2.476999005209961e-10,4.93608972480091e-10,-1.8404769364086203e-13,1.0681249083282137e-14,-3.7517496035196087e-14],"key":"e4aac477367d9b97","volume":1.403033162849012e-06}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -2606,7 +2423,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Timing_case_oil"
         {
-            custom string aiad:derived = '{"bounds":[[-0.02670000000000001,-0.06493533382712964,-0.05860000000000002],[-0.009999999999999953,0.024756615277537433,-0.037599999999999995]],"key":"968601fce4defa05"}'
+            custom string aiad:derived = '{"area":0.00639734523114038,"bounds":[[-0.02670000000000001,-0.06493533382712964,-0.05860000000000002],[-0.009999999999999953,0.024756615277537433,-0.037599999999999995]],"centroid":[-0.017300376808602337,-0.016081523840918342,-0.04713777554885011],"inertia":[6.5641443320057336e-09,7.643918056835275e-10,6.292828230586087e-09,-9.774074077747027e-11,-2.5194014860524356e-11,4.972130400911723e-10],"key":"968601fce4defa05","volume":1.2879585140187963e-05}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -2713,7 +2530,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Crankcase_oil"
         {
-            custom string aiad:derived = '{"bounds":[[-0.060300000000000006,-0.036497808153367256,-0.027800000000000002],[-0.04799999999999997,0.03649780815336725,0.027800000000000002]],"key":"cf9e16ab492ea1a3"}'
+            custom string aiad:derived = '{"area":0.009641645280649445,"bounds":[[-0.060300000000000006,-0.036497808153367256,-0.027800000000000002],[-0.04799999999999997,0.03649780815336725,0.027800000000000002]],"centroid":[-0.05296641417354705,3.6630889053669347e-07,-4.6280068876269387e-07],"inertia":[1.8066496826774636e-08,9.12018137007862e-09,9.656432161657081e-09,-3.259205585365033e-13,-7.657809596722327e-14,3.2323303431300655e-13],"key":"cf9e16ab492ea1a3","volume":3.402433758615204e-05}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -2754,7 +2571,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Breather_body"
         {
-            custom string aiad:derived = '{"bounds":[[0.28418000000000004,-0.016,-0.006000000000000001],[0.2961800000000001,-0.004,0.006]],"key":"87d7969e6e32731b"}'
+            custom string aiad:derived = '{"area":0.0010241246879968057,"bounds":[[0.28418000000000004,-0.016,-0.006000000000000001],[0.2961800000000001,-0.004,0.006]],"centroid":[0.2900898196445842,-0.0099984083363358,-2.0797498044232425e-06],"inertia":[1.9127107285489078e-11,2.1472488362802857e-11,2.1521570660932256e-11,-1.5317734469409112e-14,7.855021478677817e-17,-6.011810593282343e-17],"key":"87d7969e6e32731b","volume":7.838079198598216e-07}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -2820,7 +2637,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Breather_reed"
         {
-            custom string aiad:derived = '{"bounds":[[0.28618000000000005,-0.0135,-0.0035],[0.28658000000000006,-0.006500000000000001,0.0035]],"key":"40be89822689bd9b"}'
+            custom string aiad:derived = '{"area":8.576558120576631e-05,"bounds":[[0.28618000000000005,-0.0135,-0.0035],[0.28658000000000006,-0.006500000000000001,0.0035]],"centroid":[0.2863800000000001,-0.01000000000000775,-2.694813657692659e-15],"inertia":[9.432811444289736e-14,4.733375752694486e-14,4.740488231263305e-14,4.011295745421889e-18,-3.8812646845591763e-29,-1.18720664449502e-28],"key":"40be89822689bd9b","volume":1.53947023755189e-08}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -2847,7 +2664,7 @@ def Xform "Engine_SingleCylinder_Pushrod" (
 
         def Xform "Breather_hose"
         {
-            custom string aiad:derived = '{"bounds":[[0.2921915712955484,-0.015723476326606818,-0.0035000000000000014],[0.31995760473771556,0.04288022699572967,0.0035000000000000014]],"key":"df2d0296efe06613"}'
+            custom string aiad:derived = '{"area":0.0016177575304899183,"bounds":[[0.2921915712955484,-0.015723476326606818,-0.0035000000000000014],[0.31995760473771556,0.04288022699572967,0.0035000000000000014]],"centroid":[0.3100268319880887,0.010651380564219087,2.560657639617878e-07],"inertia":[8.206464857194699e-10,1.082836563753979e-10,9.124102568840478e-10,2.879057228347442e-16,-7.707964173394769e-18,-6.734774883210948e-11],"key":"df2d0296efe06613","volume":2.696994214270164e-06}'
             custom string aiad:error = ""
             custom string aiad:features = '''[
  {
@@ -5308,6 +5125,189 @@ def Xform "Engine_SingleCylinder_Pushrod" (
             custom string aiad:name = "Exhaust rocker arm"
             custom string aiad:role = ""
             custom bool aiad:sectioned = 0
+        }
+    }
+
+    def "Looks"
+    {
+        def Material "Cast_aluminium_A356"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Cast_aluminium_A356/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.8, 0.81, 0.82)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.42
+                token outputs:surface
+            }
+        }
+
+        def Material "Forged_aluminium_4032"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Forged_aluminium_4032/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.88, 0.88, 0.89)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.24
+                token outputs:surface
+            }
+        }
+
+        def Material "Steel_42CrMo4"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Steel_42CrMo4/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.64, 0.65, 0.67)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.28
+                token outputs:surface
+            }
+        }
+
+        def Material "Steel_black_oxide"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Steel_black_oxide/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.22, 0.22, 0.24)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.38
+                token outputs:surface
+            }
+        }
+
+        def Material "Grey_cast_iron"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Grey_cast_iron/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.38, 0.38, 0.4)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.55
+                token outputs:surface
+            }
+        }
+
+        def Material "Bearing_bronze"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Bearing_bronze/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.78, 0.56, 0.32)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.3
+                token outputs:surface
+            }
+        }
+
+        def Material "Copper_winding"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Copper_winding/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.8, 0.45, 0.24)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.3
+                token outputs:surface
+            }
+        }
+
+        def Material "Alumina_ceramic"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Alumina_ceramic/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.93, 0.93, 0.91)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.18
+                token outputs:surface
+            }
+        }
+
+        def Material "Rubber"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Rubber/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.05, 0.05, 0.06)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.75
+                token outputs:surface
+            }
+        }
+
+        def Material "Ferrite_magnet"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Ferrite_magnet/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.17, 0.17, 0.19)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.55
+                token outputs:surface
+            }
+        }
+
+        def Material "Spark"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Spark/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (1, 0.85, 0.45)
+                color3f inputs:emissiveColor = (25, 21.25, 11.25)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "Engine_oil_SAE_30"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder_Pushrod/Looks/Engine_oil_SAE_30/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.72, 0.45, 0.08)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.08
+                token outputs:surface
+            }
         }
     }
 

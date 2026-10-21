@@ -163,12 +163,21 @@ std::unique_ptr<Document> Document::Open(const std::string& path, std::string& e
     // Saved as interface + payload (see Save): edited as one layer, the payload's geometry flattened into it.
     if (const SdfPrimSpecHandle root = doc->m_stage->GetRootLayer()->GetPrimAtPath(doc->m_root); root && root->HasPayloads())
     {
-        for (const SdfPayload& payload : root->GetPayloadList().GetAddedOrExplicitItems())
-            if (const std::filesystem::path geometry = (std::filesystem::path(path).parent_path() / payload.GetAssetPath()).lexically_normal();
-                !std::filesystem::exists(geometry))
+        const std::filesystem::path folder = std::filesystem::path(path).parent_path();
+        const std::vector<SdfPayload> payloads = root->GetPayloadList().GetAddedOrExplicitItems();
+        for (const SdfPayload& payload : payloads)
+            if (const std::filesystem::path geometry = (folder / payload.GetAssetPath()).lexically_normal(); !std::filesystem::exists(geometry))
             {
-                error = "the geometry of " + path + " is in " + geometry.string() + ", which is missing (a document is its .usda and its .geom.usdc)";
-                return nullptr;
+                // Renamed outside the app (the .usda names its .geom.usdc): its own <name>.geom.usdc beside it is the geometry.
+                const std::string own = std::filesystem::path(path).stem().string() + ".geom.usdc";
+                if (!std::filesystem::exists(folder / own))
+                {
+                    error = "the geometry of " + path + " is in " + geometry.string() + ", which is missing (a document is its .usda and its .geom.usdc)";
+                    return nullptr;
+                }
+                root->GetPayloadList().ClearEditsAndMakeExplicit();
+                root->GetPayloadList().GetExplicitItems().push_back(SdfPayload("./" + own, payload.GetPrimPath(), payload.GetLayerOffset()));
+                break;
             }
         doc->m_stage = UsdStage::Open(doc->m_stage->Flatten(false));
     }

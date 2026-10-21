@@ -176,8 +176,15 @@ void DrawInstrumentPanels(Session& session, const UiFonts& fonts, float scale, c
                                              : li.probes.empty()           ? doc::Dimension::Ratio
                                                                            : li.probes.front().dimension;
                 ImGui::SetNextItemWidth(base * 5.0f);
-                if (ImGui::BeginCombo("##unit", doc::FindUnit(shown, li.unit).label[0] ? doc::FindUnit(shown, li.unit).label : "-"))
+                const bool autoUnit = li.info.type == "dynamometer" && !li.info.definition.contains("unit");
+                if (ImGui::BeginCombo("##unit", autoUnit ? "auto" : doc::FindUnit(shown, li.unit).label[0] ? doc::FindUnit(shown, li.unit).label : "-"))
                 {
+                    if (li.info.type == "dynamometer" && ImGui::Selectable("auto", autoUnit) && !autoUnit)
+                    {
+                        Json d = li.info.definition;
+                        d.erase("unit");
+                        deferred.push_back([command, name = li.info.name, d] { command("aiad_instrument_define", {{"name", name}, {"type", "dynamometer"}, {"definition", d}}); });
+                    }
                     for (const doc::Unit& u : doc::UnitsOf(shown))
                         if (ImGui::Selectable(u.label[0] ? u.label : u.name, li.unit == u.name))
                             set("unit", u.name);
@@ -241,16 +248,21 @@ void DrawInstrumentPanels(Session& session, const UiFonts& fonts, float scale, c
                     ImPlot::BeginPlot("##curve", ImVec2(-1.0f, base * 10.0f), ImPlotFlags_NoMenus | ImPlotFlags_NoBoxSelect))
                 {
                     const InstrumentProbe &power = li.probes[0], &torque = li.probes[1], &speed = li.probes[2], &held = li.probes[3];
-                    const doc::Unit& u = doc::FindUnit(doc::Dimension::Power, li.unit);
+                    const doc::Unit& u = doc::FindUnit(doc::Dimension::Power, li.shown.main.unit.empty() ? li.unit : li.shown.main.unit);
+                    std::string torqueUnit = "N.m";   // the torque readout's range
+                    for (const Reading& x : li.shown.secondary)
+                        if (x.label == "Torque" && !x.unit.empty())
+                            torqueUnit = x.unit;
+                    const doc::Unit& tu = doc::FindUnit(doc::Dimension::Torque, torqueUnit);
                     ImPlot::SetupAxes("rpm", u.label, ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
-                    ImPlot::SetupAxis(ImAxis_Y2, "N·m", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_Opposite);
+                    ImPlot::SetupAxis(ImAxis_Y2, tu.label, ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_Opposite);
                     std::vector<double> rpm, kw, nm;
                     for (size_t k = 0; k < power.history.size() && k < torque.history.size() && k < speed.history.size() && k < held.history.size(); ++k)
                         if (DynoHeld(speed.history[k].mean, held.history[k].mean))
                         {
                             rpm.push_back(speed.history[k].mean * 60.0 / (2.0 * std::numbers::pi));
                             kw.push_back(power.history[k].mean * u.scale + u.offset);
-                            nm.push_back(torque.history[k].mean);
+                            nm.push_back(torque.history[k].mean * tu.scale);
                         }
                     if (!rpm.empty())
                     {
@@ -259,7 +271,7 @@ void DrawInstrumentPanels(Session& session, const UiFonts& fonts, float scale, c
                         ImPlot::PlotScatter(std::format("Power [{}]", u.label).c_str(), rpm.data(), kw.data(), int(rpm.size()),
                                             ImPlotSpec(ImPlotProp_LineColor, pc, ImPlotProp_MarkerFillColor, pc, ImPlotProp_MarkerLineColor, pc, ImPlotProp_MarkerSize, 2.0f * scale));
                         ImPlot::SetAxes(ImAxis_X1, ImAxis_Y2);
-                        ImPlot::PlotScatter("Torque [N·m]", rpm.data(), nm.data(), int(rpm.size()),
+                        ImPlot::PlotScatter(std::format("Torque [{}]", tu.label).c_str(), rpm.data(), nm.data(), int(rpm.size()),
                                             ImPlotSpec(ImPlotProp_LineColor, tc, ImPlotProp_MarkerFillColor, tc, ImPlotProp_MarkerLineColor, tc, ImPlotProp_MarkerSize, 2.0f * scale));
                     }
                     ImPlot::EndPlot();
@@ -275,7 +287,8 @@ void DrawInstrumentPanels(Session& session, const UiFonts& fonts, float scale, c
                         const InstrumentProbe& p = li.probes[k];
                         if (p.hidden)
                             continue;
-                        const doc::Unit& u = doc::FindUnit(p.dimension, k == 0 && li.info.type != "oscillation" && li.info.type != "timer" ? li.unit : std::string());
+                        const std::string unit = li.info.type == "dynamometer" && !li.shown.main.unit.empty() ? li.shown.main.unit : li.unit;
+                        const doc::Unit& u = doc::FindUnit(p.dimension, k == 0 && li.info.type != "oscillation" && li.info.type != "timer" ? unit : std::string());
                         std::vector<double> x, mean, lo, hi;
                         for (const InstrumentProbe::Bucket& b : p.history)
                             if (b.t >= now - window)
@@ -457,6 +470,72 @@ void PlugInstrumentItems(Session& session, const std::string& targetKind, const 
             Json probe = {{targetKind == "joint" ? "joint" : "element", target}};
             Json definition = {{"probes", Json::array({probe})}};
             command("aiad_instrument_define", {{"name", name}, {"type", t.type}, {"definition", definition}});
+        }
+    }
+    // A turning shaft can be put on a dynamometer: unlike the probes it brakes the shaft (as on a test bench) and so
+    // measures the real power the machine gives there.
+    if (targetKind == "joint" && rotation && session.document)
+    {
+        ImGui::Separator();
+        if (ImGui::BeginMenu("DY-1  Dynamometer (brakes this shaft)"))
+        {
+            static int mode = 1;
+            static double speed = 2000.0, from = 1000.0, to = 4000.0, seconds = 20.0, torque = 20.0, start = 1.5;
+            if (ImGui::IsWindowAppearing())
+            {
+                // The shaft's speed now, if it turns: a sensible held speed and the top of a sweep.
+                const auto lock = session.Lock();
+                const auto& joints = session.study.machine.mechanism.joints;
+                for (size_t j = 0; session.machine && j < joints.size(); ++j)
+                    if (joints[j].name == target)
+                        if (const double rpm = std::abs(session.machine->Mechanism().Rate(int(j))) * 60.0 / (2.0 * std::numbers::pi); rpm > 100.0)
+                            speed = std::round(rpm / 100.0) * 100.0, to = std::max(to, std::round(rpm * 1.3 / 100.0) * 100.0);
+            }
+            // Dynamometers already on this shaft: read one.
+            for (const doc::ElementInfo& e : session.document->Elements())
+                if (e.type == "dynamometer" && e.definition.value("joint", "") == target &&
+                    ImGui::MenuItem(std::format("Read '{}' ({})", e.name, e.definition.value("mode", "speed")).c_str()))
+                    command("aiad_instrument_define", {{"name", "DY-1 " + e.name},
+                                                       {"type", "dynamometer"},
+                                                       {"definition", {{"probes", Json::array({{{"element", e.name}}})}, {"window", e.definition.value("seconds", 10.0) + 10.0}}}});
+            ImGui::TextDisabled("A bench brake on '%s': it absorbs the power and measures it.", target.c_str());
+            ImGui::SetNextItemWidth(ImGui::GetFontSize() * 12.0f);
+            ImGui::Combo("Mode", &mode, "Hold a speed\0Sweep the speed (power curve)\0Constant braking torque\0");
+            ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8.0f);
+            if (mode == 0)
+                ImGui::InputDouble("held speed [rpm]", &speed, 100.0, 500.0, "%.0f");
+            else if (mode == 1)
+            {
+                ImGui::InputDouble("from [rpm]", &from, 100.0, 500.0, "%.0f");
+                ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8.0f);
+                ImGui::InputDouble("to [rpm]", &to, 100.0, 500.0, "%.0f");
+                ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8.0f);
+                ImGui::InputDouble("in [s]", &seconds, 1.0, 5.0, "%.1f");
+            }
+            else
+                ImGui::InputDouble("torque [N m]", &torque, 1.0, 10.0, "%.2f");
+            ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8.0f);
+            ImGui::InputDouble("engages at [s]", &start, 0.5, 1.0, "%.2f");
+            ImGui::TextDisabled("Let the starter bring the machine up before it engages.");
+            speed = std::max(speed, 1.0), from = std::max(from, 0.0), to = std::max(to, from + 1.0), seconds = std::max(seconds, 0.1);
+            torque = std::max(torque, 0.01), start = std::max(start, 0.0);
+            if (ImGui::MenuItem("Put the shaft on the dynamometer"))
+            {
+                const std::string name = "Dyno " + target;
+                Json d = {{"joint", target}, {"start", start}};
+                if (mode == 0)
+                    d["mode"] = "speed", d["speed"] = speed;
+                else if (mode == 1)
+                    d["mode"] = "sweep", d["from"] = from, d["to"] = to, d["seconds"] = seconds;
+                else
+                    d["mode"] = "torque", d["torque"] = torque;
+                if (command("aiad_element_define", {{"name", name}, {"type", "dynamometer"}, {"definition", d}}))
+                    command("aiad_instrument_define",
+                            {{"name", "DY-1 " + target},
+                             {"type", "dynamometer"},
+                             {"definition", {{"probes", Json::array({{{"element", name}}})}, {"window", mode == 1 ? std::ceil(start + seconds + 5.0) : 30.0}}}});
+            }
+            ImGui::EndMenu();
         }
     }
 }

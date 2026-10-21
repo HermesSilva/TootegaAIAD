@@ -1,0 +1,3611 @@
+#usda 1.0
+(
+    defaultPrim = "Engine_SingleCylinder"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Engine_SingleCylinder" (
+    prepend payload = @./Engine_1Cyl_OHC_Belt.geom.usdc@
+)
+{
+    custom string aiad:materials = '''{
+ "Alumina ceramic": {
+  "colour": [
+   0.93,
+   0.93,
+   0.91
+  ],
+  "density": 3900.0,
+  "emission": 0.0,
+  "metallic": 0.0,
+  "roughness": 0.18
+ },
+ "Bearing bronze": {
+  "colour": [
+   0.78,
+   0.56,
+   0.32
+  ],
+  "density": 8800.0,
+  "emission": 0.0,
+  "metallic": 1.0,
+  "roughness": 0.3
+ },
+ "Cast aluminium A356": {
+  "colour": [
+   0.8,
+   0.81,
+   0.82
+  ],
+  "density": 2680.0,
+  "emission": 0.0,
+  "metallic": 1.0,
+  "roughness": 0.42
+ },
+ "Copper winding": {
+  "colour": [
+   0.8,
+   0.45,
+   0.24
+  ],
+  "density": 8960.0,
+  "emission": 0.0,
+  "metallic": 1.0,
+  "roughness": 0.3
+ },
+ "Ferrite magnet": {
+  "colour": [
+   0.17,
+   0.17,
+   0.19
+  ],
+  "density": 4900.0,
+  "emission": 0.0,
+  "metallic": 0.0,
+  "remanence": 0.4,
+  "roughness": 0.55
+ },
+ "Forged aluminium 4032": {
+  "colour": [
+   0.88,
+   0.88,
+   0.89
+  ],
+  "density": 2690.0,
+  "emission": 0.0,
+  "metallic": 1.0,
+  "roughness": 0.24
+ },
+ "Grey cast iron": {
+  "colour": [
+   0.38,
+   0.38,
+   0.4
+  ],
+  "density": 7200.0,
+  "emission": 0.0,
+  "metallic": 1.0,
+  "roughness": 0.55
+ },
+ "Rubber": {
+  "colour": [
+   0.05,
+   0.05,
+   0.06
+  ],
+  "density": 1200.0,
+  "emission": 0.0,
+  "metallic": 0.0,
+  "roughness": 0.75
+ },
+ "Spark": {
+  "colour": [
+   1.0,
+   0.85,
+   0.45
+  ],
+  "density": 0.0,
+  "emission": 25.0,
+  "metallic": 0.0,
+  "roughness": 0.5
+ },
+ "Steel 42CrMo4": {
+  "colour": [
+   0.64,
+   0.65,
+   0.67
+  ],
+  "density": 7850.0,
+  "emission": 0.0,
+  "metallic": 1.0,
+  "roughness": 0.28,
+  "shear_modulus": 80000000000.0
+ },
+ "Steel, black oxide": {
+  "colour": [
+   0.22,
+   0.22,
+   0.24
+  ],
+  "density": 7850.0,
+  "emission": 0.0,
+  "metallic": 1.0,
+  "relative_permeability": 2000.0,
+  "roughness": 0.38,
+  "shear_modulus": 79300000000.0
+ }
+}'''
+    custom string aiad:parameters = '''[
+ {
+  "description": "Cylinder bore",
+  "max": 0.12,
+  "min": 0.04,
+  "name": "bore",
+  "unit": "m",
+  "value": 0.08
+ },
+ {
+  "description": "Piston stroke (twice the crank radius)",
+  "max": 0.12,
+  "min": 0.03,
+  "name": "stroke",
+  "unit": "m",
+  "value": 0.06
+ },
+ {
+  "description": "Connecting rod, centre to centre",
+  "max": 0.25,
+  "min": 0.06,
+  "name": "rod_length",
+  "unit": "m",
+  "value": 0.1
+ },
+ {
+  "description": "Geometric compression ratio (sets the chamber height)",
+  "max": 14.0,
+  "min": 6.0,
+  "name": "compression_ratio",
+  "unit": "",
+  "value": 10
+ },
+ {
+  "description": "Intake valve head diameter",
+  "max": 0.05,
+  "min": 0.015,
+  "name": "intake_valve_diameter",
+  "unit": "m",
+  "value": 0.032
+ },
+ {
+  "description": "Exhaust valve head diameter",
+  "max": 0.05,
+  "min": 0.015,
+  "name": "exhaust_valve_diameter",
+  "unit": "m",
+  "value": 0.028
+ },
+ {
+  "description": "Intake opens (crank angle of the 720 deg cycle, 0 = firing TDC)",
+  "max": 380.0,
+  "min": 300.0,
+  "name": "intake_open",
+  "unit": "deg",
+  "value": 350
+ },
+ {
+  "description": "Intake closes",
+  "max": 640.0,
+  "min": 520.0,
+  "name": "intake_close",
+  "unit": "deg",
+  "value": 580
+ },
+ {
+  "description": "Intake cam lobe lift",
+  "max": 0.012,
+  "min": 0.003,
+  "name": "intake_lift",
+  "unit": "m",
+  "value": 0.008
+ },
+ {
+  "description": "Exhaust opens",
+  "max": 180.0,
+  "min": 100.0,
+  "name": "exhaust_open",
+  "unit": "deg",
+  "value": 140
+ },
+ {
+  "description": "Exhaust closes",
+  "max": 420.0,
+  "min": 340.0,
+  "name": "exhaust_close",
+  "unit": "deg",
+  "value": 370
+ },
+ {
+  "description": "Exhaust cam lobe lift",
+  "max": 0.012,
+  "min": 0.003,
+  "name": "exhaust_lift",
+  "unit": "m",
+  "value": 0.008
+ },
+ {
+  "description": "Cam base circle radius",
+  "max": 0.025,
+  "min": 0.01,
+  "name": "cam_base_radius",
+  "unit": "m",
+  "value": 0.016
+ },
+ {
+  "description": "Valve clearance (lobe base circle to tappet), the gap the cam closes before it lifts the valve",
+  "max": 0.02,
+  "min": 0.0,
+  "name": "valve_lash",
+  "unit": "m",
+  "value": 0.0001
+ },
+ {
+  "description": "Valve spring compression when the valve is closed (free length - installed length)",
+  "max": 0.015,
+  "min": 0.0,
+  "name": "spring_preload",
+  "unit": "m",
+  "value": 0.006
+ },
+ {
+  "description": "Steel flywheel outer radius",
+  "max": 0.14,
+  "min": 0.06,
+  "name": "flywheel_outer_radius",
+  "unit": "m",
+  "value": 0.095
+ },
+ {
+  "description": "Steel flywheel rim inner radius",
+  "max": 0.12,
+  "min": 0.02,
+  "name": "flywheel_inner_radius",
+  "unit": "m",
+  "value": 0.06
+ },
+ {
+  "description": "Steel flywheel width",
+  "max": 0.06,
+  "min": 0.01,
+  "name": "flywheel_width",
+  "unit": "m",
+  "value": 0.034
+ },
+ {
+  "description": "Timing belt plane from the crankcase wall",
+  "name": "timing_belt_offset",
+  "unit": "m",
+  "value": 0.016
+ },
+ {
+  "description": "Exhaust pipe sideways run",
+  "name": "exhaust_pipe_side",
+  "unit": "m",
+  "value": 0.075
+ },
+ {
+  "description": "Exhaust pipe run behind the section plane",
+  "name": "exhaust_pipe_back",
+  "unit": "m",
+  "value": 0.04
+ },
+ {
+  "description": "Ignition before TDC (sets where the magnet sits on the flywheel)",
+  "max": 45.0,
+  "min": 0.0,
+  "name": "spark_advance",
+  "unit": "deg",
+  "value": 25
+ },
+ {
+  "description": "Magnet angle from the core axis at which the breaker points open (setting of the breaker points: the magneto element)",
+  "name": "points_open_deg",
+  "unit": "deg",
+  "value": -3
+ },
+ {
+  "description": "Magneto rotor radius (same geometry as the field solver)",
+  "name": "magneto_flywheel_radius",
+  "unit": "m",
+  "value": 0.075
+ },
+ {
+  "description": "Radial thickness of the magnet and pole shoes",
+  "name": "magneto_assembly_depth",
+  "unit": "m",
+  "value": 0.012
+ },
+ {
+  "description": "Angular width of the magnet and of each shoe",
+  "name": "magneto_segment_angle",
+  "unit": "deg",
+  "value": 10
+ },
+ {
+  "description": "Air gap between rotor and core legs",
+  "name": "magneto_air_gap",
+  "unit": "m",
+  "value": 0.0005
+ },
+ {
+  "description": "Core leg width",
+  "name": "magneto_leg_width",
+  "unit": "m",
+  "value": 0.008
+ },
+ {
+  "description": "Core leg length (air gap to yoke)",
+  "name": "magneto_leg_length",
+  "unit": "m",
+  "value": 0.035
+ },
+ {
+  "description": "Core yoke thickness",
+  "name": "magneto_yoke_thickness",
+  "unit": "m",
+  "value": 0.01
+ },
+ {
+  "description": "Core stack depth (field solver Lz)",
+  "name": "magneto_stack_depth",
+  "unit": "m",
+  "value": 0.025
+ },
+ {
+  "description": "Magnet remanence Br (ferrite)",
+  "name": "magneto_remanence",
+  "unit": "T",
+  "value": 0.4
+ },
+ {
+  "description": "Propeller-like load on the crank, T = k omega^2 (load element)",
+  "max": 0.002,
+  "min": 0.0,
+  "name": "load_coefficient",
+  "unit": "N m s^2",
+  "value": 0.00025
+ },
+ {
+  "description": "Starter motor stall torque at the crank (torque motor of the main bearing)",
+  "max": 200.0,
+  "min": 5.0,
+  "name": "starter_stall_torque",
+  "unit": "N m",
+  "value": 50
+ },
+ {
+  "description": "Starter motor free speed at the crank",
+  "max": 3000.0,
+  "min": 200.0,
+  "name": "starter_free_speed",
+  "unit": "rpm",
+  "value": 800
+ },
+ {
+  "description": "Starter engaged time",
+  "max": 5.0,
+  "min": 0.2,
+  "name": "starter_duration",
+  "unit": "s",
+  "value": 1
+ },
+ {
+  "description": "Scale of the transverse sizes",
+  "name": "s",
+  "unit": "",
+  "value": "bore / 0.080"
+ },
+ {
+  "description": "Bore radius",
+  "name": "R",
+  "unit": "m",
+  "value": "bore / 2"
+ },
+ {
+  "description": "Crank radius",
+  "name": "r",
+  "unit": "m",
+  "value": "stroke / 2"
+ },
+ {
+  "description": "Wrist pin axis to piston crown",
+  "name": "compression_height",
+  "unit": "m",
+  "value": "0.30 * bore"
+ },
+ {
+  "description": "Skirt below the wrist pin",
+  "name": "skirt",
+  "unit": "m",
+  "value": "0.26 * bore"
+ },
+ {
+  "description": "Flat chamber height at TDC",
+  "name": "clearance_height",
+  "unit": "m",
+  "value": "stroke / (compression_ratio - 1)"
+ },
+ {
+  "description": "",
+  "name": "crank_pin_r",
+  "unit": "m",
+  "value": "0.015 * s"
+ },
+ {
+  "description": "",
+  "name": "journal_r",
+  "unit": "m",
+  "value": "0.016 * s"
+ },
+ {
+  "description": "",
+  "name": "wrist_pin_r",
+  "unit": "m",
+  "value": "0.009 * s"
+ },
+ {
+  "description": "",
+  "name": "big_end_half",
+  "unit": "m",
+  "value": "0.0105 * s"
+ },
+ {
+  "description": "",
+  "name": "web_in",
+  "unit": "m",
+  "value": "big_end_half + 0.0006"
+ },
+ {
+  "description": "",
+  "name": "web_out",
+  "unit": "m",
+  "value": "web_in + 0.013 * s"
+ },
+ {
+  "description": "",
+  "name": "counterweight_r",
+  "unit": "m",
+  "value": "0.046 * s"
+ },
+ {
+  "description": "",
+  "name": "big_end_outer",
+  "unit": "m",
+  "value": "crank_pin_r + 0.0095 * s"
+ },
+ {
+  "description": "",
+  "name": "case_inner_r",
+  "unit": "m",
+  "value": "max(counterweight_r, r + big_end_outer) + 0.006 * s"
+ },
+ {
+  "description": "",
+  "name": "case_wall",
+  "unit": "m",
+  "value": "0.007 * s"
+ },
+ {
+  "description": "",
+  "name": "case_outer_r",
+  "unit": "m",
+  "value": "case_inner_r + case_wall"
+ },
+ {
+  "description": "",
+  "name": "case_inner_z",
+  "unit": "m",
+  "value": "web_out + 0.004"
+ },
+ {
+  "description": "",
+  "name": "case_outer_z",
+  "unit": "m",
+  "value": "case_inner_z + case_wall"
+ },
+ {
+  "description": "Cylinder deck from the crank axis",
+  "name": "deck_x",
+  "unit": "m",
+  "value": "r + rod_length + compression_height + clearance_height"
+ },
+ {
+  "description": "",
+  "name": "head_height",
+  "unit": "m",
+  "value": "0.042 * s"
+ },
+ {
+  "description": "",
+  "name": "head_top_x",
+  "unit": "m",
+  "value": "deck_x + head_height"
+ },
+ {
+  "description": "",
+  "name": "valve_offset_z",
+  "unit": "m",
+  "value": "0.2375 * bore"
+ },
+ {
+  "description": "",
+  "name": "spring_length",
+  "unit": "m",
+  "value": "0.038 * s"
+ },
+ {
+  "description": "Valve spring free length",
+  "name": "spring_free_length",
+  "unit": "m",
+  "value": "spring_length + spring_preload * s"
+ },
+ {
+  "description": "",
+  "name": "stem_r",
+  "unit": "m",
+  "value": "0.0035 * s"
+ },
+ {
+  "description": "Valve tip above the deck (closed)",
+  "name": "tip_rel",
+  "unit": "m",
+  "value": "head_height + spring_length + 0.005 * s"
+ },
+ {
+  "description": "",
+  "name": "bucket_top_rel",
+  "unit": "m",
+  "value": "tip_rel + 0.004 * s"
+ },
+ {
+  "description": "",
+  "name": "cam_centre_x",
+  "unit": "m",
+  "value": "deck_x + bucket_top_rel + valve_lash + cam_base_radius"
+ },
+ {
+  "description": "Crank angle at which the magnet faces the core",
+  "name": "magnet_mount_deg",
+  "unit": "deg",
+  "value": "mod(360 - spark_advance - points_open_deg, 360)"
+ },
+ {
+  "description": "Magnet centre on the rotor (from +X)",
+  "name": "magnet_centre",
+  "unit": "deg",
+  "value": "90 - magnet_mount_deg"
+ },
+ {
+  "description": "",
+  "name": "rotor_z0",
+  "unit": "m",
+  "value": "case_outer_z + 0.010"
+ },
+ {
+  "description": "",
+  "name": "rotor_z1",
+  "unit": "m",
+  "value": "rotor_z0 + magneto_stack_depth"
+ },
+ {
+  "description": "",
+  "name": "rotor_rim_in",
+  "unit": "m",
+  "value": "magneto_flywheel_radius - magneto_assembly_depth"
+ },
+ {
+  "description": "",
+  "name": "hub_r",
+  "unit": "m",
+  "value": "journal_r + 0.008 * s"
+ },
+ {
+  "description": "",
+  "name": "timing_z",
+  "unit": "m",
+  "value": "-(case_outer_z + timing_belt_offset)"
+ },
+ {
+  "description": "",
+  "name": "timing_width",
+  "unit": "m",
+  "value": "0.012 * s"
+ },
+ {
+  "description": "",
+  "name": "flywheel_z1",
+  "unit": "m",
+  "value": "timing_z - timing_width / 2 - 0.006"
+ },
+ {
+  "description": "",
+  "name": "flywheel_z0",
+  "unit": "m",
+  "value": "flywheel_z1 - flywheel_width"
+ },
+ {
+  "description": "",
+  "name": "piston_r",
+  "unit": "m",
+  "value": "R - 0.0003"
+ },
+ {
+  "description": "",
+  "name": "groove",
+  "unit": "m",
+  "value": "0.0035 * s"
+ },
+ {
+  "description": "",
+  "name": "piston_inner_r",
+  "unit": "m",
+  "value": "piston_r - 0.0045 * s"
+ },
+ {
+  "description": "",
+  "name": "liner_out",
+  "unit": "m",
+  "value": "R + 0.0035 * s"
+ },
+ {
+  "description": "",
+  "name": "barrel_wall",
+  "unit": "m",
+  "value": "R + 0.008 * s"
+ },
+ {
+  "description": "",
+  "name": "fin_r",
+  "unit": "m",
+  "value": "R + 0.030 * s"
+ },
+ {
+  "description": "",
+  "name": "head_r",
+  "unit": "m",
+  "value": "R + 0.012 * s"
+ },
+ {
+  "description": "",
+  "name": "cover_top",
+  "unit": "m",
+  "value": "cam_centre_x + cam_base_radius + max(intake_lift, exhaust_lift) + 0.010 * s"
+ },
+ {
+  "description": "",
+  "name": "leg_in",
+  "unit": "m",
+  "value": "magneto_flywheel_radius + magneto_air_gap"
+ },
+ {
+  "description": "",
+  "name": "yoke_in",
+  "unit": "m",
+  "value": "leg_in + magneto_leg_length"
+ },
+ {
+  "description": "",
+  "name": "yoke_out",
+  "unit": "m",
+  "value": "yoke_in + magneto_yoke_thickness"
+ },
+ {
+  "description": "",
+  "name": "plug_x",
+  "unit": "m",
+  "value": "deck_x + 0.001"
+ },
+ {
+  "description": "",
+  "name": "plug_y",
+  "unit": "m",
+  "value": "0.021 * s"
+ },
+ {
+  "description": "Spark plug axis (35 deg in the XY plane)",
+  "name": "plug_c",
+  "unit": "",
+  "value": "cos(35)"
+ },
+ {
+  "description": "",
+  "name": "plug_s",
+  "unit": "",
+  "value": "sin(35)"
+ },
+ {
+  "description": "",
+  "name": "port_x",
+  "unit": "m",
+  "value": "deck_x + 0.016 * s"
+ },
+ {
+  "description": "",
+  "name": "port_back",
+  "unit": "m",
+  "value": "R + 0.004 * s"
+ }
+]'''
+    custom string aiad:view = '{"distance":1.0135660241089215,"fov":35.0,"pitch":12.0,"target":[-0.013501033186912564,0.03989722579717636,0.10888333618640902],"yaw":-78.0}'
+    quatd xformOp:orient = (0.7071067811865476, -0, -0.7071067811865476, -0)
+    uniform token[] xformOpOrder = ["xformOp:orient"]
+
+    def "Looks"
+    {
+        def Material "Cast_aluminium_A356"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder/Looks/Cast_aluminium_A356/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.8, 0.81, 0.82)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.42
+                token outputs:surface
+            }
+        }
+
+        def Material "Forged_aluminium_4032"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder/Looks/Forged_aluminium_4032/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.88, 0.88, 0.89)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.24
+                token outputs:surface
+            }
+        }
+
+        def Material "Steel_42CrMo4"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder/Looks/Steel_42CrMo4/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.64, 0.65, 0.67)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.28
+                token outputs:surface
+            }
+        }
+
+        def Material "Steel_black_oxide"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder/Looks/Steel_black_oxide/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.22, 0.22, 0.24)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.38
+                token outputs:surface
+            }
+        }
+
+        def Material "Grey_cast_iron"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder/Looks/Grey_cast_iron/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.38, 0.38, 0.4)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.55
+                token outputs:surface
+            }
+        }
+
+        def Material "Bearing_bronze"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder/Looks/Bearing_bronze/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.78, 0.56, 0.32)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.3
+                token outputs:surface
+            }
+        }
+
+        def Material "Copper_winding"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder/Looks/Copper_winding/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.8, 0.45, 0.24)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.3
+                token outputs:surface
+            }
+        }
+
+        def Material "Alumina_ceramic"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder/Looks/Alumina_ceramic/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.93, 0.93, 0.91)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.18
+                token outputs:surface
+            }
+        }
+
+        def Material "Rubber"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder/Looks/Rubber/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.05, 0.05, 0.06)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.75
+                token outputs:surface
+            }
+        }
+
+        def Material "Ferrite_magnet"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder/Looks/Ferrite_magnet/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.17, 0.17, 0.19)
+                color3f inputs:emissiveColor = (0, 0, 0)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.55
+                token outputs:surface
+            }
+        }
+
+        def Material "Spark"
+        {
+            token outputs:surface.connect = </Engine_SingleCylinder/Looks/Spark/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (1, 0.85, 0.45)
+                color3f inputs:emissiveColor = (25, 21.25, 11.25)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+    }
+
+    def Xform "Frame"
+    {
+        custom string aiad:body = "Frame"
+        custom bool aiad:fixed = 1
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "Crankcase"
+        {
+            custom string aiad:derived = '{"area":0.09861827085002998,"bounds":[[-0.0675,-0.0675,-0.035100000000000006],[0.0675,0.0675,0.035100000000000006]],"centroid":[3.6631243534281797e-06,2.0151111249626247e-06,-6.554808561111534e-06],"inertia":[7.720432219848084e-07,7.718239716633335e-07,1.1013901562696544e-06,1.1150899476998357e-10,3.149472780704252e-11,-9.234509365331575e-11],"key":"99ea774185c43f77","volume":0.00033733343043665755}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "XZ",
+  "profile": [
+   [
+    "journal_r + 0.006",
+    "-case_outer_z"
+   ],
+   [
+    "case_outer_r",
+    "-case_outer_z"
+   ],
+   [
+    "case_outer_r",
+    "case_outer_z"
+   ],
+   [
+    "journal_r + 0.006",
+    "case_outer_z"
+   ],
+   [
+    "journal_r + 0.006",
+    "case_inner_z"
+   ],
+   [
+    "case_inner_r",
+    "case_inner_z"
+   ],
+   [
+    "case_inner_r",
+    "-case_inner_z"
+   ],
+   [
+    "journal_r + 0.006",
+    "-case_inner_z"
+   ]
+  ]
+ }
+]'''
+            custom string aiad:material = "Cast aluminium A356"
+            custom string aiad:name = "Crankcase"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Main_bearing_magneto_side"
+        {
+            custom string aiad:derived = '{"area":0.003104311398831008,"bounds":[[-0.022000000000000002,-0.022,0.028099999999999997],[0.022,0.022,0.035100000000000006]],"centroid":[9.63306814762052e-07,5.311098614250667e-06,0.031599408371691076],"inertia":[9.488661711765134e-10,9.480595625045174e-10,1.8559416707881572e-09,5.990400817057539e-14,9.66227611171072e-15,-1.2409415313129817e-13],"key":"9c653232973bbec7","volume":5.0156050524938075e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "XZ",
+  "profile": {
+   "rect": {
+    "max": [
+     "journal_r + 0.006",
+     "case_outer_z"
+    ],
+    "min": [
+     "journal_r",
+     "case_inner_z"
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Bearing bronze"
+            custom string aiad:name = "Main bearing (magneto side)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Main_bearing_timing_side"
+        {
+            custom string aiad:derived = '{"area":0.003104311398827295,"bounds":[[-0.022000000000000002,-0.022,-0.035100000000000006],[0.022,0.022,-0.028099999999999997]],"centroid":[9.632336747439231e-07,5.310644899680893e-06,-0.0316005916296523],"inertia":[9.488657320137737e-10,9.48059419723187e-10,1.855941370367479e-09,3.606178507106458e-14,5.816621460625579e-15,-1.2404999422414918e-13],"key":"58b5b4f552aee0bb","volume":5.015604911494195e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "XZ",
+  "profile": {
+   "rect": {
+    "max": [
+     "journal_r + 0.006",
+     "-case_inner_z"
+    ],
+    "min": [
+     "journal_r",
+     "-case_outer_z"
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Bearing bronze"
+            custom string aiad:name = "Main bearing (timing side)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Cylinder_liner"
+        {
+            custom string aiad:derived = '{"area":0.057008742998099035,"bounds":[[0.055499999999999994,-0.043500000000000004,-0.043500000000000004],[0.16066666666666668,0.043500000000000004,0.043500000000000004]],"centroid":[0.10808333333333336,1.3704644854735864e-05,-1.7907200665464496e-05],"inertia":[1.6881248658203377e-07,1.7318077200092635e-07,1.736139653266923e-07,-1.35192455124774e-10,3.507357205972624e-24,1.6838760408583843e-23],"key":"316d958265b2143f","volume":9.655432390677727e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "YX",
+  "profile": {
+   "rect": {
+    "max": [
+     "liner_out",
+     "deck_x"
+    ],
+    "min": [
+     "R",
+     "case_outer_r - 0.012 * s"
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Grey cast iron"
+            custom string aiad:name = "Cylinder liner"
+            custom string aiad:role = "liner"
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Cylinder_barrel"
+        {
+            custom string aiad:derived = '{"area":0.2147592340564224,"bounds":[[0.0675,-0.07,-0.07],[0.16066666666666665,0.07,0.07]],"centroid":[0.1118622023490185,1.7774065710048886e-05,-2.322451754333017e-05],"inertia":[9.992164682720006e-07,7.26658265423078e-07,7.29222369988298e-07,-8.00213446551985e-10,1.1318334615202165e-12,-8.662312568487899e-13],"key":"7ee9f20b42d07b85","volume":0.0003325085198025294}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "YX",
+  "profile": [
+   [
+    "liner_out",
+    "case_outer_r"
+   ],
+   [
+    "R + 0.020 * s",
+    "case_outer_r"
+   ],
+   [
+    "R + 0.020 * s",
+    "case_outer_r + 0.007 * s"
+   ],
+   [
+    "barrel_wall",
+    "case_outer_r + 0.007 * s"
+   ],
+   [
+    "barrel_wall",
+    "deck_x"
+   ],
+   [
+    "liner_out",
+    "deck_x"
+   ]
+  ]
+ },
+ {
+  "op": "revolve",
+  "plane": "YX",
+  "profile": {
+   "rect": {
+    "max": [
+     "fin_r",
+     "case_outer_r + 0.014 * s + 0.0025 * s"
+    ],
+    "min": [
+     "barrel_wall - 0.0005",
+     "case_outer_r + 0.014 * s"
+    ]
+   }
+  }
+ },
+ {
+  "count": "floor((deck_x - 0.0065 * s - case_outer_r - 0.014 * s) / (0.0085 * s)) + 1",
+  "op": "pattern_linear",
+  "step": [
+   "0.0085 * s",
+   0,
+   0
+  ]
+ }
+]'''
+            custom string aiad:material = "Cast aluminium A356"
+            custom string aiad:name = "Cylinder barrel"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Cylinder_head"
+        {
+            custom string aiad:derived = '{"area":0.0729679144079792,"bounds":[[0.16066666666666662,-0.07,-0.07],[0.20266666666666666,0.07,0.07]],"centroid":[0.18150837320785,4.326474896640806e-06,-5.653077450769972e-06],"inertia":[6.796246118260147e-07,3.943393393373488e-07,3.9536494555517875e-07,-2.0992606893567768e-10,-2.521308512176261e-12,1.9296549799886928e-12],"key":"7d15d3e2640fb030","volume":0.00040854066856925865}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "axis": [
+   1,
+   0,
+   0
+  ],
+  "base": [
+   "deck_x",
+   0,
+   0
+  ],
+  "height": "head_height",
+  "op": "cylinder",
+  "radius": "head_r"
+ },
+ {
+  "op": "revolve",
+  "plane": "YX",
+  "profile": {
+   "rect": {
+    "max": [
+     "fin_r",
+     "deck_x + 0.010 * s + 0.0025 * s"
+    ],
+    "min": [
+     "head_r - 0.0005",
+     "deck_x + 0.010 * s"
+    ]
+   }
+  }
+ },
+ {
+  "count": "floor((head_top_x - 0.0085 * s - deck_x - 0.010 * s) / (0.0085 * s)) + 1",
+  "op": "pattern_linear",
+  "step": [
+   "0.0085 * s",
+   0,
+   0
+  ]
+ }
+]'''
+            custom string aiad:material = "Cast aluminium A356"
+            custom string aiad:name = "Cylinder head"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Cam_cover"
+        {
+            custom string aiad:derived = '{"area":0.07620791819035322,"bounds":[[0.20266666666666666,-0.052000000000000005,-0.05200000000000001],[0.29976666666666674,0.052000000000000005,0.052000000000000005]],"centroid":[0.25844535149690423,1.532528318530422e-05,-2.0024811417855205e-05],"inertia":[4.020950618883362e-07,3.700150087920391e-07,3.71046830263355e-07,-3.2201380954201814e-10,-8.519616154086337e-12,6.5204436093479856e-12],"key":"95dab779222cf615","volume":0.00017875375712791237}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "YX",
+  "profile": [
+   [
+    "head_r - 0.005 * s",
+    "head_top_x"
+   ],
+   [
+    "head_r",
+    "head_top_x"
+   ],
+   [
+    "head_r",
+    "cover_top"
+   ],
+   [
+    0,
+    "cover_top"
+   ],
+   [
+    0,
+    "cover_top - 0.004 * s"
+   ],
+   [
+    "head_r - 0.005 * s",
+    "cover_top - 0.004 * s"
+   ]
+  ]
+ }
+]'''
+            custom string aiad:material = "Cast aluminium A356"
+            custom string aiad:name = "Cam cover"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 1
+        }
+
+        def Xform "Timing_belt"
+        {
+            custom string aiad:derived = '{"area":0.02329813031297625,"bounds":[[-0.026,-0.047,-0.05710000000000002],[0.3127666666666666,0.04699999999999999,-0.04509999999999998]],"centroid":[0.14845099053913952,1.4472054477687437e-05,-0.05109869783474147],"inertia":[3.5438130341819125e-08,3.5253304673866766e-07,3.8721301876993016e-07,2.324910590930943e-12,-6.489379044417562e-12,-2.7498770135372304e-11],"key":"949e791dd2e7ae1d","volume":3.1566496963380714e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": "timing_width",
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "hull": {
+    "circles": [
+     {
+      "center": [
+       0,
+       0
+      ],
+      "radius": "0.0225 * s + 0.0035 * s"
+     },
+     {
+      "center": [
+       "cam_centre_x",
+       0
+      ],
+      "radius": "0.0435 * s + 0.0035 * s"
+     }
+    ]
+   }
+  },
+  "start": "timing_z - timing_width / 2"
+ },
+ {
+  "distance": "2 * timing_width",
+  "mode": "cut",
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "hull": {
+    "circles": [
+     {
+      "center": [
+       0,
+       0
+      ],
+      "radius": "0.0225 * s"
+     },
+     {
+      "center": [
+       "cam_centre_x",
+       0
+      ],
+      "radius": "0.0435 * s"
+     }
+    ]
+   }
+  },
+  "start": "timing_z - timing_width"
+ }
+]'''
+            custom string aiad:material = "Rubber"
+            custom string aiad:name = "Timing belt"
+            custom string aiad:role = "timing_belt"
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Magneto_core_leg_A"
+        {
+            custom string aiad:derived = '{"area":0.0033699999999999993,"bounds":[[0.00917120640180441,0.07365839264175399,0.0451],[0.02486383642091394,0.1193639269486388,0.0701]],"centroid":[0.017017521411359173,0.09651115979519642,0.0576],"inertia":[1.943151461010439e-09,5.610985389895642e-10,1.5667500000000014e-09,-1.5186519058590742e-24,-2.7788098702953273e-25,-2.515130628981165e-10],"key":"21a5c4d9202f1e9f","volume":9.000000000000009e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": "magneto_stack_depth",
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "rect": {
+    "max": [
+     "magneto_leg_width / 2",
+     "yoke_out"
+    ],
+    "min": [
+     "-magneto_leg_width / 2",
+     "leg_in"
+    ]
+   }
+  },
+  "start": "rotor_z0"
+ },
+ {
+  "angle": "-magneto_segment_angle",
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "op": "rotate",
+  "pivot": [
+   0,
+   0,
+   0
+  ]
+ }
+]'''
+            custom string aiad:material = "Steel, black oxide"
+            custom string aiad:name = "Magneto core leg A"
+            custom string aiad:role = "magneto_core"
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Magneto_core_leg_B"
+        {
+            custom string aiad:derived = '{"area":0.0033699999999999993,"bounds":[[-0.02486383642091394,0.07365839264175399,0.0451],[-0.00917120640180441,0.1193639269486388,0.0701]],"centroid":[-0.017017521411359173,0.09651115979519638,0.057600000000000005],"inertia":[1.9431514610104393e-09,5.610985389895631e-10,1.5667500000000019e-09,5.751490196657771e-25,-1.7933017186208217e-25,2.515130628981151e-10],"key":"e241560a303f80bf","volume":9.000000000000009e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": "magneto_stack_depth",
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "rect": {
+    "max": [
+     "magneto_leg_width / 2",
+     "yoke_out"
+    ],
+    "min": [
+     "-magneto_leg_width / 2",
+     "leg_in"
+    ]
+   }
+  },
+  "start": "rotor_z0"
+ },
+ {
+  "angle": "magneto_segment_angle",
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "op": "rotate",
+  "pivot": [
+   0,
+   0,
+   0
+  ]
+ }
+]'''
+            custom string aiad:material = "Steel, black oxide"
+            custom string aiad:name = "Magneto core leg B"
+            custom string aiad:role = "magneto_core"
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Magneto_core_yoke"
+        {
+            custom string aiad:derived = '{"area":0.0039894447572411135,"bounds":[[-0.024924605408865104,0.1105,0.0451],[0.024924605408865104,0.1205,0.0701]],"centroid":[1.592990891981116e-18,0.1155,0.0576],"inertia":[7.529307883928013e-10,3.2297551056693887e-09,2.6845293623504677e-09,-4.479215328717323e-25,1.809457589959748e-25,6.397725050214823e-25],"key":"e53c7e23041db717","volume":1.2462302704432545e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": "magneto_stack_depth",
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "rect": {
+    "max": [
+     "sin(magneto_segment_angle) * yoke_out + magneto_leg_width / 2",
+     "yoke_out"
+    ],
+    "min": [
+     "-(sin(magneto_segment_angle) * yoke_out + magneto_leg_width / 2)",
+     "yoke_in"
+    ]
+   }
+  },
+  "start": "rotor_z0"
+ }
+]'''
+            custom string aiad:material = "Steel, black oxide"
+            custom string aiad:name = "Magneto core yoke"
+            custom string aiad:role = "magneto_core"
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Magneto_coil"
+        {
+            custom string aiad:derived = '{"area":0.008990056401010579,"bounds":[[-0.014188123632195803,0.09849999999999999,0.033100000000000004],[0.014188123632195803,0.1325,0.08209999999999999]],"centroid":[-1.3970826417162976e-19,0.11549999999999999,0.0576],"inertia":[1.1742997086791746e-08,1.020015994790987e-08,6.358354186068877e-09,-6.767327088089392e-14,-8.165137297827164e-25,3.097111706108239e-25],"key":"a9130364bb042f67","volume":3.588262904250963e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": "2 * (sin(magneto_segment_angle) * yoke_in - magneto_leg_width / 2 - 0.001)",
+  "op": "extrude",
+  "plane": "YZ",
+  "profile": {
+   "rounded_rect": {
+    "max": [
+     "(yoke_in + yoke_out) / 2 + magneto_yoke_thickness / 2 + 0.012",
+     "(rotor_z0 + rotor_z1) / 2 + magneto_stack_depth / 2 + 0.012"
+    ],
+    "min": [
+     "(yoke_in + yoke_out) / 2 - magneto_yoke_thickness / 2 - 0.012",
+     "(rotor_z0 + rotor_z1) / 2 - magneto_stack_depth / 2 - 0.012"
+    ],
+    "radius": 0.0095
+   }
+  },
+  "start": "-(sin(magneto_segment_angle) * yoke_in - magneto_leg_width / 2 - 0.001)"
+ },
+ {
+  "distance": 0.2,
+  "mode": "cut",
+  "op": "extrude",
+  "plane": "YZ",
+  "profile": {
+   "rect": {
+    "max": [
+     "(yoke_in + yoke_out) / 2 + magneto_yoke_thickness / 2 + 0.001",
+     "(rotor_z0 + rotor_z1) / 2 + magneto_stack_depth / 2 + 0.001"
+    ],
+    "min": [
+     "(yoke_in + yoke_out) / 2 - magneto_yoke_thickness / 2 - 0.001",
+     "(rotor_z0 + rotor_z1) / 2 - magneto_stack_depth / 2 - 0.001"
+    ]
+   }
+  },
+  "start": -0.1
+ }
+]'''
+            custom string aiad:material = "Copper winding"
+            custom string aiad:name = "Magneto coil"
+            custom string aiad:role = "magneto_coil"
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Spark_plug_body"
+        {
+            custom string aiad:derived = '{"area":0.0011876459149863013,"bounds":[[0.15765163161220933,0.015265935689977058,-0.007],[0.1820647426069038,0.038205593037043864,0.007]],"centroid":[0.16985818710955652,0.026735764363510522,2.5445376059234716e-17],"inertia":[9.680461218343388e-11,1.1899202440393313e-10,1.4039104486171065e-10,2.6286889202215136e-15,-1.840627797554577e-15,-3.047970703597679e-11],"key":"6a09f94b64f26b6b","volume":3.0789404751035877e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "axis": [
+   "plug_c",
+   "plug_s",
+   0
+  ],
+  "base": [
+   "plug_x",
+   "plug_y",
+   0
+  ],
+  "height": 0.02,
+  "op": "cylinder",
+  "radius": 0.007
+ }
+]'''
+            custom string aiad:material = "Steel, black oxide"
+            custom string aiad:name = "Spark plug body"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Spark_plug_hex"
+        {
+            custom string aiad:derived = '{"area":0.001469887597335252,"bounds":[[0.17116169374594195,0.022634425538849305,-0.010399999999999998],[0.19312924180184093,0.048044396278703,0.0104]],"centroid":[0.18214546777389143,0.035339410908776146,-4.029080216900068e-18],"inertia":[1.983771760734797e-10,1.705550037491892e-10,1.437927949794063e-10,-4.927540758372528e-26,6.462348535570529e-26,3.822039511058176e-11],"key":"9cf691c92274464b","volume":3.746772306932995e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 0.01,
+  "op": "extrude",
+  "plane": {
+   "origin": [
+    "plug_x + 0.020 * plug_c",
+    "plug_y + 0.020 * plug_s",
+    0
+   ],
+   "x": [
+    "-plug_s",
+    "plug_c",
+    0
+   ],
+   "y": [
+    0,
+    0,
+    1
+   ]
+  },
+  "profile": {
+   "polygon": {
+    "across_flats": 0.0208,
+    "center": [
+     0,
+     0
+    ],
+    "sides": 6
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Steel, black oxide"
+            custom string aiad:name = "Spark plug hex"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Spark_plug_insulator"
+        {
+            custom string aiad:derived = '{"area":0.0014749744360515145,"bounds":[[0.18268505408995991,0.03312855041593964,-0.0062],[0.21503518737616387,0.06024792325306533,0.0062000000000000015]],"centroid":[0.1988675563951662,0.047049915855192075,-1.68305490610442e-06],"inertia":[1.4337226606002368e-10,2.3010888155788174e-10,3.136917527913422e-10,-4.016550358321325e-14,2.633047820392146e-14,-1.1915015834098677e-10],"key":"d20db65a75213839","volume":3.437434870315191e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": {
+   "origin": [
+    "plug_x",
+    "plug_y",
+    0
+   ],
+   "x": [
+    "-plug_s",
+    "plug_c",
+    0
+   ],
+   "y": [
+    "plug_c",
+    "plug_s",
+    0
+   ]
+  },
+  "profile": [
+   [
+    0,
+    0.03
+   ],
+   [
+    0.0062,
+    0.03
+   ],
+   [
+    0.0062,
+    0.034
+   ],
+   [
+    0.0052,
+    0.0355
+   ],
+   [
+    0.0062,
+    0.037
+   ],
+   [
+    0.0062,
+    0.039
+   ],
+   [
+    0.0052,
+    0.0405
+   ],
+   [
+    0.0062,
+    0.042
+   ],
+   [
+    0.0062,
+    0.044
+   ],
+   [
+    0.0052,
+    0.0455
+   ],
+   [
+    0.0062,
+    0.047
+   ],
+   [
+    0.0062,
+    0.049
+   ],
+   [
+    0.0052,
+    0.0505
+   ],
+   [
+    0.0062,
+    0.052
+   ],
+   [
+    0.0062,
+    0.054
+   ],
+   [
+    0.0052,
+    0.0555
+   ],
+   [
+    0.0062,
+    0.057
+   ],
+   [
+    0.0045,
+    0.062
+   ],
+   [
+    0,
+    0.062
+   ]
+  ]
+ }
+]'''
+            custom string aiad:material = "Alumina ceramic"
+            custom string aiad:name = "Spark plug insulator"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Spark_plug_terminal"
+        {
+            custom string aiad:derived = '{"area":0.00019002204762110338,"bounds":[[0.21084807939080122,0.054268113329755674,-0.0028],[0.220613323788679,0.0634439762685824,0.0028]],"centroid":[0.21573070158974014,0.05885604479916903,-5.187349050233506e-18],"inertia":[9.912792287584342e-13,1.2184783298962712e-12,1.4376042993841324e-12,2.6917774588398753e-17,-1.884802867655956e-17,-3.121122000483007e-13],"key":"6487a83c83968f13","volume":1.970521904066289e-07}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "axis": [
+   "plug_c",
+   "plug_s",
+   0
+  ],
+  "base": [
+   "plug_x + 0.062 * plug_c",
+   "plug_y + 0.062 * plug_s",
+   0
+  ],
+  "height": 0.008,
+  "op": "cylinder",
+  "radius": 0.0028
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Spark plug terminal"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Spark_plug_electrode"
+        {
+            custom string aiad:derived = '{"area":3.5440915398293455e-05,"bounds":[[0.15811134278803393,0.018009500019624546,-0.0012],[0.1623549583902879,0.021982982453146793,0.0012]],"centroid":[0.1602331505891611,0.01999624123638542,-1.0809997496975886e-16],"inertia":[1.4845604985843598e-14,1.8422297522181855e-14,2.1871325612811543e-14,3.972922260051005e-19,-2.7818701154507563e-19,-4.913440989960559e-15],"key":"366434744cf51663","volume":1.5834551014818446e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "axis": [
+   "plug_c",
+   "plug_s",
+   0
+  ],
+  "base": [
+   "plug_x - 0.0035 * plug_c",
+   "plug_y - 0.0035 * plug_s",
+   0
+  ],
+  "height": 0.0035,
+  "op": "cylinder",
+  "radius": 0.0012
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Spark plug electrode"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Spark"
+        {
+            custom string aiad:derived = '{"area":9.856772607626954e-05,"bounds":[[0.1554262280806529,0.01579097896732561,-0.0028],[0.1610262280806529,0.02139097896732561,0.0028]],"centroid":[0.15822610303671344,0.018591738064032144,-2.089935396357147e-08],"inertia":[2.885613041722737e-13,2.8839672728439935e-13,2.8847972198506994e-13,-1.5753346743196378e-19,-1.04332573445259e-20,2.559996815584305e-17],"key":"cf9d78bfff0cf91b","volume":9.19894439640148e-08}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "center": [
+   "plug_x - 0.0042 * plug_c",
+   "plug_y - 0.0042 * plug_s",
+   0
+  ],
+  "op": "sphere",
+  "radius": 0.0028
+ }
+]'''
+            custom string aiad:material = "Spark"
+            custom string aiad:name = "Spark"
+            custom string aiad:role = "spark"
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "HT_lead"
+        {
+            custom string aiad:derived = '{"area":0.006714082126519689,"bounds":[[-0.002732815988116001,0.060189083570728635,-0.00662622387408757],[0.22247093542558655,0.17480227386897496,0.08229733152717802]],"centroid":[0.12315661646317325,0.14166896673460058,0.037338383045319924],"inertia":[2.159796804261451e-08,6.531161149156342e-08,6.520449252239087e-08,-7.987904701330592e-09,2.3995298473233086e-08,1.6752252899557e-08],"key":"33a1181ac08ea64c","volume":1.162588484701017e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "pipe",
+  "path": [
+   [
+    0,
+    "yoke_out + 0.012",
+    "rotor_z1 + 0.006"
+   ],
+   [
+    0.04,
+    "yoke_out + 0.042",
+    "rotor_z1 + 0.006"
+   ],
+   [
+    "plug_x + 0.070 * plug_c - 0.02",
+    "plug_y + 0.070 * plug_s + 0.05",
+    0
+   ],
+   [
+    "plug_x + 0.070 * plug_c",
+    "plug_y + 0.070 * plug_s",
+    0
+   ]
+  ],
+  "radius": 0.0035
+ }
+]'''
+            custom string aiad:material = "Rubber"
+            custom string aiad:name = "HT lead"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Intake_runner"
+        {
+            custom string aiad:derived = '{"area":0.01069247829108563,"bounds":[[0.16320808533699113,0.013114961056513457,0.010945031608299668],[0.20010118834612656,0.07734030027100786,0.12245967801215336]],"centroid":[0.18135745269037346,0.05057595663694554,0.06671514635592588],"inertia":[6.767847640287491e-08,5.95086134449515e-08,1.5086144088610565e-08,-1.994440671633997e-08,-5.264391166056777e-09,-1.97186306087734e-09],"key":"8ee216fe92b0a38e","volume":6.444551954914913e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "pipe",
+  "path": [
+   [
+    "port_x",
+    "port_back - 0.020 * s",
+    "valve_offset_z"
+   ],
+   [
+    "port_x + 0.002",
+    "port_back - 0.005",
+    "(valve_offset_z + R + 0.020) / 2"
+   ],
+   [
+    "port_x + 0.004",
+    "port_back + 0.010",
+    "R + 0.020"
+   ],
+   [
+    "port_x + 0.010",
+    "port_back + 0.020",
+    "R + 0.080"
+   ]
+  ],
+  "radius": "0.0135 * s"
+ }
+]'''
+            custom string aiad:material = "Cast aluminium A356"
+            custom string aiad:name = "Intake runner"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Carburettor"
+        {
+            custom string aiad:derived = '{"area":0.009369351844871917,"bounds":[[0.16566666666666666,0.043,0.11999999999999998],[0.20766666666666664,0.085,0.17]],"centroid":[0.18666638452326997,0.06400004194830089,0.14499897413207374],"inertia":[2.2070200178389472e-08,2.207107395131576e-08,1.527563651431952e-08,-1.3731627089401108e-13,-4.621627351119062e-13,8.426589952596579e-14],"key":"3b6e1876043e3dab","volume":6.927714184987033e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "base": [
+   "port_x + 0.010",
+   "port_back + 0.020",
+   "R + 0.080"
+  ],
+  "height": 0.05,
+  "op": "cylinder",
+  "radius": "0.021 * s"
+ }
+]'''
+            custom string aiad:material = "Cast aluminium A356"
+            custom string aiad:name = "Carburettor"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Exhaust_pipe"
+        {
+            custom string aiad:derived = '{"area":0.026580023891251765,"bounds":[[-0.06928980465300144,0.0130107806348772,-0.14301102856911724],[0.19848237181818387,0.09649863704974634,-0.010837901942013822]],"centroid":[0.08862227064585262,0.0700782834429643,-0.10267774891027574],"inertia":[2.244082636948236e-07,1.2008579233766435e-06,1.079830199572462e-06,8.674179119975371e-08,-3.2940888039013384e-07,1.7444376306826912e-07],"key":"cd25744497fab6d9","volume":0.00016006808716040468}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "pipe",
+  "path": [
+   [
+    "port_x",
+    "port_back - 0.020 * s",
+    "-valve_offset_z"
+   ],
+   [
+    "port_x + 0.004",
+    "port_back + 0.25 * exhaust_pipe_back",
+    "-R - 0.4 * exhaust_pipe_side"
+   ],
+   [
+    "port_x - 0.050",
+    "port_back + 0.75 * exhaust_pipe_back",
+    "-R - (exhaust_pipe_side - 0.005)"
+   ],
+   [
+    -0.06,
+    "port_back + exhaust_pipe_back",
+    "-R - exhaust_pipe_side"
+   ]
+  ],
+  "radius": "0.0125 * s"
+ }
+]'''
+            custom string aiad:material = "Steel, black oxide"
+            custom string aiad:name = "Exhaust pipe"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+    }
+
+    def Xform "Crankshaft"
+    {
+        custom string aiad:body = "Crankshaft"
+        custom string aiad:origin = "[0,0,0]"
+        double3 xformOp:translate:rest = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "Main_journal_magneto_side"
+        {
+            custom string aiad:derived = '{"area":0.007440116885024581,"bounds":[[-0.016,-0.016,0.024099999999999996],[0.016,0.016,0.0821]],"centroid":[7.204500390295633e-08,4.07046642481209e-08,0.0530997634906456],"inertia":[1.6061954633362474e-08,1.6061921600286416e-08,5.9706387912483125e-09,-7.463252679455289e-14,-7.695570288519149e-14,9.158566877753217e-14],"key":"ee8c7db85f6b033c","volume":4.664667787837648e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "base": [
+   0,
+   0,
+   "web_out"
+  ],
+  "height": "rotor_z1 + 0.012 - web_out",
+  "op": "cylinder",
+  "radius": "journal_r"
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Main journal (magneto side)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Main_journal_timing_side"
+        {
+            custom string aiad:derived = '{"area":0.009953734148648705,"bounds":[[-0.016,-0.016,-0.1071],[0.016,0.016,-0.02409999999999999]],"centroid":[9.140103664280527e-08,2.7292183027215148e-08,-0.06560023447339405],"inertia":[4.259372892453471e-08,4.259361172210264e-08,8.544149978333392e-09,-1.7139312943234384e-13,-1.3076469793605111e-13,9.4853179033558e-14],"key":"ae8a5de749f5f3fc","volume":6.675267002800321e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "base": [
+   0,
+   0,
+   "flywheel_z0 - 0.010"
+  ],
+  "height": "-web_out - flywheel_z0 + 0.010",
+  "op": "cylinder",
+  "radius": "journal_r"
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Main journal (timing side)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Crank_pin"
+        {
+            custom string aiad:derived = '{"area":0.0035063427119963264,"bounds":[[0.015,-0.015,-0.0111],[0.045,0.015000000000000001,0.0111]],"centroid":[0.029999776196781663,9.260417648968325e-08,-1.829207313413367e-07],"inertia":[1.5271816960904043e-09,1.5272549821505907e-09,1.7654447993894548e-09,-4.267106419612503e-15,-3.466319573195726e-14,2.304717861200973e-14],"key":"8a49b16ca7446e8f","volume":1.5692620881441327e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "base": [
+   "r",
+   0,
+   "-web_in"
+  ],
+  "height": "2 * web_in",
+  "op": "cylinder",
+  "radius": "crank_pin_r"
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Crank pin"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Crank_web_magneto_side"
+        {
+            custom string aiad:derived = '{"area":0.012877661598357999,"bounds":[[-0.046000000000000006,-0.03252691193458118,0.011099999999999999],[0.051000000000000004,0.032526911934581196,0.0241]],"centroid":[-0.0015712602309435266,2.365146758977731e-07,0.01760004504979199],"inertia":[1.5077494002036534e-08,4.0757559906516155e-08,5.410901223384752e-08,2.9270542263017284e-14,-3.956183285431794e-14,3.2780184399968004e-13],"key":"c6be1737df4162cb","volume":6.127958565567059e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": "web_out - web_in",
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "hull": {
+    "circles": [
+     {
+      "center": [
+       0,
+       0
+      ],
+      "radius": "journal_r + 0.011 * s"
+     },
+     {
+      "center": [
+       "r",
+       0
+      ],
+      "radius": "crank_pin_r + 0.006 * s"
+     },
+     {
+      "center": [
+       0,
+       0
+      ],
+      "from": 135,
+      "radius": "counterweight_r",
+      "to": 225
+     }
+    ]
+   }
+  },
+  "start": "web_in"
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Crank web (magneto side)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Crank_web_timing_side"
+        {
+            custom string aiad:derived = '{"area":0.012877661598358727,"bounds":[[-0.046000000000000006,-0.03252691193458118,-0.0241],[0.051000000000000004,0.032526911934581196,-0.011099999999999999]],"centroid":[-0.001571260230942876,2.365146754097999e-07,-0.017599954950208007],"inertia":[1.5077494002036385e-08,4.075755990652885e-08,5.410901223385832e-08,2.9286655679098013e-14,-3.958361161961223e-14,3.278018474175128e-13],"key":"9c9c59165808c9df","volume":6.12795856556734e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": "web_out - web_in",
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "hull": {
+    "circles": [
+     {
+      "center": [
+       0,
+       0
+      ],
+      "radius": "journal_r + 0.011 * s"
+     },
+     {
+      "center": [
+       "r",
+       0
+      ],
+      "radius": "crank_pin_r + 0.006 * s"
+     },
+     {
+      "center": [
+       0,
+       0
+      ],
+      "from": 135,
+      "radius": "counterweight_r",
+      "to": 225
+     }
+    ]
+   }
+  },
+  "start": "-web_out"
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Crank web (timing side)"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Magneto_rotor"
+        {
+            custom string aiad:derived = '{"area":0.04866403001465842,"bounds":[[-0.063,-0.063,0.0411],[0.063,0.063,0.07810000000000002]],"centroid":[2.722880623885315e-06,-3.834313004059684e-06,0.05585880203148871],"inertia":[1.4247428690998291e-07,1.4247642606685014e-07,2.6932108346031507e-07,4.816128893049829e-13,3.686675148272382e-12,-3.815140809395841e-11],"key":"1a79aa839265ac27","volume":0.00013029576342678652}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "XZ",
+  "profile": [
+   [
+    "journal_r",
+    "rotor_z0 - 0.004"
+   ],
+   [
+    "hub_r",
+    "rotor_z0 - 0.004"
+   ],
+   [
+    "hub_r",
+    "rotor_z0 + 0.004"
+   ],
+   [
+    "rotor_rim_in - 0.004",
+    "rotor_z0 + 0.004"
+   ],
+   [
+    "rotor_rim_in - 0.004",
+    "rotor_z0"
+   ],
+   [
+    "rotor_rim_in",
+    "rotor_z0"
+   ],
+   [
+    "rotor_rim_in",
+    "rotor_z1"
+   ],
+   [
+    "rotor_rim_in - 0.004",
+    "rotor_z1"
+   ],
+   [
+    "rotor_rim_in - 0.004",
+    "rotor_z0 + 0.010"
+   ],
+   [
+    "hub_r",
+    "rotor_z0 + 0.010"
+   ],
+   [
+    "hub_r",
+    "rotor_z1 + 0.008"
+   ],
+   [
+    "journal_r",
+    "rotor_z1 + 0.008"
+   ]
+  ]
+ }
+]'''
+            custom string aiad:material = "Cast aluminium A356"
+            custom string aiad:name = "Magneto rotor"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Magnet_ferrite"
+        {
+            custom string aiad:derived = '{"area":0.0009413863991712815,"bounds":[[-0.03404928748046604,0.05613341102386716,0.0451],[-0.018419417397532434,0.07172285669722765,0.0701]],"centroid":[-0.025880130709887515,0.06405555923340527,0.05759999998988361],"inertia":[2.3143382946392177e-10,2.3198712657151708e-10,8.708433935381516e-11,-8.01898006443876e-18,-7.13612156554821e-17,-2.677840531832186e-13],"key":"c3efbb1dfe90839f","volume":3.6128315201436732e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "angle": "magneto_segment_angle",
+  "op": "revolve",
+  "plane": "XZ",
+  "profile": {
+   "rect": {
+    "max": [
+     "magneto_flywheel_radius",
+     "rotor_z1"
+    ],
+    "min": [
+     "rotor_rim_in",
+     "rotor_z0"
+    ]
+   }
+  },
+  "start_angle": "magnet_centre - magneto_segment_angle / 2"
+ }
+]'''
+            custom string aiad:material = "Ferrite magnet"
+            custom string aiad:name = "Magnet (ferrite)"
+            custom string aiad:role = "magnet"
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Pole_shoe_A"
+        {
+            custom string aiad:derived = '{"area":0.0009413863991712752,"bounds":[[-0.021927877854205233,0.060247199625671245,0.0451],[-0.007677768634524271,0.07444096137309916,0.0701]],"centroid":[-0.014363822241749999,0.06757644889214477,0.05759999998988366],"inertia":[2.3135892587266033e-10,2.3206203016247923e-10,8.708433935350497e-11,4.494609615512506e-18,-7.166956056709861e-17,-1.570153207629331e-13],"key":"2827985bbcc6004b","volume":3.6128315201436186e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "angle": "magneto_segment_angle",
+  "op": "revolve",
+  "plane": "XZ",
+  "profile": {
+   "rect": {
+    "max": [
+     "magneto_flywheel_radius",
+     "rotor_z1"
+    ],
+    "min": [
+     "rotor_rim_in",
+     "rotor_z0"
+    ]
+   }
+  },
+  "start_angle": "magnet_centre - 1.5 * magneto_segment_angle"
+ }
+]'''
+            custom string aiad:material = "Steel, black oxide"
+            custom string aiad:name = "Pole shoe A"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Pole_shoe_B"
+        {
+            custom string aiad:derived = '{"area":0.0009413863991712718,"bounds":[[-0.04513612673640363,0.050314037132979446,0.0451],[-0.028601401483591457,0.06682548931412759,0.0701]],"centroid":[-0.03661008450238441,0.058588373821036016,0.05759999998988352],"inertia":[2.315421009533253e-10,2.318788550818551e-10,8.708433935357487e-11,-2.0288886507377884e-17,-6.888458437552943e-17,-3.4625407672309557e-13],"key":"18ec40f600b44173","volume":3.612831520143596e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "angle": "magneto_segment_angle",
+  "op": "revolve",
+  "plane": "XZ",
+  "profile": {
+   "rect": {
+    "max": [
+     "magneto_flywheel_radius",
+     "rotor_z1"
+    ],
+    "min": [
+     "rotor_rim_in",
+     "rotor_z0"
+    ]
+   }
+  },
+  "start_angle": "magnet_centre + 0.5 * magneto_segment_angle"
+ }
+]'''
+            custom string aiad:material = "Steel, black oxide"
+            custom string aiad:name = "Pole shoe B"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Rotor_rim"
+        {
+            custom string aiad:derived = '{"area":0.011868843374940836,"bounds":[[-0.075,-0.075,0.0451],[0.075,0.07500000000000001,0.07010000000000001]],"centroid":[0.002336326602961691,-0.005782816869927685,0.057600921130098216],"inertia":[2.704855024328225e-07,3.0939495711713447e-07,5.674584458719696e-07,8.0308836966315e-12,-9.720141808411668e-12,-1.8750860092317924e-08],"key":"e9cce2dce0c17b57","volume":0.00011925048466991919}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "angle": "360 - 3 * magneto_segment_angle",
+  "op": "revolve",
+  "plane": "XZ",
+  "profile": {
+   "rect": {
+    "max": [
+     "magneto_flywheel_radius",
+     "rotor_z1"
+    ],
+    "min": [
+     "rotor_rim_in",
+     "rotor_z0"
+    ]
+   }
+  },
+  "start_angle": "magnet_centre + 1.5 * magneto_segment_angle"
+ }
+]'''
+            custom string aiad:material = "Cast aluminium A356"
+            custom string aiad:name = "Rotor rim"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Rotor_nut"
+        {
+            custom string aiad:derived = '{"area":0.001829045652792734,"bounds":[[-0.013856406460551019,-0.011999999999999999,0.0781],[0.013856406460551017,0.012,0.0881]],"centroid":[-1.3265915259053523e-18,-2.1557112295962416e-18,0.0831],"inertia":[2.4110147241358746e-10,2.4110147241358756e-10,3.99064506063869e-10,-3.2311742677852644e-27,-1.9387045606711586e-26,-1.4863401631812216e-25],"key":"d3d932daecebf9af","volume":4.988306325798363e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": 0.01,
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "polygon": {
+    "across_flats": "0.024 * s",
+    "center": [
+     0,
+     0
+    ],
+    "sides": 6
+   }
+  },
+  "start": "rotor_z1 + 0.008"
+ }
+]'''
+            custom string aiad:material = "Steel, black oxide"
+            custom string aiad:name = "Rotor nut"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Crank_sprocket"
+        {
+            custom string aiad:derived = '{"area":0.004789983182936003,"bounds":[[-0.02131113411540815,-0.021499999999999995,-0.05710000000000001],[0.02131113411540815,0.021499999999999995,-0.045099999999999994]],"centroid":[2.39770484572112e-08,-1.833650179503135e-08,-0.051100000106844894],"inertia":[1.6585410357664611e-09,1.6585410959899114e-09,2.961394786764762e-09,7.899350985538551e-16,1.060190729294092e-15,1.0340444224125107e-14],"key":"fb9e18ec16d981d5","volume":1.4820306041243553e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": "timing_width",
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "sprocket": {
+    "root_radius": "0.0185 * s",
+    "teeth": 18,
+    "tip_radius": "0.0215 * s"
+   }
+  },
+  "start": "timing_z - timing_width / 2"
+ }
+]'''
+            custom string aiad:material = "Steel, black oxide"
+            custom string aiad:name = "Crank sprocket"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Flywheel_steel"
+        {
+            custom string aiad:derived = '{"area":0.09208513503137174,"bounds":[[-0.09500000000000001,-0.095,-0.09710000000000002],[0.09500000000000001,0.09500000000000001,-0.06309999999999999]],"centroid":[4.601204584187853e-07,5.1165946250854476e-06,-0.08156623717780125],"inertia":[2.014383451232295e-06,2.013884635917936e-06,3.881899799952404e-06,4.059986962853954e-11,3.169041869941723e-11,-2.758904689910648e-10],"key":"0007a63e03072237","volume":0.0007244285163066266}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "XZ",
+  "profile": [
+   [
+    "journal_r",
+    "flywheel_z0"
+   ],
+   [
+    "flywheel_outer_radius",
+    "flywheel_z0"
+   ],
+   [
+    "flywheel_outer_radius",
+    "flywheel_z1"
+   ],
+   [
+    "flywheel_inner_radius",
+    "flywheel_z1"
+   ],
+   [
+    "flywheel_inner_radius",
+    "flywheel_z0 + 0.010"
+   ],
+   [
+    "journal_r + 0.012",
+    "flywheel_z0 + 0.010"
+   ],
+   [
+    "journal_r + 0.012",
+    "flywheel_z1"
+   ],
+   [
+    "journal_r",
+    "flywheel_z1"
+   ]
+  ]
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Flywheel (steel)"
+            custom string aiad:role = "flywheel"
+            custom bool aiad:sectioned = 0
+        }
+    }
+
+    def Xform "Rod"
+    {
+        custom string aiad:body = "Rod"
+        custom string aiad:origin = '["r",0,0]'
+        double3 xformOp:translate:rest = (0.03, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "Rod_big_end"
+        {
+            custom string aiad:derived = '{"area":0.0074707122554459,"bounds":[[-0.0245,-0.024500000000000004,-0.0105],[0.0245,0.0245,0.0105]],"centroid":[2.5489965049754267e-06,9.7578437367145e-07,-8.080448951163438e-07],"inertia":[5.516849886780779e-09,5.514259395658743e-09,9.440519528523786e-09,2.5316215844383297e-13,-2.5239034563948115e-14,-8.826196359655142e-13],"key":"8b63f17fb94c9e2f","volume":2.164067705218675e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "XZ",
+  "profile": {
+   "rect": {
+    "max": [
+     "big_end_outer",
+     "big_end_half"
+    ],
+    "min": [
+     "crank_pin_r + 0.0015",
+     "-big_end_half"
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Rod big end"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Big_end_bearing_shells"
+        {
+            custom string aiad:derived = '{"area":0.004136638904093593,"bounds":[[-0.0165,-0.0165,-0.009700000000000004],[0.0165,0.0165,0.009700000000000004]],"centroid":[-3.7170504573867134e-06,1.8112352186516817e-06,-2.7210350345030094e-07],"inertia":[4.486305930965356e-10,4.486523466834425e-10,7.165282776426649e-10,5.675558577161018e-14,1.167476208908681e-13,-1.420313302402495e-13],"key":"ca6a159351333a1b","volume":2.881623907103066e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "XZ",
+  "profile": {
+   "rect": {
+    "max": [
+     "crank_pin_r + 0.0015",
+     "big_end_half - 0.0008"
+    ],
+    "min": [
+     "crank_pin_r",
+     "-big_end_half + 0.0008"
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Bearing bronze"
+            custom string aiad:name = "Big-end bearing shells"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Rod_small_end"
+        {
+            custom string aiad:derived = '{"area":0.003162802424547045,"bounds":[[0.08600000000000001,-0.014,-0.008500000000000002],[0.114,0.013999999999999999,0.008500000000000002]],"centroid":[0.10000059454132268,2.930082473893715e-06,-1.191916303580071e-06],"inertia":[4.869781302799186e-10,4.86705959081691e-10,7.370573362515303e-10,6.154421190460952e-14,1.404019806302553e-14,-4.612669033559137e-14],"key":"5907f4520edca2b7","volume":4.912666251133148e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": {
+   "base": "XZ",
+   "origin": [
+    "rod_length",
+    0,
+    0
+   ]
+  },
+  "profile": {
+   "rect": {
+    "max": [
+     "wrist_pin_r + 0.005 * s",
+     "0.0085 * s"
+    ],
+    "min": [
+     "wrist_pin_r + 0.0012",
+     "-0.0085 * s"
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Rod small end"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Small_end_bush"
+        {
+            custom string aiad:derived = '{"area":0.002195485495845746,"bounds":[[0.0898,-0.010199999999999999,-0.008500000000000002],[0.1102,0.0102,0.008500000000000002]],"centroid":[0.1000029032270626,-5.390070059720309e-06,4.890940726505813e-07],"inertia":[8.647537873481425e-11,8.650014261461911e-11,1.1373210120755489e-10,-2.145765415163999e-14,-6.9233451834976366e-15,-1.7343010390983928e-14],"key":"8aed9f9d55afcfcf","volume":1.2299672042497164e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": {
+   "base": "XZ",
+   "origin": [
+    "rod_length",
+    0,
+    0
+   ]
+  },
+  "profile": {
+   "rect": {
+    "max": [
+     "wrist_pin_r + 0.0012",
+     "0.0085 * s"
+    ],
+    "min": [
+     "wrist_pin_r",
+     "-0.0085 * s"
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Bearing bronze"
+            custom string aiad:name = "Small-end bush"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Rod_shank"
+        {
+            custom string aiad:derived = '{"area":0.005597120513532547,"bounds":[[0.0225,-0.0085,-0.0078],[0.08800000000000001,0.0085,0.0078]],"centroid":[0.05409089446589455,1.0361394686994504e-17,1.3205699110875376e-18],"inertia":[3.2347431759999825e-10,3.02028703826107e-09,3.1038624182610717e-09,1.9387045606711586e-25,3.1374702140194917e-24,1.4249478520933016e-23],"key":"8d918f2d8660f978","volume":8.142960000000002e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": "0.0044 * s",
+  "op": "extrude",
+  "plane": "XY",
+  "profile": [
+   [
+    "big_end_outer - 0.002",
+    "-0.0085 * s"
+   ],
+   [
+    "rod_length - wrist_pin_r - 0.005 * s + 0.002",
+    "-0.0055 * s"
+   ],
+   [
+    "rod_length - wrist_pin_r - 0.005 * s + 0.002",
+    "0.0055 * s"
+   ],
+   [
+    "big_end_outer - 0.002",
+    "0.0085 * s"
+   ]
+  ],
+  "start": "-0.0022 * s"
+ },
+ {
+  "distance": "0.0156 * s",
+  "op": "extrude",
+  "plane": "XY",
+  "profile": [
+   [
+    "big_end_outer - 0.002",
+    "0.0085 * s - 0.0028 * s"
+   ],
+   [
+    "rod_length - wrist_pin_r - 0.005 * s + 0.002",
+    "0.0055 * s - 0.0028 * s"
+   ],
+   [
+    "rod_length - wrist_pin_r - 0.005 * s + 0.002",
+    "0.0055 * s"
+   ],
+   [
+    "big_end_outer - 0.002",
+    "0.0085 * s"
+   ]
+  ],
+  "start": "-0.0078 * s"
+ },
+ {
+  "distance": "0.0156 * s",
+  "op": "extrude",
+  "plane": "XY",
+  "profile": [
+   [
+    "big_end_outer - 0.002",
+    "-0.0085 * s"
+   ],
+   [
+    "rod_length - wrist_pin_r - 0.005 * s + 0.002",
+    "-0.0055 * s"
+   ],
+   [
+    "rod_length - wrist_pin_r - 0.005 * s + 0.002",
+    "-0.0055 * s + 0.0028 * s"
+   ],
+   [
+    "big_end_outer - 0.002",
+    "-0.0085 * s + 0.0028 * s"
+   ]
+  ],
+  "start": "-0.0078 * s"
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Rod shank"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Cap_bolt_Y"
+        {
+            custom string aiad:derived = '{"area":0.0007527524051701015,"bounds":[[-0.021000000000000005,-0.0241,-0.0033],[0.012000000000000002,-0.017499999999999998,0.0033000000000000004]],"centroid":[-0.004500000000000002,-0.020800000000000006,-2.767278312486969e-18],"inertia":[6.1500505284081694e-12,1.0553490521861271e-10,1.0553954244718565e-10,2.615304247568968e-16,1.7379465659411903e-27,1.5591885350598313e-28],"key":"c159a7e2e6bd8fcb","volume":1.129060039324464e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "axis": [
+   1,
+   0,
+   0
+  ],
+  "base": [
+   "-0.021 * s",
+   "-(crank_pin_r + 0.0058 * s)",
+   0
+  ],
+  "height": "0.033 * s",
+  "op": "cylinder",
+  "radius": "0.0033 * s"
+ }
+]'''
+            custom string aiad:material = "Steel, black oxide"
+            custom string aiad:name = "Cap bolt -Y"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Cap_bolt_Y_2"
+        {
+            custom string aiad:derived = '{"area":0.0007527524051701015,"bounds":[[-0.021000000000000005,0.017499999999999998,-0.0033],[0.012000000000000002,0.0241,0.0033000000000000004]],"centroid":[-0.004500000000000002,0.0208,5.753353779517116e-19],"inertia":[6.150050528408112e-12,1.0553490521861275e-10,1.0553954244718556e-10,2.615304247348844e-16,-1.1023591518368318e-27,2.398346644016106e-27],"key":"e5738a4a17d660cb","volume":1.129060039324464e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "axis": [
+   1,
+   0,
+   0
+  ],
+  "base": [
+   "-0.021 * s",
+   "crank_pin_r + 0.0058 * s",
+   0
+  ],
+  "height": "0.033 * s",
+  "op": "cylinder",
+  "radius": "0.0033 * s"
+ }
+]'''
+            custom string aiad:material = "Steel, black oxide"
+            custom string aiad:name = "Cap bolt +Y"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Cap_nut_Y"
+        {
+            custom string aiad:derived = '{"area":0.00041569219381653043,"bounds":[[-0.026,-0.0258,-0.005773502691896257],[-0.019,-0.015799999999999998,0.005773502691896257]],"centroid":[-0.0225,-0.0208,5.116853028492109e-19],"inertia":[8.419691425682038e-12,6.685234991991537e-12,6.6852349919915385e-12,-3.0292258760486853e-28,1.2768997431746203e-29,-3.8709711481263467e-29],"key":"854eb3ebee8dc8fb","volume":6.062177826491069e-07}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": "0.007 * s",
+  "op": "extrude",
+  "plane": {
+   "base": "YZ",
+   "origin": [
+    0,
+    "-(crank_pin_r + 0.0058 * s)",
+    0
+   ]
+  },
+  "profile": {
+   "polygon": {
+    "across_flats": "0.010 * s",
+    "center": [
+     0,
+     0
+    ],
+    "rotation": 30,
+    "sides": 6
+   }
+  },
+  "start": "-0.026 * s"
+ }
+]'''
+            custom string aiad:material = "Steel, black oxide"
+            custom string aiad:name = "Cap nut -Y"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Cap_nut_Y_2"
+        {
+            custom string aiad:derived = '{"area":0.00041569219381653043,"bounds":[[-0.026,0.015799999999999998,-0.005773502691896257],[-0.019,0.0258,0.005773502691896257]],"centroid":[-0.0225,0.0208,5.116853028492109e-19],"inertia":[8.419691425682037e-12,6.685234991991537e-12,6.6852349919915385e-12,-3.0292258760486853e-28,1.2768997431746203e-29,-9.797712064105756e-30],"key":"cbbaee79b9550003","volume":6.062177826491069e-07}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": "0.007 * s",
+  "op": "extrude",
+  "plane": {
+   "base": "YZ",
+   "origin": [
+    0,
+    "crank_pin_r + 0.0058 * s",
+    0
+   ]
+  },
+  "profile": {
+   "polygon": {
+    "across_flats": "0.010 * s",
+    "center": [
+     0,
+     0
+    ],
+    "rotation": 30,
+    "sides": 6
+   }
+  },
+  "start": "-0.026 * s"
+ }
+]'''
+            custom string aiad:material = "Steel, black oxide"
+            custom string aiad:name = "Cap nut +Y"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+    }
+
+    def Xform "Piston"
+    {
+        custom string aiad:body = "Piston"
+        custom string aiad:origin = '["r + rod_length",0,0]'
+        double3 xformOp:translate:rest = (0.13, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "Piston"
+        {
+            custom string aiad:derived = '{"area":0.03347168603136692,"bounds":[[-0.020800000000000006,-0.039700000000000006,-0.0397],[0.0252,0.0397,0.039700000000000006]],"centroid":[0.009766140946792,9.971652537277307e-06,1.3029479053233197e-05],"inertia":[8.449910647715664e-08,5.732262748390877e-08,5.7539460406112856e-08,6.76696009570674e-11,2.44693887515622e-12,1.8727518460558073e-12],"key":"4132e78766b560fc","volume":8.363006727766075e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "YX",
+  "profile": [
+   [
+    0,
+    "compression_height + 0.0012"
+   ],
+   [
+    "R * 0.75",
+    "compression_height + 0.0006"
+   ],
+   [
+    "piston_r - 0.0012",
+    "compression_height"
+   ],
+   [
+    "piston_r",
+    "compression_height - 0.0012"
+   ],
+   [
+    "piston_r",
+    "compression_height - 0.0055"
+   ],
+   [
+    "piston_r - groove",
+    "compression_height - 0.0055"
+   ],
+   [
+    "piston_r - groove",
+    "compression_height - 0.0072"
+   ],
+   [
+    "piston_r",
+    "compression_height - 0.0072"
+   ],
+   [
+    "piston_r",
+    "compression_height - 0.0100"
+   ],
+   [
+    "piston_r - groove",
+    "compression_height - 0.0100"
+   ],
+   [
+    "piston_r - groove",
+    "compression_height - 0.0117"
+   ],
+   [
+    "piston_r",
+    "compression_height - 0.0117"
+   ],
+   [
+    "piston_r",
+    "compression_height - 0.0150"
+   ],
+   [
+    "piston_r - groove",
+    "compression_height - 0.0150"
+   ],
+   [
+    "piston_r - groove",
+    "compression_height - 0.0180"
+   ],
+   [
+    "piston_r",
+    "compression_height - 0.0180"
+   ],
+   [
+    "piston_r",
+    "-skirt"
+   ],
+   [
+    "piston_inner_r",
+    "-skirt"
+   ],
+   [
+    "piston_inner_r",
+    "compression_height - 0.010 * s"
+   ],
+   [
+    0,
+    "compression_height - 0.010 * s"
+   ]
+  ]
+ }
+]'''
+            custom string aiad:material = "Forged aluminium 4032"
+            custom string aiad:name = "Piston"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Top_compression_ring"
+        {
+            custom string aiad:derived = '{"area":0.002333841890831641,"bounds":[[0.016900000000000002,-0.03995,-0.03995],[0.018400000000000003,0.03995,0.03995]],"centroid":[0.017650000000000002,1.2564621015592646e-05,-1.641758428842682e-05],"inertia":[1.7759846372290094e-09,8.859402025373927e-10,8.904975947534496e-10,-1.4222863794123283e-12,2.993601623863307e-26,1.7406813761112114e-27],"key":"415cc91f291196b3","volume":1.2084268315555322e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "YX",
+  "profile": {
+   "rect": {
+    "max": [
+     "R - 0.00005",
+     "compression_height - 0.0055 - 0.0001"
+    ],
+    "min": [
+     "piston_r - groove + 0.0004",
+     "compression_height - 0.0072 + 0.0001"
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Grey cast iron"
+            custom string aiad:name = "Top compression ring"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Second_compression_ring"
+        {
+            custom string aiad:derived = '{"area":0.002333841890829571,"bounds":[[0.012399999999999998,-0.03995,-0.03995],[0.013900000000000003,0.03995,0.03995]],"centroid":[0.013150000000000002,1.2564621265209074e-05,-1.6417584048815406e-05],"inertia":[1.7759846372793913e-09,8.85940202532322e-10,8.904975948089179e-10,-1.4222863659369301e-12,-2.2717799214952493e-27,-7.024287460989541e-26],"key":"b9a7a5c4f64864b7","volume":1.208426831592867e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "YX",
+  "profile": {
+   "rect": {
+    "max": [
+     "R - 0.00005",
+     "compression_height - 0.0100 - 0.0001"
+    ],
+    "min": [
+     "piston_r - groove + 0.0004",
+     "compression_height - 0.0117 + 0.0001"
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Grey cast iron"
+            custom string aiad:name = "Second compression ring"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Oil_control_ring"
+        {
+            custom string aiad:derived = '{"area":0.0029590983770514698,"bounds":[[0.006100000000000001,-0.03995,-0.03995],[0.008900000000000003,0.03995,0.03995]],"centroid":[0.007500000000000002,1.2564620853942993e-05,-1.641758672610254e-05],"inertia":[3.3151713223985243e-09,1.654805838953955e-09,1.6633129707559206e-09,-2.654934864491625e-12,7.341499236910904e-26,2.2776945297506948e-26],"key":"643fc902ad21992b","volume":2.25573008521888e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "YX",
+  "profile": {
+   "rect": {
+    "max": [
+     "R - 0.00005",
+     "compression_height - 0.0150 - 0.0001"
+    ],
+    "min": [
+     "piston_r - groove + 0.0004",
+     "compression_height - 0.0180 + 0.0001"
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Steel, black oxide"
+            custom string aiad:name = "Oil control ring"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Wrist_pin"
+        {
+            custom string aiad:derived = '{"area":0.006437778072324654,"bounds":[[-0.009000000000000001,-0.009,-0.03470000000000001],[0.009,0.009000000000000001,0.03470000000000001]],"centroid":[3.795454345278421e-07,-1.1398603316840535e-06,-7.434661240286549e-07],"inertia":[5.268691349626539e-09,5.268780016535943e-09,6.496153516715652e-10,-2.0592903552905298e-13,-2.1248680091693678e-14,-3.961299443533708e-14],"key":"f0066fdfb4e7766b","volume":1.2317836730265143e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "XZ",
+  "profile": {
+   "rect": {
+    "max": [
+     "wrist_pin_r",
+     "piston_inner_r - 0.0005"
+    ],
+    "min": [
+     "wrist_pin_r * 0.55",
+     "-(piston_inner_r - 0.0005)"
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Wrist pin"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Pin_boss_Z"
+        {
+            custom string aiad:derived = '{"area":0.004554105911103569,"bounds":[[-0.015,-0.015,-0.03470000000000001],[0.015,0.015,-0.0105]],"centroid":[7.058209031949718e-07,1.616953553992139e-06,-0.022601208672087914],"inertia":[1.3722695118387956e-09,1.3718090388710934e-09,1.6753336179837589e-09,1.234370339172983e-13,1.6277700011617578e-15,-9.168045744658146e-14],"key":"4f12e53d81c3f348","volume":1.0949504425625728e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "XZ",
+  "profile": {
+   "rect": {
+    "max": [
+     "wrist_pin_r + 0.006 * s",
+     "-(piston_inner_r - 0.0005) + piston_inner_r - 0.0105 * s - 0.0005"
+    ],
+    "min": [
+     "wrist_pin_r",
+     "-(piston_inner_r - 0.0005)"
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Forged aluminium 4032"
+            custom string aiad:name = "Pin boss -Z"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Pin_boss_Z_2"
+        {
+            custom string aiad:derived = '{"area":0.004554105911111942,"bounds":[[-0.015,-0.015,0.0105],[0.015,0.015,0.03470000000000001]],"centroid":[7.05820906653064e-07,1.6169539189228238e-06,0.022598791327897896],"inertia":[1.3722695124092743e-09,1.3718090390868165e-09,1.6753336183527387e-09,1.2375881834117885e-13,1.632013458456725e-15,-9.168046771574117e-14],"key":"30b774bc0673dabc","volume":1.0949504426058897e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "XZ",
+  "profile": {
+   "rect": {
+    "max": [
+     "wrist_pin_r + 0.006 * s",
+     "0.0105 * s + piston_inner_r - 0.0105 * s - 0.0005"
+    ],
+    "min": [
+     "wrist_pin_r",
+     "0.0105 * s"
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Forged aluminium 4032"
+            custom string aiad:name = "Pin boss +Z"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+    }
+
+    def Xform "Camshaft"
+    {
+        custom string aiad:body = "Camshaft"
+        custom string aiad:origin = '["cam_centre_x",0,0]'
+        double3 xformOp:translate:rest = (0.26576666666666665, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "Camshaft"
+        {
+            custom string aiad:derived = '{"area":0.005944056056142596,"bounds":[[-0.009,-0.009,-0.0571],[0.009000000000000001,0.009,0.039000000000000014]],"centroid":[4.319737219802263e-08,7.333447182514173e-09,-0.009051727960087684],"inertia":[1.9316572982480844e-08,1.9316574470123777e-08,9.904408005110508e-10,-4.560789446388478e-14,-3.602930153130458e-14,-1.09333988307509e-15],"key":"62ed6fa9715afbc0","volume":2.4455993986522874e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "axis": [
+   0,
+   0,
+   1
+  ],
+  "base": [
+   0,
+   0,
+   "timing_z - timing_width / 2"
+  ],
+  "height": "valve_offset_z + 0.020 * s - timing_z + timing_width / 2",
+  "op": "cylinder",
+  "radius": "0.009 * s"
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Camshaft"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Intake_lobe"
+        {
+            custom string aiad:derived = '{"area":0.0033731395350978955,"bounds":[[-0.016000000000000004,-0.021000542388538674,0.012499999999999997],[0.018483036356506034,0.016,0.02550000000000001]],"centroid":[0.0017607382649616212,-0.002295200122675251,0.01899994628919337],"inertia":[1.2270780963629163e-09,1.0994988686149507e-09,1.9762313391182586e-09,-7.923042617101502e-16,1.203639092532195e-14,2.379135471855454e-10],"key":"9d7151b26c71351c","volume":1.2438306072872154e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": "0.013 * s",
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "cam": {
+    "base_radius": "cam_base_radius",
+    "close": "intake_close",
+    "lift": "intake_lift",
+    "open": "intake_open"
+   }
+  },
+  "start": "valve_offset_z - 0.0065 * s"
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Intake lobe"
+            custom string aiad:role = "intake_lobe"
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Exhaust_lobe"
+        {
+            custom string aiad:derived = '{"area":0.003373172534173738,"bounds":[[-0.016,-0.016000000000000004,-0.025500000000000002],[0.018483036356506034,0.02100054238853866,-0.012499999999999997]],"centroid":[0.0017613445795214957,0.0022948280074369764,-0.018999985502221567],"inertia":[1.2270628626273916e-09,1.0996357425187792e-09,1.9763499552136513e-09,-3.3250482167163525e-15,-6.3633193064661504e-15,-2.3783615470965414e-10],"key":"4d6b4ed29eb20e4c","volume":1.2438413594638088e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": "0.013 * s",
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "cam": {
+    "base_radius": "cam_base_radius",
+    "close": "exhaust_close",
+    "lift": "exhaust_lift",
+    "open": "exhaust_open"
+   }
+  },
+  "start": "-valve_offset_z - 0.0065 * s"
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Exhaust lobe"
+            custom string aiad:role = "exhaust_lobe"
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Cam_sprocket"
+        {
+            custom string aiad:derived = '{"area":0.015183948218477466,"bounds":[[-0.042406562402412126,-0.04240656240241213,-0.05710000000000001],[0.042406562402412126,0.042406562402412126,-0.04509999999999999]],"centroid":[2.0815521284881243e-08,-2.0815521256430518e-08,-0.051100000000000013],"inertia":[2.7032316561738653e-08,2.7032316561738686e-08,5.255677087617987e-08,3.895450480093136e-15,3.895450567507204e-15,8.592743589590772e-14],"key":"b2bc7e5982f1bc30","volume":6.282759363739358e-05}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "distance": "timing_width",
+  "op": "extrude",
+  "plane": "XY",
+  "profile": {
+   "sprocket": {
+    "root_radius": "0.0395 * s",
+    "teeth": 36,
+    "tip_radius": "0.0425 * s"
+   }
+  },
+  "start": "timing_z - timing_width / 2"
+ }
+]'''
+            custom string aiad:material = "Steel, black oxide"
+            custom string aiad:name = "Cam sprocket"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+    }
+
+    def Xform "IntakeValve"
+    {
+        custom string aiad:body = "IntakeValve"
+        custom string aiad:origin = '["deck_x",0,"valve_offset_z"]'
+        double3 xformOp:translate:rest = (0.16066666666666665, 0, 0.019)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "Intake_valve"
+        {
+            custom string aiad:derived = '{"area":0.003587166067658398,"bounds":[[0.0,-0.016000000000000004,-0.016000000000000004],[0.08500000000000002,0.016,0.016]],"centroid":[0.022417893949042794,1.984368033438192e-06,-2.0593925284129283e-06],"inertia":[3.6711436621678505e-10,4.706127330251225e-09,4.707069143110392e-09,-2.577698717978938e-13,-1.5437704876749092e-13,1.5836423105112828e-13],"key":"4cff218f1fc1386d","volume":6.498087022054907e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "YX",
+  "profile": [
+   [
+    0,
+    0
+   ],
+   [
+    "intake_valve_diameter / 2",
+    0
+   ],
+   [
+    "intake_valve_diameter / 2",
+    "0.0012 * s"
+   ],
+   [
+    "intake_valve_diameter / 2 - 0.0028 * s",
+    "0.0040 * s",
+    -0.4142
+   ],
+   [
+    "stem_r",
+    "0.012 * s"
+   ],
+   [
+    "stem_r",
+    "tip_rel - 0.004 * s"
+   ],
+   [
+    "stem_r - 0.0006",
+    "tip_rel - 0.004 * s"
+   ],
+   [
+    "stem_r - 0.0006",
+    "tip_rel - 0.0025 * s"
+   ],
+   [
+    "stem_r",
+    "tip_rel - 0.0025 * s"
+   ],
+   [
+    "stem_r",
+    "tip_rel"
+   ],
+   [
+    0,
+    "tip_rel"
+   ]
+  ]
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Intake valve"
+            custom string aiad:role = "intake_valve"
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Intake_bucket_tappet"
+        {
+            custom string aiad:derived = '{"area":0.0037213364223132274,"bounds":[[0.07300000000000001,-0.0145,-0.0145],[0.08900000000000001,0.0145,0.0145]],"centroid":[0.08351846869708772,3.722084819333704e-06,-4.863469141957568e-06],"inertia":[6.516199754704727e-10,4.2651106036476315e-10,4.281831824126252e-10,-5.218390946333679e-13,-1.521203573927985e-14,1.1642452829851637e-14],"key":"8870a645a18e3dbd","volume":4.677715352036141e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "YX",
+  "profile": [
+   [
+    "0.0125 * s",
+    "tip_rel - 0.012 * s"
+   ],
+   [
+    "0.0145 * s",
+    "tip_rel - 0.012 * s"
+   ],
+   [
+    "0.0145 * s",
+    "bucket_top_rel"
+   ],
+   [
+    0,
+    "bucket_top_rel"
+   ],
+   [
+    0,
+    "tip_rel"
+   ],
+   [
+    "0.0125 * s",
+    "tip_rel"
+   ]
+  ]
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Intake bucket tappet"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Intake_spring_retainer"
+        {
+            custom string aiad:derived = '{"area":0.000879619546470216,"bounds":[[0.08,-0.010500000000000002,-0.0105],[0.083,0.0105,0.0105]],"centroid":[0.0815,2.4878098338537903e-06,-3.2507015350213925e-06],"inertia":[5.664349386273112e-11,2.8941774377188316e-11,2.9087127469433624e-11,-4.536211628904957e-14,4.9106644428426575e-26,4.641836980685918e-27],"key":"b6e74646fd04a9a3","volume":9.236053225938748e-07}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "YX",
+  "profile": {
+   "rect": {
+    "max": [
+     "0.0105 * s",
+     "head_height + spring_length + 0.003 * s"
+    ],
+    "min": [
+     "stem_r",
+     "head_height + spring_length"
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Intake spring retainer"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+    }
+
+    def Xform "ExhaustValve"
+    {
+        custom string aiad:body = "ExhaustValve"
+        custom string aiad:origin = '["deck_x",0,"-valve_offset_z"]'
+        double3 xformOp:translate:rest = (0.16066666666666665, 0, -0.019)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "Exhaust_valve"
+        {
+            custom string aiad:derived = '{"area":0.0031818335140688225,"bounds":[[0.0,-0.014,-0.014],[0.08500000000000002,0.014,0.014]],"centroid":[0.02529595837577179,1.6520088575119182e-06,-1.6660113586096421e-06],"inertia":[2.203101677066261e-10,4.258079956607228e-09,4.2586450789656396e-09,-1.491508051328848e-13,-9.95313195887053e-14,1.140279807905134e-13],"key":"57309f17937f99e1","volume":5.676030010868832e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "YX",
+  "profile": [
+   [
+    0,
+    0
+   ],
+   [
+    "exhaust_valve_diameter / 2",
+    0
+   ],
+   [
+    "exhaust_valve_diameter / 2",
+    "0.0012 * s"
+   ],
+   [
+    "exhaust_valve_diameter / 2 - 0.0028 * s",
+    "0.0040 * s",
+    -0.4142
+   ],
+   [
+    "stem_r",
+    "0.012 * s"
+   ],
+   [
+    "stem_r",
+    "tip_rel - 0.004 * s"
+   ],
+   [
+    "stem_r - 0.0006",
+    "tip_rel - 0.004 * s"
+   ],
+   [
+    "stem_r - 0.0006",
+    "tip_rel - 0.0025 * s"
+   ],
+   [
+    "stem_r",
+    "tip_rel - 0.0025 * s"
+   ],
+   [
+    "stem_r",
+    "tip_rel"
+   ],
+   [
+    0,
+    "tip_rel"
+   ]
+  ]
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Exhaust valve"
+            custom string aiad:role = "exhaust_valve"
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Exhaust_bucket_tappet"
+        {
+            custom string aiad:derived = '{"area":0.0037213364223132274,"bounds":[[0.07300000000000001,-0.0145,-0.0145],[0.08900000000000001,0.0145,0.0145]],"centroid":[0.08351846869708772,3.722084819333704e-06,-4.863469141957568e-06],"inertia":[6.516199754704727e-10,4.2651106036476315e-10,4.281831824126252e-10,-5.218390946333679e-13,-1.521203573927985e-14,1.1642452829851637e-14],"key":"8870a645a18e3dbd","volume":4.677715352036141e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "YX",
+  "profile": [
+   [
+    "0.0125 * s",
+    "tip_rel - 0.012 * s"
+   ],
+   [
+    "0.0145 * s",
+    "tip_rel - 0.012 * s"
+   ],
+   [
+    "0.0145 * s",
+    "bucket_top_rel"
+   ],
+   [
+    0,
+    "bucket_top_rel"
+   ],
+   [
+    0,
+    "tip_rel"
+   ],
+   [
+    "0.0125 * s",
+    "tip_rel"
+   ]
+  ]
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Exhaust bucket tappet"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+
+        def Xform "Exhaust_spring_retainer"
+        {
+            custom string aiad:derived = '{"area":0.000879619546470216,"bounds":[[0.08,-0.010500000000000002,-0.0105],[0.083,0.0105,0.0105]],"centroid":[0.0815,2.4878098338537903e-06,-3.2507015350213925e-06],"inertia":[5.664349386273112e-11,2.8941774377188316e-11,2.9087127469433624e-11,-4.536211628904957e-14,4.9106644428426575e-26,4.641836980685918e-27],"key":"b6e74646fd04a9a3","volume":9.236053225938748e-07}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "op": "revolve",
+  "plane": "YX",
+  "profile": {
+   "rect": {
+    "max": [
+     "0.0105 * s",
+     "head_height + spring_length + 0.003 * s"
+    ],
+    "min": [
+     "stem_r",
+     "head_height + spring_length"
+    ]
+   }
+  }
+ }
+]'''
+            custom string aiad:material = "Steel 42CrMo4"
+            custom string aiad:name = "Exhaust spring retainer"
+            custom string aiad:role = ""
+            custom bool aiad:sectioned = 0
+        }
+    }
+
+    def Xform "IntakeSpring"
+    {
+        custom string aiad:body = "IntakeSpring"
+        custom string aiad:origin = '["head_top_x",0,"valve_offset_z"]'
+        double3 xformOp:translate:rest = (0.20266666666666666, 0, 0.019)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "Intake_valve_spring"
+        {
+            custom string aiad:derived = '{"area":0.003813779333702411,"centroid":[0.01906885559280017,0.00042308666526559525,1.9087603612506497e-06],"inertia":[2.63025531263862e-10,5.019639711736491e-10,5.017178515257371e-10,-7.496123504719058e-14,-1.3057368031757094e-12,8.305785259722553e-13],"key":"c870eabf2f9861ca","volume":3.0527609945988286e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "axis": [
+   1,
+   0,
+   0
+  ],
+  "base": [
+   0,
+   0,
+   0
+  ],
+  "coil_radius": "0.0092 * s",
+  "height": "spring_length",
+  "op": "helix_pipe",
+  "turns": 6.5,
+  "wire_radius": "0.0016 * s"
+ }
+]'''
+            custom string aiad:material = "Steel, black oxide"
+            custom string aiad:name = "Intake valve spring"
+            custom string aiad:role = "intake_spring"
+            custom bool aiad:sectioned = 0
+        }
+    }
+
+    def Xform "ExhaustSpring"
+    {
+        custom string aiad:body = "ExhaustSpring"
+        custom string aiad:origin = '["head_top_x",0,"-valve_offset_z"]'
+        double3 xformOp:translate:rest = (0.20266666666666666, 0, -0.019)
+        uniform token[] xformOpOrder = ["xformOp:translate:rest"]
+
+        def Xform "Exhaust_valve_spring"
+        {
+            custom string aiad:derived = '{"area":0.003813779333702411,"centroid":[0.01906885559280017,0.00042308666526559525,1.9087603612506497e-06],"inertia":[2.63025531263862e-10,5.019639711736491e-10,5.017178515257371e-10,-7.496123504719058e-14,-1.3057368031757094e-12,8.305785259722553e-13],"key":"c870eabf2f9861ca","volume":3.0527609945988286e-06}'
+            custom string aiad:error = ""
+            custom string aiad:features = '''[
+ {
+  "axis": [
+   1,
+   0,
+   0
+  ],
+  "base": [
+   0,
+   0,
+   0
+  ],
+  "coil_radius": "0.0092 * s",
+  "height": "spring_length",
+  "op": "helix_pipe",
+  "turns": 6.5,
+  "wire_radius": "0.0016 * s"
+ }
+]'''
+            custom string aiad:material = "Steel, black oxide"
+            custom string aiad:name = "Exhaust valve spring"
+            custom string aiad:role = "exhaust_spring"
+            custom bool aiad:sectioned = 0
+        }
+    }
+
+    def Scope "Joints"
+    {
+        def PhysicsRevoluteJoint "Main_bearing"
+        {
+            custom string aiad:axis = "[0,0,1]"
+            custom string aiad:body0 = "Crankshaft"
+            custom string aiad:body1 = "Frame"
+            custom string aiad:limits = ""
+            custom string aiad:motor = '{"duration":"starter_duration","free_speed":"starter_free_speed * pi / 30","mode":"torque","value":"starter_stall_torque"}'
+            custom string aiad:name = "Main bearing"
+            custom string aiad:point = "[0,0,0]"
+            custom string aiad:type = "revolute"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </Engine_SingleCylinder/Crankshaft>
+            rel physics:body1 = </Engine_SingleCylinder/Frame>
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+            quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+            float physics:lowerLimit = -inf
+            float physics:upperLimit = inf
+        }
+
+        def PhysicsRevoluteJoint "Crank_pin"
+        {
+            custom string aiad:axis = "[0,0,1]"
+            custom string aiad:body0 = "Rod"
+            custom string aiad:body1 = "Crankshaft"
+            custom string aiad:limits = ""
+            custom string aiad:motor = ""
+            custom string aiad:name = "Crank pin"
+            custom string aiad:point = '["r",0,0]'
+            custom string aiad:type = "revolute"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </Engine_SingleCylinder/Rod>
+            rel physics:body1 = </Engine_SingleCylinder/Crankshaft>
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0.03, 0, 0)
+            quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+            quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+            float physics:lowerLimit = -inf
+            float physics:upperLimit = inf
+        }
+
+        def PhysicsRevoluteJoint "Wrist_pin"
+        {
+            custom string aiad:axis = "[0,0,1]"
+            custom string aiad:body0 = "Piston"
+            custom string aiad:body1 = "Rod"
+            custom string aiad:limits = ""
+            custom string aiad:motor = ""
+            custom string aiad:name = "Wrist pin"
+            custom string aiad:point = '["r + rod_length",0,0]'
+            custom string aiad:type = "revolute"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </Engine_SingleCylinder/Piston>
+            rel physics:body1 = </Engine_SingleCylinder/Rod>
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0.1, 0, 0)
+            quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+            quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+            float physics:lowerLimit = -inf
+            float physics:upperLimit = inf
+        }
+
+        def PhysicsPrismaticJoint "Piston_bore"
+        {
+            custom string aiad:axis = "[1,0,0]"
+            custom string aiad:body0 = "Piston"
+            custom string aiad:body1 = "Frame"
+            custom string aiad:limits = ""
+            custom string aiad:motor = ""
+            custom string aiad:name = "Piston bore"
+            custom string aiad:point = '["r + rod_length",0,0]'
+            custom string aiad:type = "prismatic"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </Engine_SingleCylinder/Piston>
+            rel physics:body1 = </Engine_SingleCylinder/Frame>
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0.13, 0, 0)
+            quatf physics:localRot0 = (1, 0, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+            float physics:lowerLimit = -inf
+            float physics:upperLimit = inf
+        }
+
+        def PhysicsRevoluteJoint "Camshaft_bearing"
+        {
+            custom string aiad:axis = "[0,0,1]"
+            custom string aiad:body0 = "Camshaft"
+            custom string aiad:body1 = "Frame"
+            custom string aiad:limits = ""
+            custom string aiad:motor = ""
+            custom string aiad:name = "Camshaft bearing"
+            custom string aiad:point = '["cam_centre_x",0,0]'
+            custom string aiad:type = "revolute"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </Engine_SingleCylinder/Camshaft>
+            rel physics:body1 = </Engine_SingleCylinder/Frame>
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0.26576668, 0, 0)
+            quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+            quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+            float physics:lowerLimit = -inf
+            float physics:upperLimit = inf
+        }
+
+        def PhysicsPrismaticJoint "Intake_valve_guide"
+        {
+            custom string aiad:axis = "[1,0,0]"
+            custom string aiad:body0 = "IntakeValve"
+            custom string aiad:body1 = "Frame"
+            custom string aiad:limits = "[null,0]"
+            custom string aiad:motor = ""
+            custom string aiad:name = "Intake valve guide"
+            custom string aiad:point = '["deck_x",0,"valve_offset_z"]'
+            custom string aiad:type = "prismatic"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </Engine_SingleCylinder/IntakeValve>
+            rel physics:body1 = </Engine_SingleCylinder/Frame>
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0.16066666, 0, 0.019)
+            quatf physics:localRot0 = (1, 0, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+            float physics:lowerLimit = -inf
+            float physics:upperLimit = 0
+        }
+
+        def PhysicsPrismaticJoint "Exhaust_valve_guide"
+        {
+            custom string aiad:axis = "[1,0,0]"
+            custom string aiad:body0 = "ExhaustValve"
+            custom string aiad:body1 = "Frame"
+            custom string aiad:limits = "[null,0]"
+            custom string aiad:motor = ""
+            custom string aiad:name = "Exhaust valve guide"
+            custom string aiad:point = '["deck_x",0,"-valve_offset_z"]'
+            custom string aiad:type = "prismatic"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </Engine_SingleCylinder/ExhaustValve>
+            rel physics:body1 = </Engine_SingleCylinder/Frame>
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0.16066666, 0, -0.019)
+            quatf physics:localRot0 = (1, 0, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+            float physics:lowerLimit = -inf
+            float physics:upperLimit = 0
+        }
+    }
+
+    def Scope "Elements"
+    {
+        def Scope "Crank_friction_and_load"
+        {
+            custom string aiad:definition = '{"constant":"0.97e5 * bore^2 * stroke / 16","joint":"Main bearing","linear":"0.15e5 * bore^2 * stroke / 16 * 30 / (pi * 1000)","quadratic":"0.05e5 * bore^2 * stroke / 16 * (30 / (pi * 1000))^2 + load_coefficient"}'
+            custom string aiad:name = "Crank friction and load"
+            custom string aiad:type = "load"
+        }
+
+        def Scope "Timing_belt"
+        {
+            custom string aiad:definition = '{"belt":"Timing belt","joint0":"Main bearing","joint1":"Camshaft bearing","part0":"Crank sprocket","part1":"Cam sprocket"}'
+            custom string aiad:name = "Timing belt"
+            custom string aiad:type = "belt"
+        }
+
+        def Scope "Intake_cam"
+        {
+            custom string aiad:definition = '{"body":"IntakeValve","normal":[1,0,0],"part":"Intake lobe","point":["deck_x + bucket_top_rel",0,"valve_offset_z"],"radius":"0.0145 * s"}'
+            custom string aiad:name = "Intake cam"
+            custom string aiad:type = "contact"
+        }
+
+        def Scope "Exhaust_cam"
+        {
+            custom string aiad:definition = '{"body":"ExhaustValve","normal":[1,0,0],"part":"Exhaust lobe","point":["deck_x + bucket_top_rel",0,"-valve_offset_z"],"radius":"0.0145 * s"}'
+            custom string aiad:name = "Exhaust cam"
+            custom string aiad:type = "contact"
+        }
+
+        def Scope "Intake_valve_spring"
+        {
+            custom string aiad:definition = '{"body0":"Frame","body1":"IntakeValve","free_length":"spring_free_length","part":"Intake valve spring","point0":["head_top_x",0,"valve_offset_z"],"point1":["head_top_x + spring_length",0,"valve_offset_z"]}'
+            custom string aiad:name = "Intake valve spring"
+            custom string aiad:type = "spring"
+        }
+
+        def Scope "Exhaust_valve_spring"
+        {
+            custom string aiad:definition = '{"body0":"Frame","body1":"ExhaustValve","free_length":"spring_free_length","part":"Exhaust valve spring","point0":["head_top_x",0,"-valve_offset_z"],"point1":["head_top_x + spring_length",0,"-valve_offset_z"]}'
+            custom string aiad:name = "Exhaust valve spring"
+            custom string aiad:type = "spring"
+        }
+
+        def Scope "Magneto"
+        {
+            custom string aiad:definition = '{"coil":"Magneto coil","core":["Magneto core leg A","Magneto core leg B","Magneto core yoke"],"magnet":"Magnet (ferrite)","points_open":"points_open_deg","rotor":"Main bearing","shoes":["Pole shoe A","Pole shoe B"]}'
+            custom string aiad:name = "Magneto"
+            custom string aiad:type = "magneto"
+        }
+
+        def Scope "Cylinder"
+        {
+            custom string aiad:definition = '{"crank":"Main bearing","cylinder":"Cylinder liner","exhaust":[{"joint":"Exhaust valve guide","part":"Exhaust valve"}],"head":"Cylinder head","ignition":"Magneto","intake":[{"joint":"Intake valve guide","part":"Intake valve"}],"piston":"Piston bore"}'
+            custom string aiad:name = "Cylinder"
+            custom string aiad:type = "chamber"
+        }
+    }
+}
+

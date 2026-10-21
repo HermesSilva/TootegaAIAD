@@ -6,7 +6,7 @@
 )
 
 def Xform "ETA_6497_1" (
-    prepend payload = @./Clock.geom.usdc@
+    prepend payload = @./Watch_ETA6497.geom.usdc@
 )
 {
     custom string aiad:materials = '''{
